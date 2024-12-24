@@ -1,11 +1,13 @@
 package com.igot.cb.metrics;
 
 import com.igot.cb.pores.util.Constants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class MetricsComponent {
 
@@ -20,7 +22,7 @@ public class MetricsComponent {
         operationStartTime = System.currentTimeMillis();
     }
 
-    public void endOperation() {
+    public void endOperation(String operationName) {
         if (operationStartTime == 0) {
             throw new IllegalStateException("No operation is currently in progress.");
         }
@@ -28,6 +30,7 @@ public class MetricsComponent {
         totalTimeTaken += elapsedTime;
         operationCount++;
         operationStartTime = 0;
+        log.info("Operation time taken:: {}: {}",operationName,elapsedTime);
     }
 
     public Map<String, Object> getOperationStats() {
