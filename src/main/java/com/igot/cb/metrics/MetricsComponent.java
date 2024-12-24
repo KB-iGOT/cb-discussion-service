@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class DBStatsComponent {
+public class MetricsComponent {
 
     private int operationCount = 0;
     private long totalTimeTaken = 0;

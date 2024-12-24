@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
-import com.igot.cb.metrics.DBStatsComponent;
+import com.igot.cb.metrics.MetricsComponent;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
@@ -71,7 +71,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private RedisTemplate<String, Object> redisTemp;
 
     @Autowired
-    DBStatsComponent dbStatsComponent;
+    MetricsComponent metricsComponent;
 
     @PostConstruct
     public void init() {
@@ -115,20 +115,20 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setIsActive(true);
             ((ObjectNode) discussionDetails).put(Constants.IS_ACTIVE,true);
             jsonNodeEntity.setData(discussionDetails);
-            dbStatsComponent.startOperation();
+            metricsComponent.startOperation();
             DiscussionEntity saveJsonEntity = discussionRepository.save(jsonNodeEntity);
-            dbStatsComponent.endOperation();
+            metricsComponent.endOperation();
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll((ObjectNode) saveJsonEntity.getData());
             Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            dbStatsComponent.startOperation();
+            metricsComponent.startOperation();
             esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, String.valueOf(id), map, cbServerProperties.getElasticDiscussionJsonPath());
-            dbStatsComponent.endOperation();
-            dbStatsComponent.startOperation();
+            metricsComponent.endOperation();
+            metricsComponent.startOperation();
             cacheService.putCache("discussion_" + String.valueOf(id), jsonNode);
-            dbStatsComponent.endOperation();
-            Map<String, Object> metrics = dbStatsComponent.getOperationStats();
+            metricsComponent.endOperation();
+            Map<String, Object> metrics = metricsComponent.getOperationStats();
             map.put(Constants.METRIC,metrics);
             map.put(Constants.CREATED_ON,currentTime);
             response.setResponseCode(HttpStatus.CREATED);
