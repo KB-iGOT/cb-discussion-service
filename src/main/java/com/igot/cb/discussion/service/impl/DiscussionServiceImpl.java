@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
+import com.igot.cb.metrics.DBStatsComponent;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
@@ -69,6 +70,9 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Autowired
     private RedisTemplate<String, Object> redisTemp;
 
+    @Autowired
+    DBStatsComponent dbStatsComponent;
+
     @PostConstruct
     public void init() {
         if (storageService == null) {
@@ -85,6 +89,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse createDiscussion(JsonNode discussionDetails, String token) {
         log.info("DiscussionService::createDiscussion:creating discussion");
+        long startTime = System.currentTimeMillis();
         ApiResponse response = ProjectUtil.createDefaultResponse("discussion.create");
         payloadValidation.validatePayload(Constants.DISCUSSION_VALIDATION_FILE, discussionDetails);
         String userId = accessTokenValidator.verifyUserToken(token);
@@ -110,16 +115,25 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setIsActive(true);
             ((ObjectNode) discussionDetails).put(Constants.IS_ACTIVE,true);
             jsonNodeEntity.setData(discussionDetails);
+            dbStatsComponent.startOperation();
             DiscussionEntity saveJsonEntity = discussionRepository.save(jsonNodeEntity);
+            dbStatsComponent.endOperation();
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll((ObjectNode) saveJsonEntity.getData());
             Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
+            dbStatsComponent.startOperation();
             esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, String.valueOf(id), map, cbServerProperties.getElasticDiscussionJsonPath());
+            dbStatsComponent.endOperation();
+            dbStatsComponent.startOperation();
             cacheService.putCache("discussion_" + String.valueOf(id), jsonNode);
+            dbStatsComponent.endOperation();
+            Map<String, Object> metrics = dbStatsComponent.getOperationStats();
+            map.put(Constants.METRIC,metrics);
             map.put(Constants.CREATED_ON,currentTime);
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
+            map.put(Constants.TOTAL_TIME_TAKEN,System.currentTimeMillis() - startTime);
             response.setResult(map);
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);

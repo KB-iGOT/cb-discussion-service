@@ -148,6 +148,10 @@ public class Constants {
     public static final String OTHERS = "Others";
     public static final String PARENT_ANSWER_POST_ID_ERROR = "parentAnswerPostId cannot be of type answerPost";
     public static final String PARENT_DISCUSSION_ID_ERROR = "parentDiscussion is suspended, Please provide a valid parentDiscussion id";
+    public static final String METRIC = "metrics";
+    public static final String TOTAL_TIME_TAKEN = "total_time_taken";
+    public static final String TIME_TAKEN = "totalTimeTaken";
+    public static final String OPERATION_COUNT = "operationCount";
     private Constants() {
     }
 }
