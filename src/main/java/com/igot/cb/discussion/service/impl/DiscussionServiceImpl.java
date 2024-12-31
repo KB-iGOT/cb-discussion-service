@@ -94,7 +94,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         }
         try {
-
             ((ObjectNode) discussionDetails).put(Constants.CREATED_BY, userId);
             ((ObjectNode) discussionDetails).put(Constants.UP_VOTE_COUNT,0L);
             ((ObjectNode) discussionDetails).put(Constants.DOWN_VOTE_COUNT,0L);
