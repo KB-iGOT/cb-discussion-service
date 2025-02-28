@@ -16,7 +16,10 @@
       "type": "string"
     },
     "taggedUser": {
-      "type": "string"
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [

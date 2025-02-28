@@ -1226,17 +1226,19 @@ public class DiscussionServiceImpl implements DiscussionService {
                         discussion -> discussion.get(Constants.DISCUSSION_ID).toString(),
                         discussion -> discussion.get(Constants.CREATED_BY).toString()));
 
-        final Map<String, String> discussionToUserTagMap = new HashMap<>();
+        Map<String, List<String>> discussionToUserTagMap = new HashMap<>();
         if (isAnswerPost) {
             discussionToUserTagMap.putAll(discussions.stream()
                     .filter(discussion -> discussion.containsKey(Constants.TAGGED_USER))
                     .collect(Collectors.toMap(
                             discussion -> discussion.get(Constants.DISCUSSION_ID).toString(),
-                            discussion -> discussion.get(Constants.TAGGED_USER).toString())));
+                            discussion -> (List<String>) discussion.get(Constants.TAGGED_USER))));
         }
 
         Set<String> createdByIds = new HashSet<>(discussionToCreatedByMap.values());
-        Set<String> userTagIds = new HashSet<>(discussionToUserTagMap.values());
+        Set<String> userTagIds = discussionToUserTagMap.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
         Set<String> allUserIds = new HashSet<>();
         allUserIds.addAll(createdByIds);
         allUserIds.addAll(userTagIds);
@@ -1268,14 +1270,17 @@ public class DiscussionServiceImpl implements DiscussionService {
         discussions.forEach(discussion -> {
             String discussionId = discussion.get(Constants.DISCUSSION_ID).toString();
             String createdById = discussionToCreatedByMap.get(discussionId);
-            String userTagId = discussionToUserTagMap.get(discussionId);
+            List<String> userTagIdsList = discussionToUserTagMap.get(discussionId);
             boolean hasCreatedBy = createdById != null && userDetailsMap.containsKey(createdById);
-            boolean hasUserTag = userTagId != null && userDetailsMap.containsKey(userTagId);
             if (hasCreatedBy) {
                 discussion.put(Constants.CREATED_BY, userDetailsMap.get(createdById));
             }
-            if (isAnswerPost && hasUserTag) {
-                discussion.put(Constants.TAGGED_USER, userDetailsMap.get(userTagId));
+            if (isAnswerPost && userTagIdsList != null) {
+                List<Object> userTags = userTagIdsList.stream()
+                        .filter(userDetailsMap::containsKey)
+                        .map(userDetailsMap::get)
+                        .collect(Collectors.toList());
+                discussion.put(Constants.TAGGED_USER, userTags);
             }
         });
     }
