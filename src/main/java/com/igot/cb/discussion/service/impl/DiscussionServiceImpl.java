@@ -1236,9 +1236,12 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
 
         Set<String> createdByIds = new HashSet<>(discussionToCreatedByMap.values());
-        Set<String> userTagIds = discussionToUserTagMap.values().stream()
-                .flatMap(Collection::stream)
-                .collect(Collectors.toSet());
+        Set<String> userTagIds = new HashSet<>();
+        if (!discussionToUserTagMap.isEmpty()) {
+            userTagIds = discussionToUserTagMap.values().stream()
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toSet());
+        }
         Set<String> allUserIds = new HashSet<>();
         allUserIds.addAll(createdByIds);
         allUserIds.addAll(userTagIds);
@@ -1275,7 +1278,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             if (hasCreatedBy) {
                 discussion.put(Constants.CREATED_BY, userDetailsMap.get(createdById));
             }
-            if (isAnswerPost && userTagIdsList != null) {
+            if (isAnswerPost && userTagIdsList != null && !userTagIdsList.isEmpty()) {
                 List<Object> userTags = userTagIdsList.stream()
                         .filter(userDetailsMap::containsKey)
                         .map(userDetailsMap::get)
