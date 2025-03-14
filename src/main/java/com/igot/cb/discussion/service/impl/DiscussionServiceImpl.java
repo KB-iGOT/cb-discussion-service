@@ -1526,10 +1526,18 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private String generateRedisTokenKey(SearchCriteria searchCriteria) {
         if (searchCriteria != null) {
-            if (searchCriteria.getFilterCriteriaMap().containsKey(Constants.CREATED_BY) && searchCriteria.getFilterCriteriaMap().containsKey(Constants.COMMUNITY_ID)
+            if (searchCriteria.getFilterCriteriaMap().containsKey(Constants.CREATED_BY)
+                    && searchCriteria.getFilterCriteriaMap().containsKey(Constants.COMMUNITY_ID)
                     && searchCriteria.getFilterCriteriaMap().containsKey(Constants.TYPE)
-                    && searchCriteria.getFilterCriteriaMap().get(Constants.TYPE).equals(Constants.QUESTION)) {
-                return Constants.DISCUSSION_POSTS_BY_USER + searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID) + Constants.UNDER_SCORE + searchCriteria.getFilterCriteriaMap().get(Constants.CREATED_BY) + Constants.UNDER_SCORE + searchCriteria.getPageNumber();
+                    && StringUtils.isNotBlank((String) searchCriteria.getFilterCriteriaMap().get(Constants.CREATED_BY))
+                    && StringUtils.isNotBlank((String) searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID))
+                    && Constants.QUESTION.equals(searchCriteria.getFilterCriteriaMap().get(Constants.TYPE))) {
+                return Constants.DISCUSSION_POSTS_BY_USER
+                        + searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID)
+                        + Constants.UNDER_SCORE
+                        + searchCriteria.getFilterCriteriaMap().get(Constants.CREATED_BY)
+                        + Constants.UNDER_SCORE
+                        + searchCriteria.getPageNumber();
             }
             try {
                 String reqJsonString = objectMapper.writeValueAsString(searchCriteria);
