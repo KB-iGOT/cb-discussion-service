@@ -74,7 +74,7 @@ public class CacheService {
         resultList.add(values); // Add map as an Object
       }
     } catch (Exception e) {
-      log.error("Error while fetching data from Redis: {}", e.getMessage());
+      log.error("Error while fetching data from Redis: {}", e.getMessage(), e);
     }
     return resultList;
   }
