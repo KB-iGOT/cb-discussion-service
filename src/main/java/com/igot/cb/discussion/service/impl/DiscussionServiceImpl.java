@@ -604,8 +604,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                     return objectMapper.readValue(stringifiedJson, Object.class); // You can map this to a specific User type if needed
                 } catch (Exception e) {
                     log.error("Failed to fetch user data from redis ", e.getMessage(), e);
-                    // Handle any exceptions during deserialization
-                    e.printStackTrace();
                     return null; // Return null in case of error
                 }
             })
