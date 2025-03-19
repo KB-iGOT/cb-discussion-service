@@ -143,4 +143,11 @@ public class DiscussionController {
         ApiResponse response = discussionService.downVote(discussionId, Constants.ANSWER_POST, token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/enrichData")
+    public ResponseEntity<ApiResponse> enrichDiscussionData(@RequestBody Map<String, Object> searchData,  @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = discussionService.getEnrichedDiscussionData(searchData, token);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
 }
