@@ -185,6 +185,9 @@ public class Constants {
     public static final String USER_MUST_VOTE_FIRST = "User must vote the post first";
     public static final String DISCUSSION_POSTS_BY_USER = "discussionPostsByUser_";
     public static final String UNDER_SCORE = "_";
+    public static final String DISCUSSION_DOCUMENT_POST = "discussionDocumentPost_";
+    public static final String CATEGORY_TYPE = "categoryType";
+    public static final String DOCUMENT = "document";
 
     private Constants() {
     }
