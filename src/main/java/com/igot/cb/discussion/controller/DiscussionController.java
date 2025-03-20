@@ -41,7 +41,7 @@ public class DiscussionController {
 
     @PostMapping("/search")
     public ResponseEntity<ApiResponse> searchDiscussion(@RequestBody SearchCriteria searchCriteria){
-        ApiResponse response = discussionService.searchDiscussion(searchCriteria);
+        ApiResponse response = discussionService.searchDiscussion(searchCriteria, false);
         return new ResponseEntity<>(response,response.getResponseCode());
     }
 
@@ -145,8 +145,9 @@ public class DiscussionController {
     }
 
     @PostMapping("/globalFeed")
-    public ResponseEntity<ApiResponse> getGlobalFeed(@RequestBody SearchCriteria searchCriteria) {
-        ApiResponse response = discussionService.getGlobalFeed(searchCriteria);
+    public ResponseEntity<ApiResponse> getGlobalFeed(@RequestBody SearchCriteria searchCriteria,
+                                                     @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = discussionService.getGlobalFeed(searchCriteria, token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 }

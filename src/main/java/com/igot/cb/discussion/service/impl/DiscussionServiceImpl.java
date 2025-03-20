@@ -310,12 +310,16 @@ public class DiscussionServiceImpl implements DiscussionService {
 
 
     @Override
-    public ApiResponse searchDiscussion(SearchCriteria searchCriteria) {
+    public ApiResponse searchDiscussion(SearchCriteria searchCriteria, boolean isOverride) {
         log.info("DiscussionServiceImpl::searchDiscussion");
         ApiMetricsTracker.enableTracking();
         ApiResponse response = ProjectUtil.createDefaultResponse("search.discussion");
         String cacheKey = generateRedisTokenKey(searchCriteria);
-        SearchResult searchResult = redisTemplate.opsForValue().get(cacheKey);
+        SearchResult searchResult = null;
+        if (!isOverride) {
+            searchResult = redisTemplate.opsForValue().get(cacheKey);
+        }
+
         if (searchResult != null) {
             log.info("DiscussionServiceImpl::searchDiscussion:  search result fetched from redis");
             response.getResult().put(Constants.SEARCH_RESULTS, searchResult);
@@ -1587,7 +1591,38 @@ public class DiscussionServiceImpl implements DiscussionService {
         return "";
     }
 
-    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria) {
-        return this.searchDiscussion(searchCriteria);
+    @Override
+    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token) {
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
+        String userId = accessTokenValidator.verifyUserToken(token);
+
+        if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
+            return returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED);
+        }
+
+        populateCommunityIds(userId, searchCriteria);
+        response = searchDiscussion(searchCriteria, false);
+        return response;
     }
+
+    private void populateCommunityIds(String userId, SearchCriteria searchCriteria) {
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put(Constants.USERID, userId);
+        List<Map<String, Object>> communitiesData = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.COMMUNITY_ID_KEY, Constants.STATUS), null);
+        if (!CollectionUtils.isEmpty(communitiesData)) {
+            Set<String> communityIds = communitiesData.stream()
+                    .filter(community -> (boolean) community.get(Constants.STATUS))
+                    .map(community -> (String) community.get(Constants.COMMUNITY_ID_KEY))
+                    .collect(Collectors.toSet());
+
+            if (!CollectionUtils.isEmpty(communityIds)) {
+                searchCriteria.getFilterCriteriaMap().put(Constants.COMMUNITY_ID, communityIds);
+            }
+        }
+
+    }
+
+
+
 }
