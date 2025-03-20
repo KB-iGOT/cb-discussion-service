@@ -1545,13 +1545,16 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private String generateRedisTokenKey(SearchCriteria searchCriteria) {
         if (searchCriteria != null) {
-            if (searchCriteria.getFilterCriteriaMap().containsKey(Constants.CREATED_BY)
-                    && searchCriteria.getFilterCriteriaMap().containsKey(Constants.COMMUNITY_ID)
-                    && searchCriteria.getFilterCriteriaMap().containsKey(Constants.TYPE)
+            if (searchCriteria.getFilterCriteriaMap().size() == 3
+                    && searchCriteria.getFilterCriteriaMap().get(Constants.TYPE) instanceof String
+                    && Constants.QUESTION.equals(searchCriteria.getFilterCriteriaMap().get(Constants.TYPE))
+                    && searchCriteria.getFilterCriteriaMap().get(Constants.CREATED_BY) instanceof String
+                    && searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID) instanceof String
                     && StringUtils.isNotBlank((String) searchCriteria.getFilterCriteriaMap().get(Constants.CREATED_BY))
                     && StringUtils.isNotBlank((String) searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID))
-                    && Constants.QUESTION.equals(searchCriteria.getFilterCriteriaMap().get(Constants.TYPE))
-                    && searchCriteria.getRequestedFields() != null && CollectionUtils.isEmpty(searchCriteria.getRequestedFields())) {
+                    && searchCriteria.getRequestedFields() != null
+                    && CollectionUtils.isEmpty(searchCriteria.getRequestedFields())) {
+
                 return Constants.DISCUSSION_POSTS_BY_USER
                         + searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID)
                         + Constants.UNDER_SCORE
@@ -1561,7 +1564,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
 
             if (searchCriteria.getFilterCriteriaMap() != null
+                    && searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID) instanceof String
                     && StringUtils.isNotBlank((String) searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID))
+                    && searchCriteria.getFilterCriteriaMap().get(Constants.TYPE) instanceof String
                     && Constants.QUESTION.equals(searchCriteria.getFilterCriteriaMap().get(Constants.TYPE))
                     && searchCriteria.getFilterCriteriaMap().get(Constants.CATEGORY_TYPE) instanceof List
                     && ((List<?>) searchCriteria.getFilterCriteriaMap().get(Constants.CATEGORY_TYPE)).size() == 1
