@@ -143,4 +143,10 @@ public class DiscussionController {
         ApiResponse response = discussionService.downVote(discussionId, Constants.ANSWER_POST, token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/globalFeed")
+    public ResponseEntity<ApiResponse> getGlobalFeed(@RequestBody SearchCriteria searchCriteria) {
+        ApiResponse response = discussionService.getGlobalFeed(searchCriteria);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
 }
