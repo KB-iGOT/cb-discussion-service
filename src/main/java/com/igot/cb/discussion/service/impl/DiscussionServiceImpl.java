@@ -1581,4 +1581,8 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         return "";
     }
+
+    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria) {
+        return this.searchDiscussion(searchCriteria);
+    }
 }
