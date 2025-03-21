@@ -88,6 +88,9 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Value("${kafka.topic.community.discusion.like.count}")
     private String communityLikeCount;
 
+    @Value("${filter.criteria.global.feed}")
+    private String filterCriteriaForGlobalFeed;
+
     @PostConstruct
     public void init() {
         if (storageService == null) {
@@ -162,6 +165,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + discussionDetails.get(Constants.COMMUNITY_ID).asText());
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             updateCacheForFirstFivePages(discussionDetails.get(Constants.COMMUNITY_ID).asText(), false);
+            updateCacheForGlobalFeed(token);
+            log.info("Updated cache for global feed");
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
@@ -173,6 +178,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         }
         return response;
+    }
+
+    private void updateCacheForGlobalFeed(String token) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            SearchCriteria searchCriteria = objectMapper.readValue(filterCriteriaForGlobalFeed, SearchCriteria.class);
+            getGlobalFeed(searchCriteria, token, true);
+            //call the new method
+        } catch (Exception e) {
+            log.error("Error occured while updating the cache for globalFeed", e);
+            throw new RuntimeException("Error parsing filter criteria JSON", e);
+        }
     }
 
     /**
@@ -300,6 +317,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.getParams().setStatus(Constants.SUCCESS);
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + communityId);
             updateCacheForFirstFivePages(communityId, false);
+            updateCacheForGlobalFeed(token);
+            log.info("Updated cache for global feed");
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
             createErrorResponse(response, "Failed to update the discussion", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -332,6 +351,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         }
         try {
+            log.info("DiscussionServiceImpl::searchDiscussion:  search result fetched from es");
             if (MapUtils.isEmpty(searchCriteria.getFilterCriteriaMap())) {
                 searchCriteria.setFilterCriteriaMap(new HashMap<>());
             }
@@ -432,6 +452,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                         }
                         deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + map.get(Constants.COMMUNITY_ID));
                         updateCacheForFirstFivePages((String) map.get(Constants.COMMUNITY_ID),false);
+                        updateCacheForGlobalFeed(token);
+                        log.info("Updated cache for global feed");
                         producer.push(communityPostCount, communityObject);
                         return response;
                     } else {
@@ -539,8 +561,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                 discussionData.put(Constants.UP_VOTE_COUNT, existingUpVoteCount - 1);
             }
 
-            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-            discussionDbData.setUpdatedOn(currentTime);
             JsonNode jsonNode = objectMapper.valueToTree(discussionData);
             discussionDbData.setData(jsonNode);
             discussionRepository.save(discussionDbData);
@@ -946,6 +966,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, jsonNode);
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
             updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(),false);
+            updateCacheForGlobalFeed(token);
+            log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
             return response;
@@ -1592,7 +1614,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
     @Override
-    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token) {
+    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
         String userId = accessTokenValidator.verifyUserToken(token);
 
@@ -1601,7 +1623,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
 
         populateCommunityIds(userId, searchCriteria);
-        response = searchDiscussion(searchCriteria, false);
+        response = searchDiscussion(searchCriteria, isOverride);
         return response;
     }
 

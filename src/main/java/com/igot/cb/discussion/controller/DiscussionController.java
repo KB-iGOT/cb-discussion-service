@@ -147,7 +147,7 @@ public class DiscussionController {
     @PostMapping("/globalFeed")
     public ResponseEntity<ApiResponse> getGlobalFeed(@RequestBody SearchCriteria searchCriteria,
                                                      @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = discussionService.getGlobalFeed(searchCriteria, token);
+        ApiResponse response = discussionService.getGlobalFeed(searchCriteria, token, false);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 }
