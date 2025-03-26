@@ -147,6 +147,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setDiscussionId(String.valueOf(id));
             jsonNodeEntity.setCreatedOn(currentTime);
             discussionDetailsNode.put(Constants.CREATED_ON, formattedCurrentTime);
+            discussionDetailsNode.put(Constants.UPDATED_ON, formattedCurrentTime);
+            jsonNodeEntity.setUpdatedOn(currentTime);
             jsonNodeEntity.setIsActive(true);
             discussionDetailsNode.put(Constants.IS_ACTIVE, true);
             jsonNodeEntity.setData(discussionDetailsNode);
