@@ -190,6 +190,9 @@ public class Constants {
     public static final String DOCUMENT = "document";
     public static final String COMMUNITY_ID_KEY = "communityid";
     public static final String DISCUSSION_GET_GLOBAL_FEED_API = "discussion.getGlobalFeed";
+    public static final Object DOCUMENT_CATEGORY = "document";
+    public static final String DISCUSSION_TEXT = "discussionText";
+
     private Constants() {
     }
 }
