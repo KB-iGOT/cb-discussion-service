@@ -1567,31 +1567,34 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
 
         List<Map<String, Object>> communityFilters = (List<Map<String, Object>>) requestData.get(Constants.COMMUNITY_FILTERS);
+        List<String> filters = (List<String>) requestData.get(Constants.FILTERS);
 
-        List<String> communityIds = new ArrayList<>();
-        List<String> discussionIds = new ArrayList<>();
 
+        List<String> allDiscussionIds = new ArrayList<>();
         for (Map<String, Object> communityFilter : communityFilters) {
-            communityIds.add((String) communityFilter.get(Constants.COMMUNITY_ID));
-            discussionIds.addAll((List<String>) communityFilter.get(Constants.IDENTIFIER));
+            List<String> discussionIdsForCommunity = (List<String>) communityFilter.get("identifier");
+            allDiscussionIds.addAll(discussionIdsForCommunity);
         }
 
 
-        List<String> filters = (List<String>) requestData.get(Constants.FILTERS);
-
-        Map<String, Boolean> likesMap = initializeDefaultMap(discussionIds, false);
-        Map<String, Boolean> bookmarksMap = initializeDefaultMap(discussionIds, false);
-        Map<String, Boolean> reportedMap = initializeDefaultMap(discussionIds, false);
+        Map<String, Boolean> likesMap = initializeDefaultMap(allDiscussionIds, false);
+        Map<String, Boolean> bookmarksMap = initializeDefaultMap(allDiscussionIds, false);
+        Map<String, Boolean> reportedMap = initializeDefaultMap(allDiscussionIds, false);
 
         try {
-            if (filters.contains(Constants.LIKES)) {
-                fetchLikes(discussionIds, userId, likesMap);
-            }
-            if (filters.contains(Constants.BOOKMARKS)) {
-                fetchBookmarks(discussionIds, userId,  communityIds, bookmarksMap);
-            }
-            if (filters.contains(Constants.REPORTED)) {
-                fetchReported(discussionIds, userId, reportedMap);
+            for (Map<String, Object> communityFilter : communityFilters) {
+                String communityId = (String) communityFilter.get(Constants.COMMUNITY_ID);
+                List<String> discussionIds = (List<String>) communityFilter.get(Constants.IDENTIFIER);
+
+                if (filters.contains(Constants.LIKES)) {
+                    fetchLikes(discussionIds, userId, likesMap);
+                }
+                if (filters.contains(Constants.BOOKMARKS)) {
+                    fetchBookmarks(discussionIds, userId, communityId, bookmarksMap);
+                }
+                if (filters.contains(Constants.REPORTED)) {
+                    fetchReported(discussionIds, userId, reportedMap);
+                }
             }
 
             Map<String, Object> searchResults = new HashMap<>();
@@ -1631,7 +1634,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 .forEach(discussionId -> likesMap.put(discussionId, true));
     }
 
-    private void fetchBookmarks(List<String> discussionIds, String userId, List<String> communityId, Map<String, Boolean> bookmarksMap) {
+    private void fetchBookmarks(List<String> discussionIds, String userId, String communityId, Map<String, Boolean> bookmarksMap) {
 
         Map<String, Object> properties = new HashMap<>();
         properties.put(Constants.DISCUSSION_ID_KEY, discussionIds);
