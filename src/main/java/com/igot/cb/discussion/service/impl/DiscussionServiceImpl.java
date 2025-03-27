@@ -1566,9 +1566,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             return returnErrorMsg(errMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }
 
-        List<String> discussionIds = (List<String>) requestData.get(Constants.IDENTIFIER);
+        List<Map<String, Object>> communityFilters = (List<Map<String, Object>>) requestData.get(Constants.COMMUNITY_FILTERS);
+
+        List<String> communityIds = new ArrayList<>();
+        List<String> discussionIds = new ArrayList<>();
+
+        for (Map<String, Object> communityFilter : communityFilters) {
+            communityIds.add((String) communityFilter.get(Constants.COMMUNITY_ID));
+            discussionIds.addAll((List<String>) communityFilter.get(Constants.IDENTIFIER));
+        }
+
+
         List<String> filters = (List<String>) requestData.get(Constants.FILTERS);
-        String communityId = (String) requestData.get(Constants.COMMUNITY_ID);
 
         Map<String, Boolean> likesMap = initializeDefaultMap(discussionIds, false);
         Map<String, Boolean> bookmarksMap = initializeDefaultMap(discussionIds, false);
@@ -1579,7 +1588,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 fetchLikes(discussionIds, userId, likesMap);
             }
             if (filters.contains(Constants.BOOKMARKS)) {
-                fetchBookmarks(discussionIds, userId, communityId, bookmarksMap);
+                fetchBookmarks(discussionIds, userId,  communityIds, bookmarksMap);
             }
             if (filters.contains(Constants.REPORTED)) {
                 fetchReported(discussionIds, userId, reportedMap);
@@ -1622,7 +1631,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 .forEach(discussionId -> likesMap.put(discussionId, true));
     }
 
-    private void fetchBookmarks(List<String> discussionIds, String userId, String communityId, Map<String, Boolean> bookmarksMap) {
+    private void fetchBookmarks(List<String> discussionIds, String userId, List<String> communityId, Map<String, Boolean> bookmarksMap) {
 
         Map<String, Object> properties = new HashMap<>();
         properties.put(Constants.DISCUSSION_ID_KEY, discussionIds);
@@ -1660,16 +1669,30 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         List<String> errList = new ArrayList<>();
 
-        if (!requestData.containsKey(Constants.COMMUNITY_ID) ||
-                !(requestData.get(Constants.COMMUNITY_ID) instanceof String) ||
-                StringUtils.isBlank((String) requestData.get(Constants.COMMUNITY_ID))) {
-            errList.add(Constants.COMMUNITY_ID);
-        }
+        Object communityFiltersObj = requestData.get(Constants.COMMUNITY_FILTERS);
+        if (!(communityFiltersObj instanceof List<?>)) {
+            errList.add("Missing or invalid communityFilters.");
+        } else {
+            List<?> communityFilters = (List<?>) communityFiltersObj;
+            if (communityFilters.isEmpty()) {
+                errList.add("Empty communityFilters.");
+            } else {
+                for (Object obj : communityFilters) {
+                    if (!(obj instanceof Map<?, ?>)) {
+                        errList.add("Invalid communityFilters structure.");
+                        continue;
+                    }
 
-        if (!requestData.containsKey(Constants.IDENTIFIER) ||
-                !(requestData.get(Constants.IDENTIFIER) instanceof List) ||
-                ((List<?>) requestData.get(Constants.IDENTIFIER)).isEmpty()) {
-            errList.add(Constants.IDENTIFIER);
+                    Map<?, ?> communityFilter = (Map<?, ?>) obj;
+
+                    String communityId = (String) communityFilter.get(Constants.COMMUNITY_ID);
+                    List<?> identifiers = (List<?>) communityFilter.get(Constants.IDENTIFIER);
+
+                    if (StringUtils.isBlank(communityId) || identifiers == null || identifiers.isEmpty()) {
+                        errList.add("Invalid communityFilter: communityId or identifiers are missing/empty.");
+                    }
+                }
+            }
         }
 
         List<String> validFilters = Arrays.asList(Constants.LIKES, Constants.BOOKMARKS, Constants.REPORTED);

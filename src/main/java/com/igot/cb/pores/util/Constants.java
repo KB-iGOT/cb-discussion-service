@@ -190,6 +190,7 @@ public class Constants {
     public static final String FILTERS = "filters";
     public static final String LIKES = "likes";
     public static final String BOOKMARKS = "bookmarks";
+    public static final String COMMUNITY_FILTERS = "communityFilters";
 
 
     private Constants() {
