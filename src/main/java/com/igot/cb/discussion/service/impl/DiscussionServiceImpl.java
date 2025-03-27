@@ -1578,7 +1578,6 @@ public class DiscussionServiceImpl implements DiscussionService {
 
 
         List<String> filters = (List<String>) requestData.get(Constants.FILTERS);
-
         Map<String, Boolean> likesMap = initializeDefaultMap(discussionIds, false);
         Map<String, Boolean> bookmarksMap = initializeDefaultMap(discussionIds, false);
         Map<String, Boolean> reportedMap = initializeDefaultMap(discussionIds, false);
