@@ -16,7 +16,7 @@ public interface DiscussionService {
 
     ApiResponse updateDiscussion(JsonNode updateData,String token);
 
-    ApiResponse searchDiscussion(SearchCriteria searchCriteria);
+    ApiResponse searchDiscussion(SearchCriteria searchCriteria, boolean isOverride);
 
     ApiResponse deleteDiscussion(String discussionId, String type, String token);
 
@@ -41,4 +41,6 @@ public interface DiscussionService {
     ApiResponse searchDiscussionByCommunity(Map<String, Object> searchData);
 
     ApiResponse getEnrichedDiscussionData(Map<String, Object> data, String token);
+
+    ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride);
 }

@@ -192,6 +192,15 @@ public class Constants {
     public static final String BOOKMARKS = "bookmarks";
     public static final String COMMUNITY_FILTERS = "communityFilters";
 
+    public static final String CATEGORY_TYPE = "categoryType";
+    public static final Object DOCUMENT_CATEGORY = "document";
+    public static final String DISCUSSION_DOCUMENT_POST = "discussionDocumentPost_";
+    public static final String DOCUMENT = "document";
+    public static final String COMMUNITY_ID_KEY = "communityid";
+    public static final String DISCUSSION_GET_GLOBAL_FEED_API = "discussion.getGlobalFeed";
+    public static final String DISCUSSION_TEXT = "discussionText";
+    public static final String COMMUNITY_NAME = "communityName";
+    public static final String COMMUNITY_PREFIX = "community_";
 
     private Constants() {
     }
