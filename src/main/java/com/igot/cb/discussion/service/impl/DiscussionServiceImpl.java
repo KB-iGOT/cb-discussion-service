@@ -167,7 +167,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + discussionDetails.get(Constants.COMMUNITY_ID).asText());
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             updateCacheForFirstFivePages(discussionDetails.get(Constants.COMMUNITY_ID).asText(), false);
-            updateCacheForGlobalFeed(token);
+            updateCacheForGlobalFeed(token, userId);
             log.info("Updated cache for global feed");
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
@@ -182,12 +182,11 @@ public class DiscussionServiceImpl implements DiscussionService {
         return response;
     }
 
-    private void updateCacheForGlobalFeed(String token) {
+    private void updateCacheForGlobalFeed(String token, String userId) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             SearchCriteria searchCriteria = objectMapper.readValue(filterCriteriaForGlobalFeed, SearchCriteria.class);
-            getGlobalFeed(searchCriteria, token, true);
-            //call the new method
+            getGlobalFeed(searchCriteria, token, true, userId);
         } catch (Exception e) {
             log.error("Error occured while updating the cache for globalFeed", e);
             throw new RuntimeException("Error parsing filter criteria JSON", e);
@@ -319,7 +318,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.getParams().setStatus(Constants.SUCCESS);
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + communityId);
             updateCacheForFirstFivePages(communityId, false);
-            updateCacheForGlobalFeed(token);
+            updateCacheForGlobalFeed(token, userId);
             log.info("Updated cache for global feed");
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
@@ -457,7 +456,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                         }
                         deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + map.get(Constants.COMMUNITY_ID));
                         updateCacheForFirstFivePages((String) map.get(Constants.COMMUNITY_ID),false);
-                        updateCacheForGlobalFeed(token);
+                        updateCacheForGlobalFeed(token, userId);
                         log.info("Updated cache for global feed");
                         producer.push(communityPostCount, communityObject);
                         return response;
@@ -571,6 +570,15 @@ public class DiscussionServiceImpl implements DiscussionService {
             discussionRepository.save(discussionDbData);
             esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionDbData.getDiscussionId(), discussionData, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionDbData.getDiscussionId(), discussionData);
+            updateCacheForGlobalFeed(token, userId);
+            updateCacheForFirstFivePages(discussionDbData.getData().get(Constants.COMMUNITY_ID).asText(), false);
+            if (Constants.ANSWER_POST.equals(type)) {
+                redisTemplate.opsForValue()
+                        .getAndDelete(generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
+                                (String) discussionData.get(Constants.PARENT_DISCUSSION_ID),
+                                (String) discussionData.get(Constants.COMMUNITY_ID),
+                                Constants.ANSWER_POST)));
+            }
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
         } catch (Exception e) {
@@ -785,6 +793,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                     answerPostData.get(Constants.PARENT_DISCUSSION_ID).asText(),
                     answerPostData.get(Constants.COMMUNITY_ID).asText(),
                     Constants.ANSWER_POST)));
+            // update global feed cache
+            updateCacheForGlobalFeed(token, userId);
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, answerPostData.get(Constants.COMMUNITY_ID).asText());
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
@@ -979,7 +989,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, jsonNode);
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
             updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(),false);
-            updateCacheForGlobalFeed(token);
+            updateCacheForGlobalFeed(token, userId);
             log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
@@ -1790,11 +1800,11 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
 
-
-
-    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride) {
+    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride, String userId) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
-        String userId = accessTokenValidator.verifyUserToken(token);
+        if (StringUtils.isBlank(userId)) {
+            userId = accessTokenValidator.verifyUserToken(token);
+        }
 
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
             return returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED);
