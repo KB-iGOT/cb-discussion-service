@@ -1800,22 +1800,8 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
 
-    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride, String userId) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
-        if (StringUtils.isBlank(userId)) {
-            userId = accessTokenValidator.verifyUserToken(token);
-        }
-
-        if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
-            return returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED);
-        }
-
-        populateCommunityIds(userId, searchCriteria);
-        if(CollectionUtils.isEmpty((Set<String>)searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID))){
-            return returnErrorMsg(Constants.NO_COMMUNITY_FOUND, HttpStatus.OK, response, Constants.SUCCESS);
-        }
-        response = searchDiscussion(searchCriteria, isOverride);
-        return response;
+    public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride) {
+        return getGlobalFeed(searchCriteria, token, isOverride, null);
     }
 
     private void populateCommunityIds(String userId, SearchCriteria searchCriteria) {
@@ -1908,5 +1894,23 @@ public class DiscussionServiceImpl implements DiscussionService {
                 .collect(Collectors.toList());
 
         return communityList;
+    }
+
+    private ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride, String userId) {
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
+        if (StringUtils.isBlank(userId)) {
+            userId = accessTokenValidator.verifyUserToken(token);
+        }
+
+        if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
+            return returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED);
+        }
+
+        populateCommunityIds(userId, searchCriteria);
+        if (CollectionUtils.isEmpty((Set<String>) searchCriteria.getFilterCriteriaMap().get(Constants.COMMUNITY_ID))) {
+            return returnErrorMsg(Constants.NO_COMMUNITY_FOUND, HttpStatus.OK, response, Constants.SUCCESS);
+        }
+        response = searchDiscussion(searchCriteria, isOverride);
+        return response;
     }
 }
