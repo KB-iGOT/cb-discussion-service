@@ -794,6 +794,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                     answerPostData.get(Constants.PARENT_DISCUSSION_ID).asText(),
                     answerPostData.get(Constants.COMMUNITY_ID).asText(),
                     Constants.ANSWER_POST)));
+            // update global feed cache
+            updateCacheForGlobalFeed(userId);
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, answerPostData.get(Constants.COMMUNITY_ID).asText());
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
@@ -1798,9 +1800,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return errList.isEmpty() ? "" : "Failed Due To Missing or Invalid Params - " + errList + ".";
     }
 
-
-
-
+    @Override
     public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
         String userId = accessTokenValidator.verifyUserToken(token);
