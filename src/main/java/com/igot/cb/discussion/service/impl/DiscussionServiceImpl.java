@@ -136,18 +136,14 @@ public class DiscussionServiceImpl implements DiscussionService {
             discussionDetailsNode.put(Constants.STATUS, Constants.ACTIVE);
 
             DiscussionEntity jsonNodeEntity = new DiscussionEntity();
-
             Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-            ZonedDateTime zonedDateTime = currentTime.toInstant().atZone(ZoneId.systemDefault());
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constants.TIME_FORMAT);
-            String formattedCurrentTime = zonedDateTime.format(formatter);
 
             UUID id = UUIDs.timeBased();
             discussionDetailsNode.put(Constants.DISCUSSION_ID, String.valueOf(id));
             jsonNodeEntity.setDiscussionId(String.valueOf(id));
             jsonNodeEntity.setCreatedOn(currentTime);
-            discussionDetailsNode.put(Constants.CREATED_ON, formattedCurrentTime);
-            discussionDetailsNode.put(Constants.UPDATED_ON, formattedCurrentTime);
+            discussionDetailsNode.put(Constants.CREATED_ON, getFormattedCurrentTime(currentTime));
+            discussionDetailsNode.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
             jsonNodeEntity.setUpdatedOn(currentTime);
             jsonNodeEntity.setIsActive(true);
             discussionDetailsNode.put(Constants.IS_ACTIVE, true);
@@ -187,7 +183,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             ObjectMapper objectMapper = new ObjectMapper();
             SearchCriteria searchCriteria = objectMapper.readValue(filterCriteriaForGlobalFeed, SearchCriteria.class);
             getGlobalFeedUsingUserId(searchCriteria, userId, true);
-            //call the new method
         } catch (Exception e) {
             log.error("Error occured while updating the cache for globalFeed", e);
             throw new RuntimeException("Error parsing filter criteria JSON", e);
@@ -292,9 +287,12 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateDataNode.remove(Constants.DISCUSSION_ID);
             data.setAll(updateDataNode);
 
-            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-            data.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
-            discussionDbData.setUpdatedOn(currentTime);
+            if (!updateData.has(Constants.IS_INITIAL_UPLOAD) || !updateData.get(Constants.IS_INITIAL_UPLOAD).asBoolean()) {
+                Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+                data.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
+                discussionDbData.setUpdatedOn(currentTime);
+            }
+
             discussionDbData.setData(data);
             long postgresInsertTime = System.currentTimeMillis();
             discussionRepository.save(discussionDbData);
@@ -773,9 +771,12 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setDiscussionId(String.valueOf(id));
             jsonNodeEntity.setCreatedOn(currentTime);
             answerPostDataNode.put(Constants.CREATED_ON, getFormattedCurrentTime(currentTime));
+            answerPostDataNode.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
             jsonNodeEntity.setIsActive(true);
             answerPostDataNode.put(Constants.IS_ACTIVE, true);
             jsonNodeEntity.setData(answerPostDataNode);
+            jsonNodeEntity.setCreatedOn(currentTime);
+            jsonNodeEntity.setUpdatedOn(currentTime);
             long timer = System.currentTimeMillis();
             discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.INSERT, timer);
@@ -802,7 +803,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             communityObject.put(Constants.TYPE, Constants.ANSWER_POST);
             producer.push(communityPostCount, communityObject);
 
-            //updateCacheForFirstFivePages(answerPostData.get(Constants.COMMUNITY_ID).asText());
             log.info("AnswerPost created successfully");
             map.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
@@ -1148,10 +1148,12 @@ public class DiscussionServiceImpl implements DiscussionService {
         try {
             ObjectNode answerPostDataNode = (ObjectNode) answerPostData;
             answerPostDataNode.remove(Constants.ANSWER_POST_ID);
-            //answerPostDataNode.put("updatedBy", userId);
-            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-            answerPostDataNode.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
-            discussionEntity.setUpdatedOn(currentTime);
+
+            if (!answerPostDataNode.has(Constants.IS_INITIAL_UPLOAD) || !answerPostDataNode.get(Constants.IS_INITIAL_UPLOAD).asBoolean()) {
+                Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+                answerPostDataNode.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
+                discussionEntity.setUpdatedOn(currentTime);
+            }
             data.setAll(answerPostDataNode);
             discussionEntity.setData(data);
             long timer = System.currentTimeMillis();
