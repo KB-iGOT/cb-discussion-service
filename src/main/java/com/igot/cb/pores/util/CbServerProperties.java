@@ -54,4 +54,7 @@ public class CbServerProperties {
 
   @Value("${elastic.required.field.community.json.path}")
   private String elasticCommunityJsonPath;
+
+  @Value("${community.entity}")
+  private String communityEntity;
 }

@@ -1927,21 +1927,21 @@ public class DiscussionServiceImpl implements DiscussionService {
     private List<String> getTrendingPosts() {
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setFilterCriteriaMap(new HashMap<>());
-        searchCriteria.setRequestedFields(Arrays.asList("communityId"));
-        searchCriteria.getFilterCriteriaMap().put("status", "active");
-        searchCriteria.setOrderBy("countOfAnswerPost");
-        searchCriteria.setOrderDirection("desc");
+        searchCriteria.setRequestedFields(Arrays.asList(Constants.COMMUNITY_ID));
+        searchCriteria.getFilterCriteriaMap().put(Constants.STATUS, Constants.ACTIVE);
+        searchCriteria.setOrderBy(Constants.COUNT_OF_ANSWER_POST_COUNT);
+        searchCriteria.setOrderDirection(Constants.DESC);
         searchCriteria.setPageNumber(0);
         searchCriteria.setPageSize(10);
         SearchResult result = null;
         List<String> communityIds = new ArrayList<>();
         try {
-            result = esUtilService.searchDocuments("community_entity_alias", searchCriteria, cbServerProperties.getElasticCommunityJsonPath());
+            result = esUtilService.searchDocuments(cbServerProperties.getCommunityEntity(), searchCriteria, cbServerProperties.getElasticCommunityJsonPath());
 
             if (CollectionUtils.isNotEmpty(result.getData())) {
                 List<Map<String, Object>> communities = result.getData();
                 for (Map<String, Object> community : communities) {
-                    communityIds.add((String) community.get("communityId"));
+                    communityIds.add((String) community.get(Constants.COMMUNITY_ID));
                 }
             }
         } catch (Exception e) {
