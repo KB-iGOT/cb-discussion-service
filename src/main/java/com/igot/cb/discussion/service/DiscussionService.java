@@ -43,4 +43,12 @@ public interface DiscussionService {
     ApiResponse getEnrichedDiscussionData(Map<String, Object> data, String token);
 
     ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride);
+
+    ApiResponse createAnswerPostReply(JsonNode answerPostReplyData, String token);
+
+    ApiResponse readAnswerPostReply(String discussionId);
+
+    ApiResponse updateAnswerPostReply(JsonNode updateData, String token);
+
+    ApiResponse deleteAnswerPostReply(String discussionId, String type, String token);
 }

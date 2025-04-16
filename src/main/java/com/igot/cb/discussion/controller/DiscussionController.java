@@ -156,4 +156,31 @@ public class DiscussionController {
         ApiResponse response = discussionService.getGlobalFeed(searchCriteria, token, false);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/answerPostReply/create")
+    public ResponseEntity<ApiResponse> createAnswerPostReply(@RequestBody JsonNode answerPostReplyData,
+                                                             @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = discussionService.createAnswerPostReply(answerPostReplyData, token);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @GetMapping("/answerPostReply/read/{discussionId}")
+    public ResponseEntity<ApiResponse> readAnswerPostReply(@PathVariable String discussionId) {
+        ApiResponse response = discussionService.readAnswerPostReply(discussionId);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @PostMapping("/answerPostReply/update")
+    public ResponseEntity<ApiResponse> updateAnswerPostReply(@RequestBody JsonNode updateData,
+                                                             @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = discussionService.updateAnswerPostReply(updateData, token);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @DeleteMapping("/answerPostReply/delete/{discussionId}")
+    public ResponseEntity<ApiResponse> deleteAnswerPostReply(@PathVariable String discussionId,
+                                                             @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = discussionService.deleteAnswerPostReply(discussionId, Constants.ANSWER_POST_REPLY, token);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }
