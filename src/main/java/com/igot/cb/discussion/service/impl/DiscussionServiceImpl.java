@@ -351,7 +351,12 @@ public class DiscussionServiceImpl implements DiscussionService {
                 searchCriteria.setFilterCriteriaMap(new HashMap<>());
             }
             searchCriteria.getFilterCriteriaMap().put(Constants.IS_ACTIVE, true);
-            searchCriteria.getFilterCriteriaMap().put(Constants.STATUS, Arrays.asList(Constants.ACTIVE, Constants.REPORTED));
+
+            if (!searchCriteria.getFilterCriteriaMap().containsKey(Constants.STATUS) ||
+                    !searchCriteria.getFilterCriteriaMap().get(Constants.STATUS).equals(Collections.singletonList(Constants.REPORTED))) {
+                searchCriteria.getFilterCriteriaMap().put(Constants.STATUS, Arrays.asList(Constants.ACTIVE, Constants.REPORTED));
+            }
+
             if (isTrending) {
                 List<String> communityIds = getTrendingPosts();
                 searchCriteria.getFilterCriteriaMap().put(Constants.COMMUNITY_ID, communityIds);
