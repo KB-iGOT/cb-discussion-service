@@ -485,15 +485,31 @@ public class DiscussionServiceImpl implements DiscussionService {
                 return response;
             }
 
-            Optional<DiscussionEntity> discussionEntity = Optional.of(discussionRepository.findById(discussionId).orElse(null));
-            if (!discussionEntity.isPresent()) {
+            boolean isAnswerReply = Constants.ANSWER_POST_REPLY.equals(type);
+            Object entityObject = isAnswerReply
+                    ? discussionAnswerPostReplyRepository.findById(discussionId).orElse(null)
+                    : discussionRepository.findById(discussionId).orElse(null);
+
+            if (entityObject == null) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.DISCUSSION_NOT_FOUND, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
             }
 
-            DiscussionEntity discussionDbData = discussionEntity.get();
-            HashMap<String, Object> discussionData = objectMapper.convertValue(discussionDbData.getData(), HashMap.class);
-            if (!discussionDbData.getIsActive()) {
+            JsonNode dataNode;
+            Boolean isActive;
+            if (isAnswerReply) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                dataNode = replyEntity.getData();
+                isActive = replyEntity.getIsActive();
+            } else {
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                dataNode = discussionEntity.getData();
+                isActive = discussionEntity.getIsActive();
+            }
+
+            HashMap<String, Object> discussionData = objectMapper.convertValue(dataNode, HashMap.class);
+
+            if (!isActive) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.DISCUSSION_IS_INACTIVE, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
             }
@@ -527,8 +543,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                         return response;
                     }
                     Map<String, String> communityObject = new HashMap<>();
-                    communityObject.put(Constants.COMMUNITY_ID,
-                            discussionDbData.getData().get(Constants.COMMUNITY_ID).asText());
+                    communityObject.put(Constants.COMMUNITY_ID, dataNode.get(Constants.COMMUNITY_ID).asText());
                     communityObject.put(Constants.STATUS, Constants.INCREMENT);
                     communityObject.put(Constants.DISCUSSION_ID, discussionId);
                     producer.push(cbServerProperties.getCommunityLikeCount(), communityObject);
@@ -556,37 +571,44 @@ public class DiscussionServiceImpl implements DiscussionService {
                 }
 
                 Map<String, String> communityObject = new HashMap<>();
-                communityObject.put(Constants.COMMUNITY_ID,
-                        discussionDbData.getData().get(Constants.COMMUNITY_ID).asText());
-                communityObject.put(Constants.STATUS, Constants.DECREMENT);
+                communityObject.put(Constants.COMMUNITY_ID, dataNode.get(Constants.COMMUNITY_ID).asText());
                 communityObject.put(Constants.DISCUSSION_ID, discussionId);
-                if (Constants.UP.equals(voteType)) {
-                    communityObject.put(Constants.STATUS, Constants.INCREMENT);
-                } else if (Constants.DOWN.equals(voteType)) {
-                    communityObject.put(Constants.STATUS, Constants.DECREMENT);
-                }
+                communityObject.put(Constants.STATUS, Constants.UP.equals(voteType) ? Constants.INCREMENT : Constants.DECREMENT);
                 producer.push(cbServerProperties.getCommunityLikeCount(), communityObject);
             }
 
-            if (voteType.equals(Constants.UP)) {
-                discussionData.put(Constants.UP_VOTE_COUNT, existingUpVoteCount + 1);
+            discussionData.put(Constants.UP_VOTE_COUNT, currentVote ? existingUpVoteCount + 1 : existingUpVoteCount - 1);
+
+            JsonNode updatedData = objectMapper.valueToTree(discussionData);
+            if (isAnswerReply) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                replyEntity.setData(updatedData);
+                discussionAnswerPostReplyRepository.save(replyEntity);
             } else {
-                discussionData.put(Constants.UP_VOTE_COUNT, existingUpVoteCount - 1);
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                discussionEntity.setData(updatedData);
+                discussionRepository.save(discussionEntity);
             }
 
-            JsonNode jsonNode = objectMapper.valueToTree(discussionData);
-            discussionDbData.setData(jsonNode);
-            discussionRepository.save(discussionDbData);
-            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionDbData.getDiscussionId(), discussionData, cbServerProperties.getElasticDiscussionJsonPath());
-            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionDbData.getDiscussionId(), discussionData);
-            updateCacheForGlobalFeed(userId);
-            updateCacheForFirstFivePages(discussionDbData.getData().get(Constants.COMMUNITY_ID).asText(), false);
+            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionId, discussionData, cbServerProperties.getElasticDiscussionJsonPath());
+            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, discussionData);
+
+            if (!isAnswerReply) {
+                updateCacheForFirstFivePages(dataNode.get(Constants.COMMUNITY_ID).asText(), false);
+                updateCacheForGlobalFeed(userId);
+            }
+
             if (Constants.ANSWER_POST.equals(type)) {
                 redisTemplate.opsForValue()
                         .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
                                 (String) discussionData.get(Constants.PARENT_DISCUSSION_ID),
                                 (String) discussionData.get(Constants.COMMUNITY_ID),
                                 Constants.ANSWER_POST)));
+            }
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                redisTemplate.opsForValue().getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(
+                        (String) discussionData.get(Constants.PARENT_ANSWER_POST_ID),
+                        (String) discussionData.get(Constants.COMMUNITY_ID))));
             }
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -886,23 +908,37 @@ public class DiscussionServiceImpl implements DiscussionService {
         try {
             String discussionId = (String) reportData.get(Constants.DISCUSSION_ID);
             String discussionText = (String) reportData.get(Constants.DISCUSSION_TEXT);
-            Optional<DiscussionEntity> discussionDbData = discussionRepository.findById(discussionId);
-            if (!discussionDbData.isPresent()) {
+            String type = (String) reportData.get(Constants.TYPE);
+            Object entityObject = Constants.ANSWER_POST_REPLY.equals(type)
+                    ? discussionAnswerPostReplyRepository.findById(discussionId).orElse(null)
+                    : discussionRepository.findById(discussionId).orElse(null);
+
+            if (entityObject == null) {
                 return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_NOT_FOUND, HttpStatus.NOT_FOUND, response, Constants.FAILED);
             }
 
-            DiscussionEntity discussionEntity = discussionDbData.get();
-            if (!discussionEntity.getIsActive()) {
+            JsonNode dataNode;
+            Boolean isActive;
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                dataNode = replyEntity.getData();
+                isActive = replyEntity.getIsActive();
+            } else {
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                dataNode = discussionEntity.getData();
+                isActive = discussionEntity.getIsActive();
+            }
+
+            ObjectNode data = (ObjectNode) dataNode;
+            if (!isActive) {
                 return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_IS_INACTIVE, HttpStatus.CONFLICT, response, Constants.FAILED);
             }
-            ObjectNode data = (ObjectNode) discussionEntity.getData();
 
-            if (!reportData.get(Constants.TYPE).equals(data.get(Constants.TYPE).asText())) {
-                DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_TYPE + reportData.get(Constants.TYPE), HttpStatus.BAD_REQUEST, Constants.FAILED);
-                return response;
+            if (!type.equals(data.get(Constants.TYPE).asText())) {
+                return ProjectUtil.returnErrorMsg(Constants.INVALID_TYPE + type, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
             }
 
-            if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED)) {
+            if (Constants.SUSPENDED.equals(data.get(Constants.STATUS).asText())) {
                 return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_SUSPENDED, HttpStatus.CONFLICT, response, Constants.FAILED);
             }
 
@@ -951,10 +987,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 status = Constants.REPORTED;
             }
 
-            Map<String, Object> statusUpdateData = new HashMap<>();
-            statusUpdateData.put(Constants.STATUS, status);
             ObjectNode jsonNode = objectMapper.createObjectNode();
-
             if (!data.get(Constants.STATUS).textValue().equals(status)) {
                 data.put(Constants.STATUS, status);
             }
@@ -967,15 +1000,30 @@ public class DiscussionServiceImpl implements DiscussionService {
                 data.set(Constants.REPORTED_BY, reportedByArray);
             }
             reportedByArray.add(userId);
-            discussionEntity.setData(data);
-            discussionRepository.save(discussionEntity);
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                replyEntity.setData(dataNode);
+                discussionAnswerPostReplyRepository.save(replyEntity);
+            } else {
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                discussionEntity.setData(dataNode);
+                discussionRepository.save(discussionEntity);
+            }
             jsonNode.setAll(data);
             Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
             esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionId, map, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, jsonNode);
-            deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
-            updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
-            updateCacheForGlobalFeed(userId);
+
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                redisTemplate.opsForValue()
+                        .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(
+                                data.get(Constants.PARENT_ANSWER_POST_ID).asText(),
+                                data.get(Constants.COMMUNITY_ID).asText())));
+            } else {
+                deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+                updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
+                updateCacheForGlobalFeed(userId);
+            }
             log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
@@ -1915,5 +1963,22 @@ public class DiscussionServiceImpl implements DiscussionService {
             log.error("Error occurred while fetching trending communities", e);
         }
         return communityIds;
+    }
+
+    private SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
+                                                       String communityId) {
+        SearchCriteria criteria = new SearchCriteria();
+        HashMap<String, Object> filterMap = new HashMap<>();
+        filterMap.put(Constants.COMMUNITY_ID, communityId);
+        filterMap.put(Constants.TYPE, Constants.ANSWER_POST_REPLY);
+        filterMap.put(Constants.PARENT_ANSWER_POST_ID, parentAnswerPostId);
+        criteria.setFilterCriteriaMap(filterMap);
+        criteria.setRequestedFields(Collections.emptyList());
+        criteria.setPageNumber(0);
+        criteria.setPageSize(10);
+        criteria.setOrderBy(Constants.CREATED_ON);
+        criteria.setOrderDirection(Constants.DESC);
+        criteria.setFacets(Collections.emptyList());
+        return criteria;
     }
 }
