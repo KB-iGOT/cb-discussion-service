@@ -123,6 +123,11 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                     .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(
                             answerPostReplyDataNode.get(Constants.PARENT_ANSWER_POST_ID).asText(),
                             answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText())));
+            redisTemplate.opsForValue()
+                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
+                            answerPostReplyDataNode.get(Constants.PARENT_DISCUSSION_ID).asText(),
+                            answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),
+                            Constants.ANSWER_POST)));
             log.info("AnswerPostReply post created successfully");
             map.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
@@ -279,6 +284,11 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             response.setMessage(Constants.DELETED_SUCCESSFULLY);
             response.getParams().setStatus(Constants.SUCCESS);
             redisTemplate.opsForValue().getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(data.get(Constants.PARENT_ANSWER_POST_ID).asText(), data.get(Constants.COMMUNITY_ID).asText())));
+            redisTemplate.opsForValue()
+                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
+                            data.get(Constants.PARENT_DISCUSSION_ID).asText(),
+                            data.get(Constants.COMMUNITY_ID).asText(),
+                            Constants.ANSWER_POST)));
             return response;
         } catch (Exception e) {
             log.error("Error while deleting discussion with ID: {}. Exception: {}", discussionId, e.getMessage(), e);
@@ -343,5 +353,24 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             return response;
         }
         return response;
+    }
+
+    private SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
+                                                            String communityId,
+                                                            String type) {
+        SearchCriteria criteria = new SearchCriteria();
+
+        HashMap<String, Object> filterMap = new HashMap<>();
+        filterMap.put(Constants.COMMUNITY_ID, communityId);
+        filterMap.put(Constants.TYPE, type);
+        filterMap.put(Constants.PARENT_DISCUSSION_ID, parentDiscussionId);
+        criteria.setFilterCriteriaMap(filterMap);
+        criteria.setRequestedFields(Collections.emptyList());
+        criteria.setPageNumber(0);
+        criteria.setPageSize(10);
+        criteria.setOrderBy(Constants.CREATED_ON);
+        criteria.setOrderDirection(Constants.DESC);
+        criteria.setFacets(Collections.emptyList());
+        return criteria;
     }
 }
