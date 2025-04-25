@@ -6,6 +6,9 @@
       "type": "string",
       "enum": ["answerPostReply"]
     },
+    "parentDiscussionId": {
+      "type": "string"
+    },
     "parentAnswerPostId": {
       "type": "string"
     },
@@ -24,6 +27,7 @@
   },
   "required": [
     "type",
+    "parentDiscussionId",
     "parentAnswerPostId",
     "communityId"
   ],
