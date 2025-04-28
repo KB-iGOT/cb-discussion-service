@@ -19,6 +19,7 @@ import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -372,5 +373,112 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         criteria.setOrderDirection(Constants.DESC);
         criteria.setFacets(Collections.emptyList());
         return criteria;
+    }
+
+    @Override
+    public ApiResponse managePost(Map<String, Object> reportData, String token, String action) {
+        log.info("DiscussionServiceImpl::managePost");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ADMIN_MANAGE_POST_API);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
+            response.getParams().setErrMsg(Constants.INVALID_AUTH_TOKEN);
+            response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        String errorMsg = validateSuspendPostPayload(reportData);
+        if (StringUtils.isNotEmpty(errorMsg)) {
+            return ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
+        }
+
+        try {
+            String discussionId = (String) reportData.get(Constants.DISCUSSION_ID);
+            String type = (String) reportData.get(Constants.TYPE);
+            Object entityObject = Constants.ANSWER_POST_REPLY.equals(type)
+                    ? discussionAnswerPostReplyRepository.findById(discussionId).orElse(null)
+                    : discussionRepository.findById(discussionId).orElse(null);
+
+            if (entityObject == null) {
+                return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_NOT_FOUND, HttpStatus.NOT_FOUND, response, Constants.FAILED);
+            }
+
+            JsonNode dataNode;
+            Boolean isActive;
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                dataNode = replyEntity.getData();
+                isActive = replyEntity.getIsActive();
+            } else {
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                dataNode = discussionEntity.getData();
+                isActive = discussionEntity.getIsActive();
+            }
+
+            ObjectNode data = (ObjectNode) dataNode;
+            if (!isActive) {
+                return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_IS_INACTIVE, HttpStatus.CONFLICT, response, Constants.FAILED);
+            }
+
+            if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED) && action.equals(Constants.SUSPEND) ||
+                    data.get(Constants.STATUS).asText().equals(Constants.ACTIVE) && action.equals(Constants.ACTIVE)) {
+                return ProjectUtil.returnErrorMsg(Constants.POST_ERROR_MSG + data.get(Constants.STATUS).asText() + ".", HttpStatus.BAD_REQUEST, response, Constants.FAILED);
+            }
+
+            if (Constants.SUSPEND.equals(action)) {
+                data.put(Constants.STATUS, Constants.SUSPENDED);
+                data.put(Constants.UPDATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(new Timestamp(System.currentTimeMillis())));
+                data.put(Constants.UPDATED_BY, userId);
+            } else if (Constants.ACTIVE.equals(action)) {
+                data.put(Constants.STATUS, Constants.ACTIVE);
+                data.put(Constants.UPDATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(new Timestamp(System.currentTimeMillis())));
+                data.put(Constants.UPDATED_BY, userId);
+                Map<String, Object> propertyMap = new HashMap<>();
+                propertyMap.put(Constants.DISCUSSION_ID, discussionId);
+                cassandraOperation.deleteRecord(
+                        Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, propertyMap);
+            }
+
+            if (Constants.ANSWER_POST_REPLY.equals(type)) {
+                DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
+                replyEntity.setData(dataNode);
+                discussionAnswerPostReplyRepository.save(replyEntity);
+            } else {
+                DiscussionEntity discussionEntity = (DiscussionEntity) entityObject;
+                discussionEntity.setData(dataNode);
+                discussionRepository.save(discussionEntity);
+            }
+
+            ObjectNode jsonNode = objectMapper.createObjectNode();
+            jsonNode.setAll(data);
+            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
+            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionId, map, cbServerProperties.getElasticDiscussionJsonPath());
+            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, jsonNode);
+        } catch (Exception e) {
+            log.error("Failed to suspend post: {}", e.getMessage(), e);
+            DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
+            return response;
+        }
+        return response;
+    }
+
+    private String validateSuspendPostPayload(Map<String, Object> reportData) {
+        StringBuilder errorMsg = new StringBuilder();
+        List<String> errList = new ArrayList<>();
+
+        if (StringUtils.isBlank((String) reportData.get(Constants.DISCUSSION_ID))) {
+            errList.add(Constants.DISCUSSION_ID);
+        }
+        if (StringUtils.isBlank((String) reportData.get(Constants.TYPE))) {
+            errList.add(Constants.TYPE);
+        } else if (!Constants.ANSWER_POST.equalsIgnoreCase((String) reportData.get(Constants.TYPE)) &&
+                !Constants.QUESTION.equalsIgnoreCase((String) reportData.get(Constants.TYPE)) &&
+                !Constants.ANSWER_POST_REPLY.equalsIgnoreCase((String) reportData.get(Constants.TYPE))) {
+            errList.add("type must be either 'question' or 'AnswerPost' or 'AnswerPostReply'");
+        }
+
+        if (!errList.isEmpty()) {
+            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+        }
+        return errorMsg.toString();
     }
 }

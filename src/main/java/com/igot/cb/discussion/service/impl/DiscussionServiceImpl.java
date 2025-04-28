@@ -353,7 +353,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             searchCriteria.getFilterCriteriaMap().put(Constants.IS_ACTIVE, true);
 
             if (!searchCriteria.getFilterCriteriaMap().containsKey(Constants.STATUS) ||
-                    !searchCriteria.getFilterCriteriaMap().get(Constants.STATUS).equals(Collections.singletonList(Constants.REPORTED))) {
+                    (!searchCriteria.getFilterCriteriaMap().get(Constants.STATUS).equals(Collections.singletonList(Constants.REPORTED)) &&
+                            !searchCriteria.getFilterCriteriaMap().get(Constants.STATUS).equals(Collections.singletonList(Constants.SUSPENDED)))) {
                 searchCriteria.getFilterCriteriaMap().put(Constants.STATUS, Arrays.asList(Constants.ACTIVE, Constants.REPORTED));
             }
 
@@ -625,25 +626,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         }
         return response;
-    }
-
-    public String validateUpvoteData(Map<String, Object> upVoteData) {
-        StringBuffer str = new StringBuffer();
-        List<String> errList = new ArrayList<>();
-
-        if (StringUtils.isBlank((String) upVoteData.get(Constants.DISCUSSION_ID))) {
-            errList.add(Constants.DISCUSSION_ID);
-        }
-        String voteType = (String) upVoteData.get(Constants.VOTETYPE);
-        if (StringUtils.isBlank(voteType)) {
-            errList.add(Constants.VOTETYPE);
-        } else if (!Constants.UP.equalsIgnoreCase(voteType) && !Constants.DOWN.equalsIgnoreCase(voteType)) {
-            errList.add("voteType must be either 'up' or 'down'");
-        }
-        if (!errList.isEmpty()) {
-            str.append("Failed Due To Missing Params - ").append(errList).append(".");
-        }
-        return str.toString();
     }
 
     public List<Object> fetchDataForKeys(List<String> keys, boolean isUserData) {
