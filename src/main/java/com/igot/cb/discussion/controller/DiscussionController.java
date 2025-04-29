@@ -201,4 +201,18 @@ public class DiscussionController {
         ApiResponse response = discussionService.downVote(discussionId, Constants.ANSWER_POST_REPLY, token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/admin/removePost")
+    public ResponseEntity<ApiResponse> removePost(@RequestBody Map<String, Object> reportData,
+                                                  @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = answerPostReplyService.managePost(reportData, token, Constants.SUSPEND);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @PostMapping("/admin/activatePost")
+    public ResponseEntity<ApiResponse> activatePost(@RequestBody Map<String, Object> reportData,
+                                                    @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = answerPostReplyService.managePost(reportData, token, Constants.ACTIVE);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
 }

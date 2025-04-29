@@ -218,6 +218,11 @@ public class Constants {
     public static final String ANSWER_POST_REPLY_READ_API = "api.discussion.AnswerPostReply.read";
     public static final String ANSWER_POST_REPLIES = "answerPostReplies";
     public static final String ANSWER_POST_REPLIES_COUNT = "answerPostRepliesCount";
+    public static final String SUSPEND = "suspend";
+    public static final String UPDATED_BY = "updatedBy";
+    public static final String EXCEPTION_MSG_DELETE = "Exception occurred while deleting record from ";
+    public static final String POST_ERROR_MSG = "Post is already ";
+    public static final String ADMIN_MANAGE_POST_API = "api.discussion.admin.managePost";
 
     private Constants() {
     }
