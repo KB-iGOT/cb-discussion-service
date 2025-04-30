@@ -17,4 +17,6 @@ public interface AnswerPostReplyService {
     ApiResponse deleteAnswerPostReply(String discussionId, String type, String token);
 
     ApiResponse managePost(Map<String, Object> reportData, String token, String action);
+
+    ApiResponse getReportStatistics(Map<String, Object> reportData);
 }

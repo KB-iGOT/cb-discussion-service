@@ -215,4 +215,10 @@ public class DiscussionController {
         ApiResponse response = answerPostReplyService.managePost(reportData, token, Constants.ACTIVE);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/getReportStatistics")
+    public ResponseEntity<ApiResponse> getReportStatistics(@RequestBody Map<String, Object> getReportData) {
+        ApiResponse response = answerPostReplyService.getReportStatistics(getReportData);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
 }
