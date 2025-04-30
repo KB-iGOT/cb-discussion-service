@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -418,6 +419,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             if (!isActive) {
                 return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_IS_INACTIVE, HttpStatus.CONFLICT, response, Constants.FAILED);
             }
+            if(data.get(Constants.STATUS).asText().equals(Constants.ACTIVE) && action.equals(Constants.SUSPEND)){
+                return ProjectUtil.returnErrorMsg(Constants.POST_IS_ACTIVE_MSG, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
+            }
 
             if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED) && action.equals(Constants.SUSPEND) ||
                     data.get(Constants.STATUS).asText().equals(Constants.ACTIVE) && action.equals(Constants.ACTIVE)) {
@@ -465,6 +469,11 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         StringBuilder errorMsg = new StringBuilder();
         List<String> errList = new ArrayList<>();
 
+        if (reportData == null) {
+            errorMsg.append("Failed Due To Missing Params - ").append(Constants.DISCUSSION_ID).append(",").append(Constants.TYPE).append(".");
+            return errorMsg.toString();
+        }
+
         if (StringUtils.isBlank((String) reportData.get(Constants.DISCUSSION_ID))) {
             errList.add(Constants.DISCUSSION_ID);
         }
@@ -480,5 +489,98 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
         }
         return errorMsg.toString();
+    }
+
+    @Override
+    public ApiResponse getReportStatistics(Map<String, Object> getReportData) {
+        log.info("DiscussionServiceImpl::getReportStatistics");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.GET_REPORT_STATISTICS_API);
+
+        String errorMsg = validateSuspendPostPayload(getReportData);
+        if (StringUtils.isNotEmpty(errorMsg)) {
+            return ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
+        }
+
+        try {
+            String discussionId = (String) getReportData.get(Constants.DISCUSSION_ID);
+            String redisKey = Constants.REPORT_STATISTICS_CACHE_PREFIX + discussionId;
+            String cachedStatistics = cacheService.getCache(redisKey);
+            if (StringUtils.isNotBlank(cachedStatistics)) {
+                log.info("Returning cached report statistics for discussionId: {}", discussionId);
+                response.setResult(objectMapper.readValue(cachedStatistics, new TypeReference<Map<String, Object>>() {
+                }));
+                return response;
+            }
+
+            String validReasonsKey = Constants.VALID_REASONS_CACHE_KEY;
+            Set<String> validReasons = null;
+            String cachedValidReasons = cacheService.getCache(validReasonsKey);
+            if (StringUtils.isNotBlank(cachedValidReasons)) {
+                validReasons = objectMapper.readValue(cachedValidReasons, new TypeReference<Set<String>>() {
+                });
+            } else {
+                Map<String, Object> configKey = new HashMap<>();
+                configKey.put(Constants.ID, Constants.DISCUSSION_REPORT_REASON_CONFIG);
+                List<Map<String, Object>> configData = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                        Constants.KEYSPACE_SUNBIRD, Constants.SYSTEM_SETTINGS, configKey, Arrays.asList(Constants.VALUE), null);
+
+                if (CollectionUtils.isEmpty(configData)) {
+                    return ProjectUtil.returnErrorMsg(Constants.REPORT_REASON_CONFIG_ERROR_MSG, HttpStatus.NOT_FOUND, response, Constants.FAILED);
+                }
+
+                validReasons = new ObjectMapper().readValue(
+                        (String) configData.get(0).get(Constants.VALUE), new TypeReference<Set<String>>() {
+                        });
+                if (validReasons.isEmpty()) validReasons = Collections.emptySet();
+                cacheService.putCache(validReasonsKey, validReasons);
+            }
+
+            Map<String, Object> propertyMap = new HashMap<>();
+            propertyMap.put(Constants.DISCUSSION_ID, discussionId);
+            List<Map<String, Object>> reportReasons = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                    Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, propertyMap, Arrays.asList(Constants.REASON), null);
+
+            if (CollectionUtils.isEmpty(reportReasons)) {
+                return ProjectUtil.returnErrorMsg(Constants.NO_REPORT_REASON_FOUND_ERROR_MSG, HttpStatus.OK, response, Constants.FAILED);
+            }
+
+            Map<String, Integer> reasonCountMap = new HashMap<>();
+            int totalCount = 0;
+
+            for (Map<String, Object> report : reportReasons) {
+                String reasons = (String) report.get(Constants.REASON);
+                if (StringUtils.isNotBlank(reasons)) {
+                    for (String reason : reasons.split(Constants.COMMA)) {
+                        reason = reason.trim();
+                        if (validReasons.contains(reason)) {
+                            reasonCountMap.put(reason, reasonCountMap.getOrDefault(reason, 0) + 1);
+                            totalCount++;
+                        }
+                    }
+                }
+            }
+
+            Map<String, Map<String, Object>> statsMap = new HashMap<>();
+            for (String reason : validReasons) {
+                int count = reasonCountMap.getOrDefault(reason, 0);
+                double percentage = totalCount > 0 ? (count * 100.0) / totalCount : 0.0;
+                Map<String, Object> reasonStats = new HashMap<>();
+                reasonStats.put(Constants.COUNT, count);
+                reasonStats.put(Constants.PERCENTAGE, percentage);
+                statsMap.put(reason, reasonStats);
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put(Constants.TOTAL_COUNT, totalCount);
+            result.put(Constants.REPORT_REASONS, statsMap);
+
+            cacheService.putCache(redisKey, result);
+            response.getResult().putAll(result);
+            return response;
+        } catch (Exception e) {
+            log.error("Failed to get report statistics", e);
+            DiscussionServiceUtil.createErrorResponse(response, Constants.GET_REPORT_STATISTICS_ERROR_MSG, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
+            return response;
+        }
     }
 }
