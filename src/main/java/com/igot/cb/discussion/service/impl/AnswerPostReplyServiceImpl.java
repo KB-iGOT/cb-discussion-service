@@ -27,6 +27,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -582,5 +585,62 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             DiscussionServiceUtil.createErrorResponse(response, Constants.GET_REPORT_STATISTICS_ERROR_MSG, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
             return response;
         }
+    }
+
+    public ApiResponse migrateRecentReportedTime() {
+        log.info("DiscussionServiceImpl::migrateRecentReportedTime");
+        ApiResponse response = ProjectUtil.createDefaultResponse("api.discussion.migrateRecentReportedTime");
+        try {
+            Map<String, Object> propertyMap = new HashMap<>();
+            List<Map<String, Object>> reportedDiscussionIds = cassandraOperation.getRecordsByPropertiesByKey(
+                    Constants.KEYSPACE_SUNBIRD,
+                    Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST,
+                    propertyMap,
+                    Arrays.asList(Constants.DISCUSSION_ID, Constants.CREATED_ON_KEY), ""
+            );
+
+            Map<String, Date> latestReportedTimeMap = new HashMap<>();
+
+            for (Map<String, Object> record : reportedDiscussionIds) {
+                String discussionId = (String) record.get(Constants.DISCUSSION_ID_KEY);
+                Date createdOn = (Date) record.get(Constants.CREATED_ON_KEY);
+                if (latestReportedTimeMap.containsKey(discussionId)) {
+                    Date existingTime = latestReportedTimeMap.get(discussionId);
+                    if (createdOn.after(existingTime)) {
+                        latestReportedTimeMap.put(discussionId, createdOn);
+                    }
+                } else {
+                    latestReportedTimeMap.put(discussionId, createdOn);
+                }
+            }
+            log.info("Latest reported times: {}", latestReportedTimeMap);
+
+            for (String discussionId : latestReportedTimeMap.keySet()) {
+                Optional<DiscussionEntity> discussionEntityOptional = discussionRepository.findById(discussionId);
+                if (discussionEntityOptional.isPresent()) {
+                    DiscussionEntity discussionEntity = discussionEntityOptional.get();
+                    ObjectNode data = (ObjectNode) discussionEntity.getData();
+
+                    data.put(Constants.RECENT_REPORTED_ON, getFormattedCurrentTime(latestReportedTimeMap.get(discussionId)));
+                    discussionEntity.setData(data);
+                    discussionRepository.save(discussionEntity);
+                    Map<String, Object> map = objectMapper.convertValue(data, Map.class);
+                    esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), Constants.INDEX_TYPE, discussionId, map, cbServerProperties.getElasticDiscussionJsonPath());
+                }
+            }
+            response.setResponseCode(HttpStatus.OK);
+            response.getParams().setStatus(Constants.SUCCESS);
+            response.getResult().putAll(latestReportedTimeMap);
+        } catch (Exception e) {
+            log.error("Failed to migrate recent reported time", e);
+            DiscussionServiceUtil.createErrorResponse(response, "migrate data failed", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
+        }
+        return response;
+    }
+
+    private String getFormattedCurrentTime(Date currentTime) {
+        ZonedDateTime zonedDateTime = currentTime.toInstant().atZone(ZoneId.systemDefault());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constants.TIME_FORMAT);
+        return zonedDateTime.format(formatter);
     }
 }

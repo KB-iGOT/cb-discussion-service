@@ -65,7 +65,7 @@ public class CassandraOperationImpl implements CassandraOperation {
                 selectQuery.allowFiltering();
             }
         }
-        return selectQuery;
+        return selectQuery.allowFiltering();
     }
 
     private Select processQueryWithoutFiltering(String keyspaceName, String tableName, Map<String, Object> propertyMap,
@@ -95,7 +95,7 @@ public class CassandraOperationImpl implements CassandraOperation {
                 }
             }
         }
-        return selectQuery;
+        return selectQuery.allowFiltering();
     }
 
     @Override
