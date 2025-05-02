@@ -221,4 +221,10 @@ public class DiscussionController {
         ApiResponse response = answerPostReplyService.getReportStatistics(getReportData);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @GetMapping("/migrateRecentReportedTime")
+    public ResponseEntity<ApiResponse> migrateRecentReportedTime() {
+        ApiResponse response = answerPostReplyService.migrateRecentReportedTime();
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
 }

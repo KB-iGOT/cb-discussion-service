@@ -958,7 +958,9 @@ public class DiscussionServiceImpl implements DiscussionService {
                     userReportData.put(Constants.REASON, reasonBuilder.toString());
                 }
             }
-            userReportData.put(Constants.CREATED_ON, new Timestamp(System.currentTimeMillis()));
+            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+            data.put(Constants.RECENT_REPORTED_ON, getFormattedCurrentTime(currentTime));
+            userReportData.put(Constants.CREATED_ON,currentTime);
             cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER, userReportData);
             cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, userReportData);
 

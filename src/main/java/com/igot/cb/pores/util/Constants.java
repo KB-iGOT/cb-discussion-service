@@ -237,6 +237,8 @@ public class Constants {
     public static final String REPORT_REASON_CONFIG_ERROR_MSG = "Report reason configuration not found";
     public static final String NO_REPORT_REASON_FOUND_ERROR_MSG = "No report reasons found for the given ID";
     public static final String GET_REPORT_STATISTICS_ERROR_MSG = "Failed to get report statistics";
+    public static final String RECENT_REPORTED_ON = "recentReportedOn";
+    public static final String CREATED_ON_KEY = "createdon";
 
     private Constants() {
     }

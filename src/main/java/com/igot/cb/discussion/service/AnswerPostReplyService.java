@@ -19,4 +19,6 @@ public interface AnswerPostReplyService {
     ApiResponse managePost(Map<String, Object> reportData, String token, String action);
 
     ApiResponse getReportStatistics(Map<String, Object> reportData);
+
+    ApiResponse migrateRecentReportedTime();
 }
