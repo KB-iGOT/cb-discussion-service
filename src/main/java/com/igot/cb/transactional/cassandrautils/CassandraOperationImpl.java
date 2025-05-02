@@ -95,7 +95,7 @@ public class CassandraOperationImpl implements CassandraOperation {
                 }
             }
         }
-        return selectQuery.allowFiltering();
+        return selectQuery;
     }
 
     @Override
