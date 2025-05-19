@@ -54,7 +54,7 @@ import java.util.stream.StreamSupport;
 @Service
 @Slf4j
 public class DiscussionServiceImpl implements DiscussionService {
-    private BaseStorageService storageService = null;
+    public BaseStorageService storageService = null;
 
     @Autowired
     private PayloadValidation payloadValidation;
@@ -480,7 +480,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return response;
     }
 
-    private ApiResponse vote(String discussionId, String type, String token, String voteType) {
+    public ApiResponse vote(String discussionId, String type, String token, String voteType) {
         log.info("DiscussionServiceImpl::vote - Type: {}", voteType);
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_VOTE_API);
         try {
@@ -1125,7 +1125,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
     }
 
-    private boolean validateCommunityId(String communityId) {
+    public boolean validateCommunityId(String communityId) {
         Optional<CommunityEntity> communityEntityOptional = communityEngagementRepository.findByCommunityIdAndIsActive(communityId, true);
         if (communityEntityOptional.isPresent()) {
             return true;
@@ -1810,7 +1810,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return getGlobalFeedUsingUserId(searchCriteria, userId, isOverride);
     }
 
-    private ApiResponse getGlobalFeedUsingUserId(SearchCriteria searchCriteria, String userId, boolean isOverride) {
+    public ApiResponse getGlobalFeedUsingUserId(SearchCriteria searchCriteria, String userId, boolean isOverride) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
 
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
@@ -1896,7 +1896,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         });
     }
 
-    private List<Object> fetchCommunityFromPrimary(List<String> communityIds) {
+    public List<Object> fetchCommunityFromPrimary(List<String> communityIds) {
         log.info("Fetching community data from PostgreSQL");
         List<Object> communityList = new ArrayList<>();
         long startTime = System.currentTimeMillis();
@@ -1941,8 +1941,8 @@ public class DiscussionServiceImpl implements DiscussionService {
         return communityIds;
     }
 
-    private SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
-                                                       String communityId) {
+    public SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
+                                                      String communityId) {
         SearchCriteria criteria = new SearchCriteria();
         HashMap<String, Object> filterMap = new HashMap<>();
         filterMap.put(Constants.COMMUNITY_ID, communityId);
