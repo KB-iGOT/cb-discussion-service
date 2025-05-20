@@ -1,59 +1,71 @@
 package com.igot.cb.pores.config;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-
-import java.lang.reflect.Field;
-
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
+@ExtendWith(SpringExtension.class)
+@TestPropertySource(properties = {
+        "spring.redis.cacheTtl=5000",
+        "spring.redis.host=localhost",
+        "spring.redis.port=6379",
+        "spring.redis.data.host=localhost",
+        "spring.redis.data.port=6380"
+})
+@ContextConfiguration(classes = {RedisConfig.class, RedisConfigTest.CacheManagerTestConfig.class})
 class RedisConfigTest {
 
+    @TestConfiguration
+    static class CacheManagerTestConfig {
+        @Bean
+        public CacheManager cacheManager() {
+            return new ConcurrentMapCacheManager();
+        }
+    }
+
+    @Autowired
     private RedisConfig redisConfig;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        redisConfig = new RedisConfig();
-        setField(redisConfig, "redisHost", "localhost");
-        setField(redisConfig, "redisPort", 6379);
-        setField(redisConfig, "redisDataHost", "localhost");
-        setField(redisConfig, "redisDataPort", 6380);
-    }
-
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+    @Test
+    void testRedisConnectionFactory() {
+        RedisConnectionFactory factory = redisConfig.redisConnectionFactory();
+        assertNotNull(factory);
+        assertTrue(factory instanceof LettuceConnectionFactory);
     }
 
     @Test
-    void testJedisPool() {
-        JedisPool jedisPool = redisConfig.jedisPool();
-        assertNotNull(jedisPool);
+    void testRedisDataConnectionFactory() {
+        RedisConnectionFactory factory = redisConfig.redisDataConnectionFactory();
+        assertNotNull(factory);
+        assertTrue(factory instanceof LettuceConnectionFactory);
     }
 
     @Test
-    void testRedisTemplateObject() {
-        RedisConnectionFactory mockConnectionFactory = mock(RedisConnectionFactory.class);
-
-        RedisTemplate<String, Object> template = redisConfig.redisTemplateObject(mockConnectionFactory);
-
+    void testRedisTemplate() {
+        RedisTemplate<String, String> template = redisConfig.redisTemplate(redisConfig.redisConnectionFactory());
         assertNotNull(template);
-        assertEquals(StringRedisSerializer.class, template.getKeySerializer().getClass());
-        assertEquals(StringRedisSerializer.class, template.getValueSerializer().getClass());
-        assertEquals(mockConnectionFactory, template.getConnectionFactory());
     }
 
     @Test
-    void testJedisDataPopulationPool() {
-        JedisPool pool = redisConfig.jedisDataPopulationPool();
-        assertNotNull(pool);
+    void testRedisDataTemplate() {
+        RedisTemplate<String, String> template = redisConfig.redisDataTemplate(redisConfig.redisDataConnectionFactory());
+        assertNotNull(template);
+    }
+
+    @Test
+    void testSearchResultRedisTemplate() {
+        RedisTemplate<String, SearchResult> template = redisConfig.searchResultRedisTemplate(redisConfig.redisConnectionFactory());
+        assertNotNull(template);
     }
 }
