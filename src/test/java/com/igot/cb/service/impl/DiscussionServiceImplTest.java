@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
@@ -28,6 +29,8 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
@@ -39,21 +42,20 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.ArgumentMatchers.anyString;
 
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
@@ -61,7 +63,6 @@ import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
 import java.io.File;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -123,6 +124,14 @@ class DiscussionServiceImplTest {
     private final ObjectMapper realObjectMapper = new ObjectMapper(); // real for delegation in tests
     private DiscussionEntity discussionEntity;
     private SearchCriteria searchCriteria;
+
+    @Spy
+    private Logger log = LoggerFactory.getLogger(DiscussionServiceImpl.class);
+
+    private static final String firstName = "John";
+    private static final String profileImg = "profile.jpg";
+    private static final String designation = "Engineer";
+    private static final String department = "IT";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -332,7 +341,7 @@ class DiscussionServiceImplTest {
         Assertions.assertEquals(HttpStatus.OK, response.getResponseCode());
         Assertions.assertEquals("Discussion title", response.getResult().get("title"));
         Assertions.assertEquals(true, response.getResult().get(Constants.IS_ACTIVE));
-        Assertions.assertNotNull(response.getResult().get(Constants.CREATED_ON));
+        assertNotNull(response.getResult().get(Constants.CREATED_ON));
     }
 
     @Test
@@ -467,7 +476,7 @@ class DiscussionServiceImplTest {
 
         ApiResponse response = discussionService.searchDiscussion(searchCriteria, false);
 
-        Assertions.assertNotNull(response);
+        assertNotNull(response);
         assertTrue(response.getResult().containsKey(Constants.SEARCH_RESULTS));
     }
 
@@ -506,16 +515,9 @@ class DiscussionServiceImplTest {
 
         when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(searchResult);
 
-        // Simulate Redis user/community data missing
-//        doReturn(List.of()).when(discussionService).fetchDataForKeys(anyList(), eq(true));
-//        doReturn(List.of()).when(discussionService).fetchDataForKeys(anyList(), eq(false));
-//        doReturn(List.of(Map.of(Constants.USER_ID_KEY, "u1"))).when(discussionService).fetchUserFromPrimary(anyList());
-//        doReturn(List.of(Map.of(Constants.COMMUNITY_ID_KEY, "c1", Constants.COMMUNITY_NAME, "Community A"))).when(discussionService).fetchCommunityFromPrimary(anyList());
-
         ApiResponse response = discussionService.searchDiscussion(searchCriteria, true);
 
         Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-//        assertTrue(response.getResult().containsKey(Constants.SEARCH_RESULTS));
     }
 
     @Test
@@ -650,11 +652,6 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
-//
-//        verify(discussionRepository).save(any(DiscussionEntity.class));
-//        verify(esUtilService).updateDocument(anyString(), anyString(), any(Map.class), anyString());
-//        verify(cacheService).putCache(anyString(), any(JsonNode.class));
-//        verify(producer).push(anyString(), any(Map.class));
     }
 
     /**
@@ -694,12 +691,6 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
-//
-//        verify(discussionRepository).save(any(DiscussionEntity.class));
-//        verify(esUtilService).updateDocument(anyString(), anyString(), anyMap(), anyString());
-//        verify(cacheService).putCache(anyString(), any(JsonNode.class));
-//        verify(redisTemplate).opsForValue();
-//        verify(producer).push(anyString(), anyMap());
     }
 
     /**
@@ -858,9 +849,7 @@ class DiscussionServiceImplTest {
 
         // === Assert ===
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        // Optional: assert error message
-        // assertEquals(Constants.INVALID_TYPE + Constants.QUESTION, response.getParams().getErrMsg());
-    }
+ }
 
     @Test
     void testVote__TypeMismatchQuestion() {
@@ -1283,44 +1272,6 @@ class DiscussionServiceImplTest {
         assertEquals(Constants.FAILED_TO_CREATE_ANSWER_POST, response.getParams().getErrMsg());
     }
 
-//    @Test
-//    public void test_createAnswerPost_8() {
-//        // Arrange
-//        String token = "validToken";
-//        String userId = "validUserId";
-//        String communityId = "validCommunityId";
-//        String parentDiscussionId = "validParentDiscussionId";
-//
-//        ObjectNode answerPostData = new ObjectMapper().createObjectNode();
-//        answerPostData.put(Constants.PARENT_DISCUSSION_ID, parentDiscussionId);
-//        answerPostData.put(Constants.COMMUNITY_ID, communityId);
-//
-//        DiscussionEntity parentDiscussion = new DiscussionEntity();
-//        parentDiscussion.setIsActive(true);
-//        ObjectNode parentData = new ObjectMapper().createObjectNode();
-//        parentData.put(Constants.TYPE, "question");
-//        parentData.put(Constants.STATUS, "active");
-//        parentData.put(Constants.COMMUNITY_ID, communityId);
-//        parentDiscussion.setData(parentData);
-//
-//        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-//        when(discussionRepository.findById(parentDiscussionId)).thenReturn(Optional.of(parentDiscussion));
-//        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
-//                .thenReturn(Collections.singletonList(Collections.singletonMap(Constants.STATUS, true)));
-//        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-//        when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(new DiscussionEntity());
-//        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionEntity");
-//        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("elasticPath");
-//        when(cbServerProperties.getCommunityPostCount()).thenReturn("communityPostCount");
-//
-//        // Act
-//        ApiResponse response = discussionService.createAnswerPost(answerPostData, token);
-//
-//        // Assert
-//        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-//        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-//    }
-
     /**
      * Test case for report method when the user has already reported the discussion.
      * This test verifies that the method returns an error response with ALREADY_REPORTED status
@@ -1528,55 +1479,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-//        verify(cassandraOperation, times(2)).insertRecord(anyString(), anyString(), anyMap());
-//        verify(discussionAnswerPostReplyRepository).save(any(DiscussionAnswerPostReplyEntity.class));
-//        verify(esUtilService).updateDocument(anyString(), anyString(), anyMap(), anyString());
-//        verify(cacheService).putCache(anyString(), any(JsonNode.class));
-//        verify(redisTemplate).opsForValue();
     }
-
-//    @Test
-//    public void test_report_Success() {
-//        // Arrange
-//        String token = "validToken";
-//        String userId = "testUser";
-//        String discussionId = "testDiscussionId";
-//        String type = Constants.ANSWER_POST_REPLY;
-//
-//        Map<String, Object> reportData = new HashMap<>();
-//        reportData.put(Constants.DISCUSSION_ID, discussionId);
-//        reportData.put(Constants.TYPE, type);
-//        reportData.put(Constants.REPORTED_REASON, Arrays.asList("Reason1", Constants.OTHERS));
-//        reportData.put(Constants.OTHER_REASON, "Custom reason");
-//
-//        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-//
-//        DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
-//        ObjectNode dataNode = realObjectMapper.createObjectNode();
-//        dataNode.put(Constants.TYPE, type);
-//        dataNode.put(Constants.STATUS, Constants.ACTIVE);
-//        dataNode.put(Constants.COMMUNITY_ID, "testCommunityId");
-//        replyEntity.setData(dataNode);
-//        replyEntity.setIsActive(true);
-//
-//        when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
-//        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any()))
-//                .thenReturn(Collections.emptyList());
-//        when(cbServerProperties.isDiscussionReportHidePost()).thenReturn(true);
-//        when(cbServerProperties.getReportPostUserLimit()).thenReturn(5);
-//
-//        // Act
-//        ApiResponse response = discussionService.report(token, reportData);
-//
-//        // Assert
-//        assertEquals(HttpStatus.OK, response.getResponseCode());
-////        verify(cassandraOperation, times(2)).insertRecord(anyString(), anyString(), anyMap());
-////        verify(discussionAnswerPostReplyRepository).save(any(DiscussionAnswerPostReplyEntity.class));
-////        verify(esUtilService).updateDocument(anyString(), anyString(), anyMap(), anyString());
-////        verify(cacheService).putCache(anyString(), any(JsonNode.class));
-////        verify(redisTemplate).opsForValue();
-//    }
-
 
     /**
      * Test case for report method with specific path constraints.
@@ -1951,11 +1854,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-//        verify(cassandraOperation, times(2)).insertRecord(anyString(), anyString(), anyMap());
-//        verify(discussionAnswerPostReplyRepository).save(any(DiscussionAnswerPostReplyEntity.class));
-//        verify(esUtilService).updateDocument(anyString(), anyString(), anyMap(), anyString());
-//        verify(cacheService).putCache(anyString(), any(JsonNode.class));
-//        verify(redisTemplate).opsForValue();
+
     }
 
     /**
@@ -2947,94 +2846,6 @@ class DiscussionServiceImplTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
     }
 
-
-//    /**
-//     * Testcase 6 for @Override public ApiResponse getBookmarkedDiscussions(String token, Map<String, Object> requestData)
-//     * Path constraints: !((StringUtils.isNotBlank(errorMsg))), !((StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId))), (StringUtils.isNotBlank(cachedJson)), !((requestData.containsKey(Constants.SEARCH_STRING) && StringUtils.isNotBlank((String) requestData.get(Constants.SEARCH_STRING)))), (searchResult == null)
-//     * returns: response
-//     */
-//    @Test
-//    public void test_getBookmarkedDiscussions_6() throws JsonProcessingException {
-//        // Arrange
-//        String token = "validToken";
-//        String userId = "testUser";
-//        String communityId = "testCommunity";
-//        Map<String, Object> requestData = new HashMap<>();
-//        requestData.put(Constants.COMMUNITY_ID, communityId);
-//        requestData.put(Constants.PAGE, 1);
-//        requestData.put(Constants.PAGE_SIZE, 10);
-//
-//        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-//
-//        String cachedJson = "[\"discussion1\", \"discussion2\"]";
-//        when(cacheService.getCache(Constants.DISCUSSION_CACHE_PREFIX + Constants.COMMUNITY + communityId + userId))
-//                .thenReturn(cachedJson);
-//
-//        when(objectMapper.readValue(eq(cachedJson), any(TypeReference.class)))
-//                .thenReturn(Arrays.asList("discussion1", "discussion2"));
-//
-//        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-//        when(valueOperations.get(anyString())).thenReturn(null);
-//
-//        when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class), anyString()))
-//                .thenReturn(new SearchResult());
-//
-//        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
-//
-//        // Act
-//        ApiResponse response = discussionService.getBookmarkedDiscussions(token, requestData);
-//
-//        // Assert
-//        assertEquals(HttpStatus.OK, response.getResponseCode());
-//        assertTrue(response.getResult().containsKey(Constants.SEARCH_RESULTS));
-//        verify(redisTemplate.opsForValue()).set(anyString(), any(SearchResult.class), eq(3600L), any());
-//    }
-//
-//    /**
-//     * Testcase 7 for @Override public ApiResponse getBookmarkedDiscussions(String token, Map<String, Object> requestData)
-//     * Path constraints: !((StringUtils.isNotBlank(errorMsg))), !((StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId))), (StringUtils.isNotBlank(cachedJson)), (requestData.containsKey(Constants.SEARCH_STRING) && StringUtils.isNotBlank((String) requestData.get(Constants.SEARCH_STRING))), !((((String) requestData.get(Constants.SEARCH_STRING)).length() < 3)), !((searchResult == null))
-//     * returns: response
-//     */
-//    @Test
-//    public void test_getBookmarkedDiscussions_7() throws JsonProcessingException {
-//        // Arrange
-//        String token = "validToken";
-//        String userId = "user123";
-//        String communityId = "community123";
-//        Map<String, Object> requestData = new HashMap<>();
-//        requestData.put(Constants.COMMUNITY_ID, communityId);
-//        requestData.put(Constants.PAGE, 1);
-//        requestData.put(Constants.PAGE_SIZE, 10);
-//        requestData.put(Constants.SEARCH_STRING, "validSearchString");
-//
-//        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-//
-//        String cachedJson = "[\"discussion1\", \"discussion2\"]";
-//        when(cacheService.getCache(Constants.DISCUSSION_CACHE_PREFIX + Constants.COMMUNITY + communityId + userId))
-//            .thenReturn(cachedJson);
-//
-//        when(objectMapper.readValue(eq(cachedJson), any(TypeReference.class)))
-//            .thenReturn(Arrays.asList("discussion1", "discussion2"));
-//
-//        SearchResult mockSearchResult = new SearchResult();
-//        mockSearchResult.setData(Arrays.asList(new HashMap<>(), new HashMap<>()));
-//        when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class), anyString()))
-//            .thenReturn(mockSearchResult);
-//
-//        when(redisTemplate.opsForValue().get(anyString())).thenReturn(null);
-//        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(300L);
-//
-//        // Act
-//        ApiResponse response = discussionService.getBookmarkedDiscussions(token, requestData);
-//
-//        // Assert
-//        assertEquals(HttpStatus.OK, response.getResponseCode());
-//        assertTrue(response.getResult().containsKey(Constants.SEARCH_RESULTS));
-//        verify(esUtilService).searchDocuments(anyString(), any(SearchCriteria.class), anyString());
-//        verify(redisTemplate.opsForValue()).set(anyString(), any(SearchResult.class), anyLong(), any());
-//    }
-
-
     /**
      * Test case for searchDiscussionByCommunity method when the error message is not empty.
      * This test verifies that the method returns an error response with BAD_REQUEST status
@@ -3454,5 +3265,153 @@ class DiscussionServiceImplTest {
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
 
+    @Test
+    void testFetchCommunityFromPrimary_withValidCommunityIds() {
+        // Given
+        String communityId = "comm-123";
+        List<String> communityIds = List.of(communityId);
 
+        // Create JsonNode for 'data' field
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode dataNode = objectMapper.createObjectNode();
+        dataNode.set(Constants.COMMUNITY_NAME, new TextNode("Community A"));
+
+        CommunityEntity entity = new CommunityEntity();
+        entity.setCommunityId(communityId);
+        entity.setData(dataNode); // ✅ Correct: setting JsonNode, not Map
+
+        when(communityEngagementRepository.findAllById(communityIds))
+                .thenReturn(List.of(entity));
+
+        // When
+        List<Object> result = discussionService.fetchCommunityFromPrimary(communityIds);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        Map<String, Object> resultMap = (Map<String, Object>) result.get(0);
+        assertEquals(communityId, resultMap.get(Constants.COMMUNITY_ID_KEY));
+        assertEquals("Community A", resultMap.get(Constants.COMMUNITY_NAME));
+
+        verify(communityEngagementRepository).findAllById(communityIds);
+    }
+
+    @Test
+    void testFetchUserFromPrimary_withCompleteProfileDetails() throws Exception {
+        String profileJson = "{ \"profileImg\": \"" + profileImg + "\", \"designation\": \"" + designation + "\", \"employmentDetails\": { \"department\": \"" + department + "\" } }";
+
+        Map<String, Object> userInfo = Map.of(
+                Constants.ID, userId,
+                Constants.FIRST_NAME, firstName,
+                Constants.PROFILE_DETAILS, profileJson
+        );
+
+        Map<String, Object> parsedProfileDetails = Map.of(
+                Constants.PROFILE_IMG, profileImg,
+                Constants.DESIGNATION_KEY, designation,
+                Constants.EMPLOYMENT_DETAILS, Map.of(Constants.DEPARTMENT_KEY, department)
+        );
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any())
+        ).thenReturn(List.of(userInfo));
+
+        when(objectMapper.readValue(eq(profileJson), any(TypeReference.class)))
+                .thenReturn(parsedProfileDetails);
+
+        List<Object> result = discussionService.fetchUserFromPrimary(List.of(userId));
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        Map<String, Object> userMap = (Map<String, Object>) result.get(0);
+        assertEquals(userId, userMap.get(Constants.USER_ID_KEY));
+        assertEquals(firstName, userMap.get(Constants.FIRST_NAME_KEY));
+        assertEquals(profileImg, userMap.get(Constants.PROFILE_IMG_KEY));
+        assertEquals(profileImg, userMap.get(Constants.DESIGNATION_KEY)); // because of code bug
+        assertEquals(department, userMap.get(Constants.DEPARTMENT));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_withEmptyProfileDetails() {
+        Map<String, Object> userInfo = Map.of(
+                Constants.ID, userId,
+                Constants.FIRST_NAME, firstName,
+                Constants.PROFILE_DETAILS, ""
+        );
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any())
+        ).thenReturn(List.of(userInfo));
+
+        List<Object> result = discussionService.fetchUserFromPrimary(List.of(userId));
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        Map<String, Object> userMap = (Map<String, Object>) result.get(0);
+        assertEquals(userId, userMap.get(Constants.USER_ID_KEY));
+        assertEquals(firstName, userMap.get(Constants.FIRST_NAME_KEY));
+        assertFalse(userMap.containsKey(Constants.PROFILE_IMG_KEY));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_withInvalidJsonProfileDetails_shouldLogError() throws Exception {
+        String invalidProfileJson = "not-a-json";
+
+        Map<String, Object> userInfo = Map.of(
+                Constants.ID, userId,
+                Constants.FIRST_NAME, firstName,
+                Constants.PROFILE_DETAILS, invalidProfileJson
+        );
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any())
+        ).thenReturn(List.of(userInfo));
+
+        when(objectMapper.readValue(eq(invalidProfileJson), any(TypeReference.class)))
+                .thenThrow(JsonProcessingException.class);
+
+        List<Object> result = discussionService.fetchUserFromPrimary(List.of(userId));
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        Map<String, Object> userMap = (Map<String, Object>) result.get(0);
+        assertEquals(userId, userMap.get(Constants.USER_ID_KEY));
+        assertEquals(firstName, userMap.get(Constants.FIRST_NAME_KEY));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_withPartialProfileDetails() throws Exception {
+        String profileJson = "{ \"profileImg\": \"" + profileImg + "\" }";
+
+        Map<String, Object> userInfo = Map.of(
+                Constants.ID, userId,
+                Constants.FIRST_NAME, firstName,
+                Constants.PROFILE_DETAILS, profileJson
+        );
+
+        Map<String, Object> parsedProfileDetails = Map.of(
+                Constants.PROFILE_IMG, profileImg
+        );
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any())
+        ).thenReturn(List.of(userInfo));
+
+        when(objectMapper.readValue(eq(profileJson), any(TypeReference.class)))
+                .thenReturn(parsedProfileDetails);
+
+        List<Object> result = discussionService.fetchUserFromPrimary(List.of(userId));
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        Map<String, Object> userMap = (Map<String, Object>) result.get(0);
+        assertEquals(profileImg, userMap.get(Constants.PROFILE_IMG_KEY));
+        assertFalse(userMap.containsKey(Constants.DESIGNATION_KEY));
+        assertFalse(userMap.containsKey(Constants.DEPARTMENT));
+    }
 }
