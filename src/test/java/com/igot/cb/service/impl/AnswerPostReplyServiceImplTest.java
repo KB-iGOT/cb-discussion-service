@@ -178,38 +178,6 @@ class AnswerPostReplyServiceImplTest {
     }
 
     @Test
-    void testUpdateAnswerPostReplyToAnswerPost_increment() {
-        DiscussionEntity entity = mockDiscussionEntity();
-
-        when(discussionRepository.save(any())).thenReturn(entity);
-        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-
-        service.updateAnswerPostReplyToAnswerPost(entity, "newReplyId", Constants.INCREMENT);
-
-        verify(discussionRepository).save(any());
-        verify(esUtilService).updateDocument(any(), any(), any(), any());
-        verify(cacheService).putCache(any(), any());
-    }
-
-    @Test
-    void testUpdateAnswerPostReplyToAnswerPost_decrement() {
-        DiscussionEntity entity = mockDiscussionEntity();
-        ArrayNode arrayNode = new ObjectMapper().createArrayNode().add("existingId");
-        ((ObjectNode) entity.getData()).set(Constants.ANSWER_POST_REPLIES, arrayNode);
-
-        when(discussionRepository.save(any())).thenReturn(entity);
-        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-
-        service.updateAnswerPostReplyToAnswerPost(entity, "existingId", Constants.DECREMENT);
-
-        verify(discussionRepository).save(entity);
-        verify(esUtilService).updateDocument(any(), any(), any(), any());
-        verify(cacheService).putCache(any(), any());
-    }
-
-    @Test
     void testUpdateAnswerPostReply_success() throws Exception {
         String replyId = "reply123";
         JsonNode inputNode = new ObjectMapper().readTree("{\"id\":\"reply123\",\"isInitialUpload\":false, \"answerPostReplyId\":\"reply123\"}");

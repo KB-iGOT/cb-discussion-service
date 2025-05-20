@@ -163,7 +163,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         return criteria;
     }
 
-    public void updateAnswerPostReplyToAnswerPost(DiscussionEntity discussionEntity, String discussionId, String action) {
+    private void updateAnswerPostReplyToAnswerPost(DiscussionEntity discussionEntity, String discussionId, String action) {
         log.info("DiscussionService::updateAnswerPostReplyToAnswerPost:inside");
         JsonNode data = discussionEntity.getData();
         Set<String> answerPostReplies = new HashSet<>();

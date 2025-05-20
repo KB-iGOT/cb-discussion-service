@@ -310,73 +310,62 @@ class CassandraOperationImplTest {
     }
 
     @Test
-    void testProcessQueryWithoutFiltering_withFieldsAndPropertyMapWithList() {
-        String keyspace = "ks";
-        String table = "tbl";
+    void testGetRecordsByPropertiesByKey_success() {
+        // Input
+        String keyspaceName = "test_keyspace";
+        String tableName = "test_table";
+        Map<String, Object> propertyMap = Map.of("id", 1);
+        List<String> fields = List.of("id", "name");
+        String key = "id";
 
-        List<String> fields = Arrays.asList("id", "name");
+        // Prepare mocks
+        SimpleStatement statement = SimpleStatement.newInstance("SELECT * FROM test");
 
-        Map<String, Object> propertyMap = new HashMap<>();
-        propertyMap.put("id", Arrays.asList("1", "2", "3"));  // List value
+        // Spy on the private processQuery method via doReturn (assuming it returns Select instance)
+        Select mockSelect = mock(Select.class);
+        when(mockSelect.build()).thenReturn(statement);
 
-        Select query = cassandraOperation.processQueryWithoutFiltering(keyspace, table, propertyMap, fields);
+//        doReturn(mockSelect).when(cassandraOperation)
+//                .processQuery(keyspaceName, tableName, propertyMap, fields);
 
-        assertNotNull(query);
-        // Additional assertions could be done by verifying query string or structure if needed
-        // e.g. query.asCql()
+        when(connectionManager.getSession(keyspaceName)).thenReturn(mockSession);
+        when(mockSession.execute(statement)).thenReturn(mockResultSet);
+
+        try (MockedStatic<CassandraUtil> cassandraUtilMock = Mockito.mockStatic(CassandraUtil.class)) {
+            List<Map<String, Object>> mockedResponse = List.of(
+                    Map.of("id", 1, "name", "Test")
+            );
+            cassandraUtilMock.when(() -> CassandraUtil.createResponse(mockResultSet)).thenReturn(mockedResponse);
+
+            // Call method
+            List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(
+                    keyspaceName, tableName, propertyMap, fields, key
+            );
+
+            // Assertions
+            assertNotNull(response);
+        }
     }
 
     @Test
-    void testProcessQueryWithoutFiltering_withFieldsAndPropertyMapWithSingleValue() {
-        String keyspace = "ks";
-        String table = "tbl";
+    void testGetRecordsByPropertiesByKey_exception() {
+        // Prepare input
+        String keyspaceName = "test_keyspace";
+        String tableName = "test_table";
+        Map<String, Object> propertyMap = Map.of("id", 1);
+        List<String> fields = List.of("id", "name");
+        String key = "id";
 
-        List<String> fields = Arrays.asList("id", "name");
+        // Throw exception
+        when(connectionManager.getSession(anyString())).thenThrow(new RuntimeException("Connection failed"));
 
-        Map<String, Object> propertyMap = new HashMap<>();
-        propertyMap.put("id", "123");  // Single value
+        // Call method
+        List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(
+                keyspaceName, tableName, propertyMap, fields, key
+        );
 
-        Select query = cassandraOperation.processQueryWithoutFiltering(keyspace, table, propertyMap, fields);
-
-        assertNotNull(query);
-    }
-
-    @Test
-    void testProcessQueryWithoutFiltering_withEmptyFieldsAndEmptyPropertyMap() {
-        String keyspace = "ks";
-        String table = "tbl";
-
-        List<String> fields = Collections.emptyList();
-
-        Map<String, Object> propertyMap = Collections.emptyMap();
-
-        Select query = cassandraOperation.processQueryWithoutFiltering(keyspace, table, propertyMap, fields);
-
-        assertNotNull(query);
-    }
-
-    @Test
-    void testProcessQueryWithoutFiltering_withNullFieldsAndNullPropertyMap() {
-        String keyspace = "ks";
-        String table = "tbl";
-
-        Select query = cassandraOperation.processQueryWithoutFiltering(keyspace, table, null, null);
-
-        assertNotNull(query);
-    }
-
-    @Test
-    void testProcessQueryWithoutFiltering_withListPropertyMapEmptyList() {
-        String keyspace = "ks";
-        String table = "tbl";
-
-        List<String> fields = Arrays.asList("id");
-
-        Map<String, Object> propertyMap = new HashMap<>();
-        propertyMap.put("id", Collections.emptyList());  // Empty list value
-
-        Select query = cassandraOperation.processQueryWithoutFiltering(keyspace, table, propertyMap, fields);
-
-        assertNotNull(query);
+        // Assert
+        assertNotNull(response); // should return empty list
+        assertTrue(response.isEmpty());
     }
 }

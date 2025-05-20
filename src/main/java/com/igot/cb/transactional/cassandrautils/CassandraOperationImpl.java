@@ -72,8 +72,8 @@ public class CassandraOperationImpl implements CassandraOperation {
     }
 
 
-    Select processQueryWithoutFiltering(String keyspaceName, String tableName, Map<String, Object> propertyMap,
-                                        List<String> fields) {
+    private Select processQueryWithoutFiltering(String keyspaceName, String tableName, Map<String, Object> propertyMap,
+                                                List<String> fields) {
         Select selectQuery;
         if (CollectionUtils.isNotEmpty(fields)) {
             selectQuery = QueryBuilder.selectFrom(keyspaceName, tableName).columns(fields);

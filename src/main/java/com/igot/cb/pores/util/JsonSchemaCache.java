@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 public class JsonSchemaCache {
     private final Map<String, JsonSchema> schemaCache = new ConcurrentHashMap<>();
 
-    JsonSchema loadSchema(String key, String schemaPath) {
+    private JsonSchema loadSchema(String key, String schemaPath) {
         try (InputStream inputStream = new ClassPathResource(schemaPath).getInputStream()) {
             JsonSchema schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7)
                     .getSchema(inputStream);

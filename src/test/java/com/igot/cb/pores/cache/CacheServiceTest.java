@@ -9,6 +9,7 @@ import org.mockito.*;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -31,10 +32,14 @@ class CacheServiceTest {
     private ValueOperations<String, String> valueOperations;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
-        cacheService.cacheTtl = 60L; // Mock TTL
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // Set private field 'cacheTtl' using reflection
+        Field cacheTtlField = CacheService.class.getDeclaredField("cacheTtl");
+        cacheTtlField.setAccessible(true);
+        cacheTtlField.set(cacheService, 60L); // set TTL to 60 seconds
     }
 
     @Test

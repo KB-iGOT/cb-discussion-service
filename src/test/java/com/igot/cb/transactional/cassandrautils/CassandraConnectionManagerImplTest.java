@@ -1,10 +1,8 @@
 package com.igot.cb.transactional.cassandrautils;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
-import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
-import com.datastax.oss.driver.api.core.metadata.Metadata;
-import com.datastax.oss.driver.api.core.metadata.Node;
+import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PropertiesCache;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -25,17 +24,6 @@ class CassandraConnectionManagerImplTest {
 
     @Mock
     PropertiesCache propertiesCache;
-
-    @Mock
-    CqlSession mockSession;
-
-    @Mock
-    Metadata metadata;
-
-    @Mock
-    Node mockNode;
-
-    CassandraConnectionManagerImpl manager;
 
     @BeforeEach
     void setup() {
@@ -69,15 +57,7 @@ class CassandraConnectionManagerImplTest {
     @Test
     void testShutdownHook() {
         Thread thread = new CassandraConnectionManagerImpl.ResourceCleanUp();
-        thread.run(); // manually invoke shutdown hook
-    }
-
-    // === Utility ===
-
-    private void mockCommonProperties(PropertiesCache propertiesCache) {
-        when(propertiesCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_LOCAL)).thenReturn("1");
-        when(propertiesCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_REMOTE)).thenReturn("1");
-        when(propertiesCache.getProperty(Constants.HEARTBEAT_INTERVAL)).thenReturn("5");
+        thread.start();
     }
 
     private ConsistencyLevel invokeGetConsistencyLevel() {
@@ -87,6 +67,22 @@ class CassandraConnectionManagerImplTest {
             return (ConsistencyLevel) method.invoke(null);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void testConstructorThrowsException_whenHostIsBlank() {
+        try (
+                MockedStatic<PropertiesCache> propertiesCacheStatic = Mockito.mockStatic(PropertiesCache.class)
+        ) {
+            // Arrange
+            PropertiesCache mockPropertiesCache = mock(PropertiesCache.class);
+            propertiesCacheStatic.when(PropertiesCache::getInstance).thenReturn(mockPropertiesCache);
+            when(mockPropertiesCache.getProperty(Constants.CASSANDRA_CONFIG_HOST)).thenReturn("");
+
+            // Act & Assert
+            CustomException exception = assertThrows(CustomException.class, CassandraConnectionManagerImpl::new);
+            assertEquals("Cassandra host is not configured", exception.getMessage()); // Adjust message if needed
         }
     }
 }

@@ -18,7 +18,7 @@ public class CacheService {
   private ObjectMapper objectMapper;
 
   @Value("${spring.redis.cacheTtl}")
-  long cacheTtl;
+  private long cacheTtl;
 
   @Autowired
   private RedisTemplate<String, String> redisTemplate;
