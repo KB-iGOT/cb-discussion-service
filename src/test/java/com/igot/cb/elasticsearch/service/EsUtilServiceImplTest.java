@@ -8,6 +8,8 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.core.search.TotalHits;
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation;
+import co.elastic.clients.elasticsearch.indices.ElasticsearchIndicesClient;
+import co.elastic.clients.elasticsearch.indices.RefreshRequest;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,8 +41,8 @@ import static org.mockito.Mockito.*;
 class EsUtilServiceImplTest {
 
 
-    private ElasticsearchClient elasticsearchClient= Mockito.mock(ElasticsearchClient.class);
-
+    private final ElasticsearchClient elasticsearchClient= Mockito.mock(ElasticsearchClient.class);
+    private final ElasticsearchIndicesClient indicesClient = Mockito.mock(ElasticsearchIndicesClient.class);
     @Mock
     private ObjectMapper objectMapper;
 
@@ -261,5 +263,23 @@ class EsUtilServiceImplTest {
         assertEquals(1L, result.getTotalCount());
         assertNotNull(result.getData());
         assertNotNull(result.getFacets());
+    }
+
+
+    @Test
+    void deleteDocument_VerifyRefreshRequestParameters() throws IOException {
+        String documentId = "test-doc-id";
+        String esIndexName = "test-index";
+        DeleteResponse mockDeleteResponse = mock(DeleteResponse.class);
+        Result mockResult = mock(Result.class);
+        when(elasticsearchClient.indices()).thenReturn(indicesClient);
+        when(mockResult.jsonValue()).thenReturn("DELETED");
+        when(mockDeleteResponse.result()).thenReturn(mockResult);
+        when(elasticsearchClient.delete(any(DeleteRequest.class))).thenReturn(mockDeleteResponse);
+        ArgumentCaptor<RefreshRequest> refreshRequestCaptor = ArgumentCaptor.forClass(RefreshRequest.class);
+        when(indicesClient.refresh(refreshRequestCaptor.capture())).thenReturn(null);
+        esUtilService.deleteDocument(documentId, esIndexName);
+        RefreshRequest capturedRequest = refreshRequestCaptor.getValue();
+        assertEquals(esIndexName, capturedRequest.index().get(0));
     }
 }
