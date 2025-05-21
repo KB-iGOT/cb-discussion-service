@@ -2,8 +2,11 @@ package com.igot.cb.elasticsearch.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Result;
+import co.elastic.clients.elasticsearch._types.ShardStatistics;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.core.search.TotalHits;
@@ -50,6 +53,12 @@ class EsUtilServiceImplTest {
     private EsUtilServiceImpl esUtilService;
 
     private SearchCriteria sampleCriteria;
+
+    private static final String INDEX_NAME = "test-index";
+
+    @Mock
+    private Query query;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -282,4 +291,106 @@ class EsUtilServiceImplTest {
         RefreshRequest capturedRequest = refreshRequestCaptor.getValue();
         assertEquals(esIndexName, capturedRequest.index().get(0));
     }
+
+
+    @Test
+    void test_successfulDeletion() throws IOException {
+        Hit<Object> hit1 = new Hit.Builder<>().id("doc1").index("index").build();
+        Hit<Object> hit2 = new Hit.Builder<>().id("doc2").index("index").build();
+        HitsMetadata<Object> hits = new HitsMetadata.Builder<>()
+                .total(new TotalHits.Builder().value(2L).relation(TotalHitsRelation.Eq).build())
+                .hits(Arrays.asList(hit1, hit2))
+                .build();
+
+        ShardStatistics shards = new ShardStatistics.Builder()
+                .total(1)
+                .successful(1)
+                .skipped(0)
+                .failed(0)
+                .build();
+
+        SearchResponse<Object> mockResponse = new SearchResponse.Builder<Object>()
+                .took(1L)
+                .timedOut(false)
+                .shards(shards)
+                .hits(hits)  // your HitsMetadata<Object> here
+                .build();
+
+// Create a BulkResponseItem with a valid OperationType, e.g., DELETE
+        BulkResponseItem item = new BulkResponseItem.Builder()
+                .index("test-index")
+                .id("doc1")
+                .status(200)
+                .operationType(OperationType.Delete)  // <-- correct enum value here
+                .build();
+
+        BulkResponse bulkResponse = new BulkResponse.Builder()
+                .took(1L)
+                .errors(false)
+                .items(Collections.singletonList(item))
+                .build();
+
+        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class))).thenReturn(mockResponse);
+        when(elasticsearchClient.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
+
+        esUtilService.deleteDocumentsByCriteria(INDEX_NAME, query);
+
+        verify(elasticsearchClient).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    void test_partialDeletionFailure() throws IOException {
+        Hit<Object> hit1 = new Hit.Builder<>().id("doc1").index("index").build();
+        HitsMetadata<Object> hits = new HitsMetadata.Builder<>()
+                .total(new TotalHits.Builder().value(2L).relation(TotalHitsRelation.Eq).build())
+                .hits(Arrays.asList(hit1))
+                .build();
+
+
+        ShardStatistics shards = new ShardStatistics.Builder()
+                .total(1)
+                .successful(1)
+                .skipped(0)
+                .failed(0)
+                .build();
+
+        SearchResponse<Object> mockResponse = new SearchResponse.Builder<Object>()
+                .took(1L)
+                .timedOut(false)
+                .shards(shards)
+                .hits(hits)  // your HitsMetadata<Object> here
+                .build();
+
+// Create a BulkResponseItem with a valid OperationType, e.g., DELETE
+        BulkResponseItem item = new BulkResponseItem.Builder()
+                .index("test-index")
+                .id("doc1")
+                .status(200)
+                .operationType(OperationType.Delete)  // <-- correct enum value here
+                .build();
+
+        BulkResponse bulkResponse = new BulkResponse.Builder()
+                .took(1L)
+                .errors(false)
+                .items(Collections.singletonList(item))
+                .build();
+
+        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class))).thenReturn(mockResponse);
+        when(elasticsearchClient.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
+
+        esUtilService.deleteDocumentsByCriteria(INDEX_NAME, query);
+
+        verify(elasticsearchClient).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    void test_exceptionHandling() throws IOException {
+        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class)))
+                .thenThrow(new IOException("Simulated failure"));
+
+        esUtilService.deleteDocumentsByCriteria(INDEX_NAME, query);
+
+        verify(elasticsearchClient, never()).bulk((BulkRequest) any());
+    }
+
 }

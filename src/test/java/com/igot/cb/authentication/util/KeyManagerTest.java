@@ -1,10 +1,9 @@
 package com.igot.cb.authentication.util;
 
 import com.igot.cb.authentication.model.KeyData;
-import com.igot.cb.authentication.util.Base64Util;
-import com.igot.cb.authentication.util.KeyManager;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PropertiesCache;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -252,6 +251,17 @@ class KeyManagerTest {
             // Call the method and verify it throws an exception
             Exception exception = assertThrows(Exception.class, () -> KeyManager.loadPublicKey(publicKeyString));
             assertEquals("Test exception", exception.getMessage());
+        }
+    }
+
+    @Test
+    void init_shouldHandleExceptionWhenFilesWalkThrows() throws Exception {
+        try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
+            // Make Files.walk throw exception
+            filesMockedStatic.when(() -> Files.walk(any(Path.class))).thenThrow(new RuntimeException("Walk failed"));
+
+            // Just call init - exception should be caught and logged, no throw
+            Assertions.assertDoesNotThrow(() -> keyManager.init());
         }
     }
 }

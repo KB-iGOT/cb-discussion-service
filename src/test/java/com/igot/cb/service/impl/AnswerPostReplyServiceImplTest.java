@@ -640,4 +640,17 @@ class AnswerPostReplyServiceImplTest {
         assertTrue(response.getResult().containsKey(Constants.TOTAL_COUNT));
         assertTrue(response.getResult().containsKey(Constants.REPORT_REASONS));
     }
+    @Test
+    void readAnswerPostReply_whenDiscussionIdIsBlank_shouldReturnBadRequestResponse() {
+        // Arrange
+        String blankDiscussionId = "  "; // blank input
+
+        // Act
+        ApiResponse response = service.readAnswerPostReply(blankDiscussionId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(Constants.ANSWER_POST_REPLY_READ_API, response.getId());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
 }
