@@ -31,10 +31,14 @@ class CacheServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private RedisTemplate<String, String> redisDataTemplate;
+
     @BeforeEach
     void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisDataTemplate.opsForValue()).thenReturn(valueOperations);
 
         // Set private field 'cacheTtl' using reflection
         Field cacheTtlField = CacheService.class.getDeclaredField("cacheTtl");
@@ -121,5 +125,19 @@ class CacheServiceTest {
 
         List<Object> result = cacheService.hget(keys);
         assertEquals(0, result.size()); // exception handled, list remains empty
+    }
+
+    @Test
+    void testHgetMulti_ReturnsValuesFromRedis() {
+        List<String> keys = Arrays.asList("key1", "key2");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(keys)).thenReturn(Arrays.asList("val1", "val2"));
+
+        List<Object> result = cacheService.hgetMulti(keys);
+
+        assertEquals(2, result.size());
+        assertTrue(result.contains("val1"));
+        assertTrue(result.contains("val2"));
     }
 }

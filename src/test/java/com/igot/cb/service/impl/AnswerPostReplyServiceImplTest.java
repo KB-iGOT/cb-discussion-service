@@ -33,6 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 
 import static com.igot.cb.pores.util.Constants.DISCUSSION_ID;
@@ -341,10 +342,6 @@ class AnswerPostReplyServiceImplTest {
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
 
-        when(cassandraOperation.getRecordsByPropertiesByKey(
-                any(), any(), any(), any(), any()
-        )).thenReturn(Collections.singletonList(Collections.singletonMap(Constants.USERID, "user1")));
-
         ApiResponse response = service.managePost(payload, "token", Constants.ACTIVE);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.ADMIN_MANAGE_POST_API, response.getId());
@@ -411,7 +408,7 @@ class AnswerPostReplyServiceImplTest {
     @Test
     void testMigrateRecentReportedTime_successfulMigration() {
         Map<String, Object> record1 = Map.of(Constants.DISCUSSION_ID_KEY, discussionId,
-                Constants.CREATED_ON_KEY, new Date());
+                Constants.CREATED_ON_KEY, Instant.now());
         when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(record1));
 
@@ -432,7 +429,7 @@ class AnswerPostReplyServiceImplTest {
     @Test
     void testMigrateRecentReportedTime_discussionNotFound() {
         Map<String, Object> record1 = Map.of(Constants.DISCUSSION_ID_KEY, discussionId,
-                Constants.CREATED_ON_KEY, new Date());
+                Constants.CREATED_ON_KEY, Instant.now());
         when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(record1));
 
