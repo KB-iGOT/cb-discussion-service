@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CassandraConnectionManagerImplMethodTest {
-    @InjectMocks
+
     private CassandraConnectionManagerImpl cassandraConnectionManager;
 
     private MockedStatic<CqlSession> sessionStaticMock;
@@ -30,7 +30,7 @@ class CassandraConnectionManagerImplMethodTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-
+        cassandraConnectionManager = new CassandraConnectionManagerImpl();
         sessionStaticMock = mockStatic(CqlSession.class);
         propertiesCacheStaticMock = mockStatic(PropertiesCache.class);
         stringUtilsMock = mockStatic(StringUtils.class);
