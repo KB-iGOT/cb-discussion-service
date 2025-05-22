@@ -1,4 +1,4 @@
-package com.igot.cb.controller;
+package com.igot.cb.discussion.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
