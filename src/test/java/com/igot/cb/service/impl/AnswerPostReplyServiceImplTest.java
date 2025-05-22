@@ -58,6 +58,7 @@ class AnswerPostReplyServiceImplTest {
     @Mock private ObjectMapper objectMapper;
     @Mock private RedisTemplate<String, SearchResult> redisTemplate;
     @Mock private ValueOperations<String, SearchResult> valueOperations;
+    private final ObjectMapper realMapper = new ObjectMapper();
 
     private final String token = "validToken";
     private final String parentAnswerPostId = "parentPostId";
@@ -653,4 +654,100 @@ class AnswerPostReplyServiceImplTest {
         assertEquals(Constants.ANSWER_POST_REPLY_READ_API, response.getId());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
+
+    @Test
+    void testDeleteAnswerPostReply_Success() {
+        String token = "valid.token";
+        String userId = "user123";
+        String discussionId = "reply123";
+        String type = "reply";
+
+        // Mock token verification
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Prepare reply entity with JsonNode
+        ObjectNode replyData = realMapper.createObjectNode();
+        replyData.put(Constants.TYPE, type);
+        replyData.put(Constants.PARENT_ANSWER_POST_ID, "parentAnsId");
+        replyData.put(Constants.PARENT_DISCUSSION_ID, "parentDiscId");
+        replyData.put(Constants.COMMUNITY_ID, "community1");
+        replyData.put(Constants.IS_ACTIVE, true);
+
+        DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
+        replyEntity.setIsActive(true);
+        replyEntity.setData(replyData);
+        replyEntity.setDiscussionId(discussionId);
+
+        when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
+
+        // Parent DiscussionEntity
+        ObjectNode discussionData = realMapper.createObjectNode();
+        ArrayNode answerReplies = realMapper.createArrayNode().add(discussionId);
+        discussionData.set(Constants.ANSWER_POST_REPLIES, answerReplies);
+        discussionData.put(Constants.ANSWER_POST_REPLIES_COUNT, 1);
+
+        DiscussionEntity discussionEntity = new DiscussionEntity();
+        discussionEntity.setDiscussionId("parentAnsId");
+        discussionEntity.setData(discussionData);
+
+        when(discussionRepository.findById("parentAnsId")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.save(any())).thenReturn(discussionEntity);
+
+        // Required property mocks
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionEntity");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+
+        // Mock valueToTree and convertValue
+        when(objectMapper.valueToTree(any(Set.class))).thenReturn(realMapper.createArrayNode());
+        when(objectMapper.createObjectNode()).thenReturn(realMapper.createObjectNode());
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class))).thenReturn(new HashMap<>());
+
+        // Call actual method
+        ApiResponse response = service.deleteAnswerPostReply(discussionId, type, token);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
+
+        verify(discussionAnswerPostReplyRepository).save(any());
+        verify(esUtilService, atLeastOnce()).updateDocument(any(), any(), any(), any());
+        verify(cacheService, atLeastOnce()).putCache(any(), any());
+        verify(redisTemplate.opsForValue(), times(2)).getAndDelete(any());
+    }
+
+    @Test
+    void testUpdateAnswerPostReply_FailureDuringUpdate() {
+        String token = "valid.token";
+        String userId = "user123";
+        String answerPostReplyId = "reply123";
+
+        ObjectNode inputData = new ObjectMapper().createObjectNode();
+        inputData.put(Constants.ANSWER_POST_REPLY_ID, answerPostReplyId);
+        inputData.put(Constants.IS_INITIAL_UPLOAD, false);
+
+        // Mock valid token
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock entity from DB
+        ObjectNode dbData = new ObjectMapper().createObjectNode();
+        dbData.put(Constants.TYPE, Constants.ANSWER_POST_REPLY);
+        dbData.put(Constants.STATUS, Constants.ACTIVE);
+        dbData.put(Constants.PARENT_ANSWER_POST_ID, "parent123");
+        dbData.put(Constants.COMMUNITY_ID, "communityX");
+
+        DiscussionAnswerPostReplyEntity entity = new DiscussionAnswerPostReplyEntity();
+        entity.setIsActive(true);
+        entity.setData(dbData);
+        entity.setDiscussionId("reply123");
+
+        when(discussionAnswerPostReplyRepository.findById(answerPostReplyId)).thenReturn(Optional.of(entity));
+
+        // Force exception in convertValue
+        ApiResponse response = service.updateAnswerPostReply(inputData, token);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.FAILED_TO_UPDATE_ANSWER_POST, response.getParams().getErrMsg());
+    }
 }
+

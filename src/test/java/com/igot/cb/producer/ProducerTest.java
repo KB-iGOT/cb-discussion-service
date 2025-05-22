@@ -1,5 +1,7 @@
 package com.igot.cb.producer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -15,6 +17,8 @@ class ProducerTest {
     @InjectMocks
     private Producer producer;
 
+    @Mock
+    private ObjectMapper objectMapper;
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -45,5 +49,20 @@ class ProducerTest {
             this.name = name;
             this.age = age;
         }
+    }
+    @Test
+    void testPush_whenJsonProcessingException_shouldLogErrorAndNotSend() throws Exception {
+        // Arrange
+        String topic = "test-topic";
+        Object value = new Object();
+
+        // Simulate ObjectMapper throwing JsonProcessingException
+        when(objectMapper.writeValueAsString(value)).thenThrow(new JsonProcessingException("Mocked Exception") {});
+
+        // Act
+        producer.push(topic, value);
+
+        // Assert
+        verifyNoInteractions(kafkaTemplate); // Ensure send() is not called
     }
 }
