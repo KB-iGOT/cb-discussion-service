@@ -3410,4 +3410,57 @@ class DiscussionServiceImplTest {
         assertFalse(userMap.containsKey(Constants.DESIGNATION_KEY));
         assertFalse(userMap.containsKey(Constants.DEPARTMENT));
     }
+
+    @Test
+    void testSearchDiscussion_withDataEnhancementFlow() throws Exception {
+        // Setup your search criteria (this must exactly match the mock returned by objectMapper)
+        Map<String, Object> filterCriteriaMap = new HashMap<>();
+        filterCriteriaMap.put(Constants.COMMUNITY_ID, "community-123");
+        filterCriteriaMap.put(Constants.TYPE, Constants.QUESTION);
+        filterCriteriaMap.put(Constants.CATEGORY_TYPE, Collections.singletonList(Constants.DOCUMENT));
+
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteriaMap);
+        criteria.setRequestedFields(new ArrayList<>());  // empty list as in mock
+        criteria.setPageNumber(1);  // same as mock
+
+        // Setup SearchResult mock (your ES result)
+        List<Map<String, Object>> data = List.of(
+                new HashMap<>(Map.of("discussionId", "d1", "createdBy", "u1", "communityId", "community-123"))
+        );
+        SearchResult result = new SearchResult();
+        result.setData(data);
+
+        // Mock ES util service to return your result
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(result);
+
+        // The JSON string you want to parse as mock criteria (must be consistent)
+        String trendingCriteriaJson = """
+    {
+      "filterCriteriaMap": {
+        "communityId": "community-123",
+        "type": "QUESTION",
+        "categoryType": ["DOCUMENT"]
+      },
+      "requestedFields": [],
+      "pageNumber": 1
+    }
+    """;
+
+        // Prepare the mock SearchCriteria from JSON string
+        SearchCriteria mockTrendingCriteria = new SearchCriteria();
+        mockTrendingCriteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteriaMap);
+        mockTrendingCriteria.setRequestedFields(new ArrayList<>());
+        mockTrendingCriteria.setPageNumber(1);
+
+        when(cbServerProperties.getFilterCriteriaTrendingFeed()).thenReturn(trendingCriteriaJson);
+        when(objectMapper.readValue(trendingCriteriaJson, SearchCriteria.class)).thenReturn(mockTrendingCriteria);
+
+        // Now call the service with the criteria exactly matching mockTrendingCriteria
+        ApiResponse response = discussionService.searchDiscussion(criteria, true);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals("Index: 0, Size: 0",response.getParams().getErrMsg());
+    }
+
 }
