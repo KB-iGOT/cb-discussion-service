@@ -17,6 +17,8 @@ import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilServiceImpl;
@@ -391,6 +393,56 @@ class EsUtilServiceImplTest {
         esUtilService.deleteDocumentsByCriteria(INDEX_NAME, query);
 
         verify(elasticsearchClient, never()).bulk((BulkRequest) any());
+    }
+
+
+    @Test
+    void saveAll_shouldThrowCustomException_onBulkUploadFailure() throws IOException {
+        // Arrange
+        String indexName = "test-index";
+
+        ObjectNode jsonNode = JsonNodeFactory.instance.objectNode();
+        jsonNode.put("id", "123");
+        jsonNode.put("name", "Test Entity");
+
+        List<JsonNode> entities = Collections.singletonList(jsonNode);
+
+        Map<String, Object> mockMap = new HashMap<>();
+        mockMap.put("id", "123");
+        mockMap.put("name", "Test Entity");
+
+        when(objectMapper.convertValue(jsonNode, Map.class)).thenReturn(mockMap);
+        when(elasticsearchClient.bulk(any(BulkRequest.class)))
+                .thenThrow(new IOException("Bulk failure"));
+
+        // Act & Assert
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            esUtilService.saveAll(indexName, entities);
+        });
+
+        assertEquals("Bulk failure", exception.getMessage());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getHttpStatusCode());
+
+    }
+
+    @Test
+    void searchDocuments_shouldReturnNull_onIOException() throws IOException {
+        // Arrange
+        String indexName = "test-index";
+        String jsonFilePath = "dummy.json"; // keep dummy, assuming method can handle it
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setPageNumber(0);
+        criteria.setPageSize(10);
+
+        // Force the Elasticsearch client to throw an IOException
+        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class)))
+                .thenThrow(new IOException("ES failed"));
+
+        // Act
+        SearchResult result = esUtilService.searchDocuments(indexName, criteria, jsonFilePath);
+
+        // Assert
+        assertNull(result, "Expected result to be null due to IOException");
     }
 
 }
