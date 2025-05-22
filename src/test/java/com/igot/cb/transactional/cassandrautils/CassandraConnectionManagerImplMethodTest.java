@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CassandraConnectionManagerImplMethodTest {
-    @InjectMocks
+
     private CassandraConnectionManagerImpl cassandraConnectionManager;
 
     private MockedStatic<CqlSession> sessionStaticMock;
@@ -30,7 +30,7 @@ class CassandraConnectionManagerImplMethodTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-
+        cassandraConnectionManager = new CassandraConnectionManagerImpl();
         sessionStaticMock = mockStatic(CqlSession.class);
         propertiesCacheStaticMock = mockStatic(PropertiesCache.class);
         stringUtilsMock = mockStatic(StringUtils.class);
@@ -49,7 +49,6 @@ class CassandraConnectionManagerImplMethodTest {
         propertiesCacheStaticMock.when(PropertiesCache::getInstance).thenReturn(cache);
         when(cache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL)).thenReturn("ONE");
 
-        // Invoke private method using reflection
         Method method = ReflectionUtils.findMethod(CassandraConnectionManagerImpl.class, "getConsistencyLevel");
         method.setAccessible(true);
         ConsistencyLevel level = (ConsistencyLevel) ReflectionUtils.invokeMethod(method, null);
