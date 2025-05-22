@@ -202,24 +202,6 @@ class DiscussionServiceImplTest {
         Assertions.assertEquals(Constants.USER_NOT_PART_OF_COMMUNITY, response.getParams().getErrMsg());
     }
 
-//    @Test
-//    void testCreateDiscussion_userNotPartOfCommunity() throws Exception {
-//        JsonNode node = new ObjectMapper().readTree("{\"communityId\": \"comm-1\"}");
-//        when(accessTokenValidator.verifyUserToken(any())).thenReturn("user-123");
-//
-//        // Mock valid communityId
-//        DiscussionServiceImpl spy = Mockito.spy(discussionService);
-//        doReturn(true).when(spy).validateCommunityId(any());
-//
-//        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
-//                .thenReturn(List.of(Map.of("status", false)));
-//
-//        ApiResponse response = spy.createDiscussion(node, "token");
-//
-//        Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-//        Assertions.assertEquals(Constants.USER_NOT_PART_OF_COMMUNITY, response.getParams().getErrMsg());
-//    }
-
     @Test
     void testCreateDiscussion_exceptionThrown() throws Exception {
         JsonNode node = new ObjectMapper().readTree("{\"communityId\": \"comm-1\"}");
@@ -271,7 +253,6 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("discussion/json/path");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
-        //when(cbServerProperties.getDiscussionFeedRedisTtl()).thenReturn(300L);
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\": []}");
 
         // Mock: Elasticsearch search result
@@ -377,7 +358,6 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion_index");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("discussion.json");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
-        //when(cbServerProperties.getDiscussionFeedRedisTtl()).thenReturn(300L);
         when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class)))
                 .thenReturn(new HashMap<>());
         when(objectMapper.convertValue(any(DiscussionEntity.class), any(TypeReference.class)))
@@ -531,7 +511,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when an invalid token is provided.
      */
     @Test
-    public void testDeleteDiscussion_invalidAuthToken() {
+    void testDeleteDiscussion_invalidAuthToken() {
         // Arrange
         String discussionId = "discussion123";
         String type = "question";
@@ -553,7 +533,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_deleteDiscussion_1() {
+    void test_deleteDiscussion_1() {
         // Arrange
         String discussionId = "testDiscussionId";
         String type = "question";
@@ -575,7 +555,7 @@ class DiscussionServiceImplTest {
      * but the provided type doesn't match the actual discussion type.
      */
     @Test
-    public void test_deleteDiscussion_2() {
+    void test_deleteDiscussion_2() {
         // Arrange
         String discussionId = "test-discussion-id";
         String type = "invalid-type";
@@ -606,7 +586,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_deleteDiscussion_3() {
+    void test_deleteDiscussion_3() {
         // Arrange
         String discussionId = "validDiscussionId";
         String type = "question";
@@ -656,7 +636,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_deleteDiscussion_4() {
+    void test_deleteDiscussion_4() {
         // Arrange
         String discussionId = "testDiscussionId";
         String type = "ANSWER_POST";
@@ -695,7 +675,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_deleteDiscussion_6() {
+    void test_deleteDiscussion_6() {
         // Arrange
         String discussionId = "nonexistent_discussion";
         String type = "question";
@@ -874,7 +854,7 @@ class DiscussionServiceImplTest {
      * doesn't match the community ID of the parent discussion.
      */
     @Test
-    public void testCreateAnswerPost_communityIdMismatch() {
+    void testCreateAnswerPost_communityIdMismatch() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "parent123")
@@ -905,7 +885,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when an invalid token is provided.
      */
     @Test
-    public void testCreateAnswerPost_invalidAuthToken() {
+    void testCreateAnswerPost_invalidAuthToken() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "parent123")
@@ -927,7 +907,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when the specified parent discussion is not active.
      */
     @Test
-    public void testCreateAnswerPost_parentDiscussionInactive() {
+    void testCreateAnswerPost_parentDiscussionInactive() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "parent123")
@@ -954,7 +934,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when the specified parent discussion does not exist.
      */
     @Test
-    public void testCreateAnswerPost_parentDiscussionNotFound() {
+    void testCreateAnswerPost_parentDiscussionNotFound() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "nonexistent")
@@ -977,7 +957,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when the parent discussion is in a suspended state.
      */
     @Test
-    public void testCreateAnswerPost_parentDiscussionSuspended() {
+    void testCreateAnswerPost_parentDiscussionSuspended() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "parent123")
@@ -1008,7 +988,7 @@ class DiscussionServiceImplTest {
      * for a parent discussion that is already an answer post.
      */
     @Test
-    public void testCreateAnswerPost_parentIsAnswerPost() {
+    void testCreateAnswerPost_parentIsAnswerPost() {
         // Arrange
         JsonNode answerPostData = realObjectMapper.createObjectNode()
                 .put(Constants.PARENT_DISCUSSION_ID, "parent123")
@@ -1038,7 +1018,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_createAnswerPost_1() {
+    void test_createAnswerPost_1() {
         // Arrange
         JsonNode answerPostData = new ObjectMapper().createObjectNode();
         String invalidToken = "invalidToken";
@@ -1059,7 +1039,7 @@ class DiscussionServiceImplTest {
      * when the parent discussion entity is null or inactive.
      */
     @Test
-    public void test_createAnswerPost_2() {
+    void test_createAnswerPost_2() {
         // Arrange
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode answerPostData = objectMapper.createObjectNode()
@@ -1083,7 +1063,7 @@ class DiscussionServiceImplTest {
      * an answer post for a parent that is already an answer post.
      */
     @Test
-    public void test_createAnswerPost_3() {
+    void test_createAnswerPost_3() {
         // Arrange
         ObjectMapper objectMapper = new ObjectMapper();
         ObjectNode answerPostData = objectMapper.createObjectNode();
@@ -1117,7 +1097,7 @@ class DiscussionServiceImplTest {
      * for a suspended parent discussion.
      */
     @Test
-    public void test_createAnswerPost_4() {
+    void test_createAnswerPost_4() {
         // Arrange
         ObjectNode answerPostData = new ObjectMapper().createObjectNode();
         answerPostData.put(Constants.PARENT_DISCUSSION_ID, "parent123");
@@ -1155,7 +1135,7 @@ class DiscussionServiceImplTest {
      * but the community IDs don't match.
      */
     @Test
-    public void test_createAnswerPost_5() {
+    void test_createAnswerPost_5() {
         // Arrange
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode answerPostData = mapper.createObjectNode();
@@ -1191,7 +1171,7 @@ class DiscussionServiceImplTest {
      * part of the community associated with the answer post.
      */
     @Test
-    public void test_createAnswerPost_6() {
+    void test_createAnswerPost_6() {
         // Arrange
         ObjectMapper realObjectMapper = new ObjectMapper();
         ObjectNode answerPostData = realObjectMapper.createObjectNode();
@@ -1231,7 +1211,7 @@ class DiscussionServiceImplTest {
      * and required data is available.
      */
     @Test
-    public void test_createAnswerPost_7() {
+    void test_createAnswerPost_7() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -1274,7 +1254,7 @@ class DiscussionServiceImplTest {
      * when a user tries to report a discussion they have already reported.
      */
     @Test
-    public void testReport_alreadyReported() {
+    void testReport_alreadyReported() {
         // Arrange
         String validToken = "valid_token";
         Map<String, Object> reportData = new HashMap<>();
@@ -1312,7 +1292,7 @@ class DiscussionServiceImplTest {
      * when the specified discussion does not exist.
      */
     @Test
-    public void testReport_discussionNotFound() {
+    void testReport_discussionNotFound() {
         // Arrange
         String validToken = "valid_token";
         Map<String, Object> reportData = new HashMap<>();
@@ -1336,7 +1316,7 @@ class DiscussionServiceImplTest {
      * when trying to report a suspended discussion.
      */
     @Test
-    public void testReport_discussionSuspended() {
+    void testReport_discussionSuspended() {
         // Arrange
         String validToken = "valid_token";
         Map<String, Object> reportData = new HashMap<>();
@@ -1367,7 +1347,7 @@ class DiscussionServiceImplTest {
      * when an invalid token is provided.
      */
     @Test
-    public void testReport_invalidAuthToken() {
+    void testReport_invalidAuthToken() {
         // Arrange
         String invalidToken = "invalid_token";
         Map<String, Object> reportData = new HashMap<>();
@@ -1390,7 +1370,7 @@ class DiscussionServiceImplTest {
      * when the provided discussion type doesn't match the actual discussion type.
      */
     @Test
-    public void testReport_typeMismatch() {
+    void testReport_typeMismatch() {
         // Arrange
         String validToken = "valid_token";
         Map<String, Object> reportData = new HashMap<>();
@@ -1420,7 +1400,7 @@ class DiscussionServiceImplTest {
      * returns: ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED)
      */
     @Test
-    public void test_report_1() {
+    void test_report_1() {
         // Arrange
         String token = "testToken";
         Map<String, Object> reportData = new HashMap<>();
@@ -1441,7 +1421,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_report_10() {
+    void test_report_10() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1482,7 +1462,7 @@ class DiscussionServiceImplTest {
      * This test verifies the behavior of the report method when all conditions in the path are met.
      */
     @Test
-    public void test_report_12() {
+    void test_report_12() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1529,7 +1509,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_report_15() {
+    void test_report_15() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1573,7 +1553,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_report_2() {
+    void test_report_2() {
         // Arrange
         String invalidToken = "invalidToken";
         Map<String, Object> reportData = new HashMap<>();
@@ -1597,7 +1577,7 @@ class DiscussionServiceImplTest {
      * returns: ProjectUtil.returnErrorMsg(Constants.DISCUSSION_NOT_FOUND, HttpStatus.NOT_FOUND, response, Constants.FAILED)
      */
     @Test
-    public void test_report_3() {
+    void test_report_3() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -1623,7 +1603,7 @@ class DiscussionServiceImplTest {
      * and DISCUSSION_IS_INACTIVE error message when the entity is not active.
      */
     @Test
-    public void test_report_4() {
+    void test_report_4() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1656,7 +1636,7 @@ class DiscussionServiceImplTest {
      * returns: ProjectUtil.returnErrorMsg(Constants.DISCUSSION_IS_INACTIVE, HttpStatus.CONFLICT, response, Constants.FAILED)
      */
     @Test
-    public void test_report_5() {
+    void test_report_5() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -1689,7 +1669,7 @@ class DiscussionServiceImplTest {
      * returns: ProjectUtil.returnErrorMsg(Constants.INVALID_TYPE + type, HttpStatus.BAD_REQUEST, response, Constants.FAILED)
      */
     @Test
-    public void test_report_6() {
+    void test_report_6() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -1725,7 +1705,7 @@ class DiscussionServiceImplTest {
      * an answer post reply that is already in a suspended state.
      */
     @Test
-    public void test_report_7() {
+    void test_report_7() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1759,7 +1739,7 @@ class DiscussionServiceImplTest {
      * an answer post reply that they have previously reported.
      */
     @Test
-    public void test_report_8() {
+    void test_report_8() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -1801,65 +1781,12 @@ class DiscussionServiceImplTest {
     }
 
     /**
-     * Testcase 9 for @Override public ApiResponse report(String token, Map<String, Object> reportData)
-     * Path constraints: !((StringUtils.isNotEmpty(errorMsg))), !((StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId))), !((entityObject == null)), (Constants.ANSWER_POST_REPLY.equals(type)), !((!isActive)), !((!type.equals(data.get(Constants.TYPE).asText()))), !((Constants.SUSPENDED.equals(data.get(Constants.STATUS).asText()))), !((!existingReports.isEmpty())), (StringUtils.isNotBlank(discussionText)), (reportData.containsKey(Constants.REPORTED_REASON)), (reportedReasonList != null && !reportedReasonList.isEmpty()), (reportedReasonList.contains(Constants.OTHERS) && reportData.containsKey(Constants.OTHER_REASON)), (cbServerProperties.isDiscussionReportHidePost()), (!data.get(Constants.STATUS).textValue().equals(status)), (data.has(Constants.REPORTED_BY)), (Constants.ANSWER_POST_REPLY.equals(type)), (Constants.ANSWER_POST_REPLY.equals(type))
-     * returns: response
-     */
-//    @Test
-//    public void test_report_9() {
-//        // Arrange
-//        String token = "validToken";
-//        String userId = "testUser";
-//        String discussionId = "testDiscussionId";
-//        String discussionText = "Test discussion text";
-//        String type = Constants.ANSWER_POST_REPLY;
-//
-//        Map<String, Object> reportData = new HashMap<>();
-//        reportData.put(Constants.DISCUSSION_ID, discussionId);
-//        reportData.put(Constants.DISCUSSION_TEXT, discussionText);
-//        reportData.put(Constants.TYPE, type);
-//        reportData.put(Constants.REPORTED_REASON, Arrays.asList("Reason1", Constants.OTHERS));
-//        reportData.put(Constants.OTHER_REASON, "Other specific reason");
-//
-//        DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
-//        replyEntity.setIsActive(true);
-//        ObjectNode dataNode = realObjectMapper.createObjectNode();
-//        dataNode.put(Constants.TYPE, type);
-//        dataNode.put(Constants.STATUS, "ACTIVE");
-//        replyEntity.setData(dataNode);
-//
-//        ObjectNode data = JsonNodeFactory.instance.objectNode();
-//        data.put("parentAnswerPostId", "post-123");
-//        data.put("communityId", "community-1");
-//
-//// redis key generation
-//        String redisKey = DiscussionServiceUtil.generateRedisJwtTokenKey(
-//                discussionService.createDefaultSearchCriteria("post-123", "community-1")
-//        );
-//
-//// mock redis
-//        SearchResult mockSearchResult = new SearchResult();
-//        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-//        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-//        when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
-//        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any())).thenReturn(new ArrayList<>());
-//        when(cbServerProperties.isDiscussionReportHidePost()).thenReturn(true);
-//
-//        // Act
-//        ApiResponse response = discussionService.report(token, reportData);
-//
-//        // Assert
-//        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-//
-//    }
-
-    /**
      * Testcase 1 for @Override public ApiResponse uploadFile(MultipartFile mFile, String communityId, String discussionId)
      * Path constraints: (mFile.isEmpty())
      * returns: ProjectUtil.returnErrorMsg(Constants.DISCUSSION_FILE_EMPTY, HttpStatus.BAD_REQUEST, response, Constants.FAILED)
      */
     @Test
-    public void test_uploadFile_1() {
+    void test_uploadFile_1() {
         // Arrange
         MultipartFile emptyFile = new MockMultipartFile("file", new byte[0]);
         String communityId = "community123";
@@ -1880,7 +1807,7 @@ class DiscussionServiceImplTest {
      * and INVALID_DISCUSSION_ID error message when the discussionId is blank.
      */
     @Test
-    public void test_uploadFile_2() {
+    void test_uploadFile_2() {
         // Arrange
         MultipartFile mockFile = mock(MultipartFile.class);
         when(mockFile.isEmpty()).thenReturn(false);
@@ -1902,7 +1829,7 @@ class DiscussionServiceImplTest {
      * and INVALID_COMMUNITY_ID error message when the communityId is blank.
      */
     @Test
-    public void test_uploadFile_3() {
+    void test_uploadFile_3() {
         // Arrange
         MultipartFile mockFile = new MockMultipartFile("file", "test.txt", "text/plain", "Hello, World!".getBytes());
         String discussionId = "validDiscussionId";
@@ -1923,7 +1850,7 @@ class DiscussionServiceImplTest {
      * returns: uploadFile(file, uploadFolderPath, cbServerProperties.getDiscussionContainerName())
      */
     @Test
-    public void test_uploadFile_4() {
+    void test_uploadFile_4() {
         MultipartFile mFile = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
         String communityId = "community123";
         String discussionId = "discussion123";
@@ -1955,7 +1882,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when no discussionId is provided.
      */
     @Test
-    public void test_uploadFile_blankDiscussionId() {
+    void test_uploadFile_blankDiscussionId() {
         // Arrange
         MultipartFile validFile = mock(MultipartFile.class);
         when(validFile.isEmpty()).thenReturn(false);
@@ -1976,7 +1903,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when an empty file is provided.
      */
     @Test
-    public void test_uploadFile_emptyFile() {
+    void test_uploadFile_emptyFile() {
         // Arrange
         MultipartFile emptyFile = mock(MultipartFile.class);
         when(emptyFile.isEmpty()).thenReturn(true);
@@ -2051,7 +1978,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when the specified answer post does not exist.
      */
     @Test
-    public void testUpdateAnswerPost_DiscussionNotFound() {
+    void testUpdateAnswerPost_DiscussionNotFound() {
         // Arrange
         ObjectNode answerPostData = realObjectMapper.createObjectNode();
         answerPostData.put(Constants.ANSWER_POST_ID, "nonexistent_id");
@@ -2074,7 +2001,7 @@ class DiscussionServiceImplTest {
      * and INVALID_DISCUSSION_ID error message when the discussionId is blank.
      */
     @Test
-    public void test_bookmarkDiscussion_1() {
+    void test_bookmarkDiscussion_1() {
         // Arrange
         String token = "validToken";
         String communityId = "validCommunityId";
@@ -2095,7 +2022,7 @@ class DiscussionServiceImplTest {
      * and INVALID_COMMUNITY_ID error message when the communityId is blank.
      */
     @Test
-    public void test_bookmarkDiscussion_2() {
+    void test_bookmarkDiscussion_2() {
         // Arrange
         String token = "validToken";
         String communityId = "";
@@ -2116,7 +2043,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_bookmarkDiscussion_3() {
+    void test_bookmarkDiscussion_3() {
         // Arrange
         String invalidToken = "invalidToken";
         String communityId = "community123";
@@ -2139,7 +2066,7 @@ class DiscussionServiceImplTest {
      * and DISCUSSION_NOT_FOUND error message when the specified discussion does not exist.
      */
     @Test
-    public void test_bookmarkDiscussion_4() {
+    void test_bookmarkDiscussion_4() {
         // Arrange
         String token = "validToken";
         String communityId = "community123";
@@ -2164,7 +2091,7 @@ class DiscussionServiceImplTest {
      * and DISCUSSION_IS_INACTIVE error message when the discussion is not active.
      */
     @Test
-    public void test_bookmarkDiscussion_5() {
+    void test_bookmarkDiscussion_5() {
         // Arrange
         String token = "validToken";
         String communityId = "validCommunityId";
@@ -2197,7 +2124,7 @@ class DiscussionServiceImplTest {
      * and INVALID_COMMUNITY_ID error message when there's a mismatch in community IDs.
      */
     @Test
-    public void test_bookmarkDiscussion_6() {
+    void test_bookmarkDiscussion_6() {
         // Arrange
         String token = "validToken";
         String userId = "user123";
@@ -2230,7 +2157,7 @@ class DiscussionServiceImplTest {
      * a discussion that they have already bookmarked.
      */
     @Test
-    public void test_bookmarkDiscussion_7() {
+    void test_bookmarkDiscussion_7() {
         // Arrange
         String token = "validToken";
         String communityId = "community123";
@@ -2272,7 +2199,7 @@ class DiscussionServiceImplTest {
      * and required data is available.
      */
     @Test
-    public void test_bookmarkDiscussion_8() {
+    void test_bookmarkDiscussion_8() {
         // Arrange
         String token = "validToken";
         String userId = "user123";
@@ -2323,7 +2250,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_updateAnswerPost_1() {
+    void test_updateAnswerPost_1() {
         // Arrange
         JsonNode answerPostData = new ObjectMapper().createObjectNode();
         String invalidToken = "invalidToken";
@@ -2344,7 +2271,7 @@ class DiscussionServiceImplTest {
      * and INVALID_DISCUSSION_ID error message when the discussion entity is not found or is inactive.
      */
     @Test
-    public void test_updateAnswerPost_2() {
+    void test_updateAnswerPost_2() {
         // Arrange
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode answerPostData = objectMapper.createObjectNode()
@@ -2369,7 +2296,7 @@ class DiscussionServiceImplTest {
      * and INVALID_ANSWER_POST_ID error message when the discussion type is not ANSWER_POST.
      */
     @Test
-    public void test_updateAnswerPost_3() {
+    void test_updateAnswerPost_3() {
         // Arrange
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode answerPostData = mapper.createObjectNode();
@@ -2402,7 +2329,7 @@ class DiscussionServiceImplTest {
      * This test verifies that the method returns an error response when trying to update a suspended answer post.
      */
     @Test
-    public void test_updateAnswerPost_4() {
+    void test_updateAnswerPost_4() {
         // Arrange
         ObjectNode answerPostData = realObjectMapper.createObjectNode();
         answerPostData.put(Constants.ANSWER_POST_ID, "answerPost123");
@@ -2434,7 +2361,7 @@ class DiscussionServiceImplTest {
      * and required data is available.
      */
     @Test
-    public void test_updateAnswerPost_5() {
+    void test_updateAnswerPost_5() {
         // Arrange
         ObjectMapper realObjectMapper = new ObjectMapper();
         ObjectNode answerPostData = realObjectMapper.createObjectNode();
@@ -2478,7 +2405,7 @@ class DiscussionServiceImplTest {
      * and required data is available, including the case where IS_INITIAL_UPLOAD is true.
      */
     @Test
-    public void test_updateAnswerPost_6() {
+    void test_updateAnswerPost_6() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -2558,7 +2485,7 @@ class DiscussionServiceImplTest {
      * and INVALID_DISCUSSION_ID error message when the discussionId is blank.
      */
     @Test
-    public void test_unBookmarkDiscussion_1() {
+    void test_unBookmarkDiscussion_1() {
         // Arrange
         String communityId = "validCommunityId";
         String blankDiscussionId = "";
@@ -2579,7 +2506,7 @@ class DiscussionServiceImplTest {
     * returns: ProjectUtil.returnErrorMsg(Constants.INVALID_COMMUNITY_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED)
     */
     @Test
-    public void test_unBookmarkDiscussion_2() {
+    void test_unBookmarkDiscussion_2() {
         // Arrange
         String discussionId = "validDiscussionId";
         String communityId = "";  // Blank community ID
@@ -2600,7 +2527,7 @@ class DiscussionServiceImplTest {
     * returns: ProjectUtil.returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED)
     */
     @Test
-    public void test_unBookmarkDiscussion_3() {
+    void test_unBookmarkDiscussion_3() {
         // Arrange
         String communityId = "validCommunityId";
         String discussionId = "validDiscussionId";
@@ -2623,7 +2550,7 @@ class DiscussionServiceImplTest {
     * returns: response
     */
     @Test
-    public void test_unBookmarkDiscussion_4() {
+    void test_unBookmarkDiscussion_4() {
         // Arrange
         String communityId = "validCommunityId";
         String discussionId = "validDiscussionId";
@@ -2662,7 +2589,7 @@ class DiscussionServiceImplTest {
      * and INVALID_DISCUSSION_ID error message when the discussionId is blank.
      */
     @Test
-    public void test_unBookmarkDiscussion_blankDiscussionId() {
+    void test_unBookmarkDiscussion_blankDiscussionId() {
         // Arrange
         String token = "validToken";
         String communityId = "validCommunityId";
@@ -2683,7 +2610,7 @@ class DiscussionServiceImplTest {
      * and the appropriate error message when the request data is invalid.
      */
     @Test
-    public void test_getBookmarkedDiscussions_1() {
+    void test_getBookmarkedDiscussions_1() {
         // Arrange
         String token = "validToken";
         Map<String, Object> requestData = new HashMap<>();
@@ -2704,7 +2631,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_getBookmarkedDiscussions_2() {
+    void test_getBookmarkedDiscussions_2() {
         // Arrange
         String invalidToken = "invalidToken";
         Map<String, Object> requestData = new HashMap<>();
@@ -2729,7 +2656,7 @@ class DiscussionServiceImplTest {
      * and MINIMUM_CHARACTERS_NEEDED error message when the search string is less than 3 characters.
      */
     @Test
-    public void test_getBookmarkedDiscussions_3() {
+    void test_getBookmarkedDiscussions_3() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -2759,7 +2686,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_getBookmarkedDiscussions_4() {
+    void test_getBookmarkedDiscussions_4() {
         // Arrange
         String token = "validToken";
         String userId = "validUserId";
@@ -2781,7 +2708,7 @@ class DiscussionServiceImplTest {
 
 
     @Test
-    public void test_getBookmarkedDiscussions_invalidRequestData() {
+    void test_getBookmarkedDiscussions_invalidRequestData() {
         // Arrange
         String token = "validToken";
         Map<String, Object> invalidRequestData = new HashMap<>(); // Empty request data
@@ -2802,7 +2729,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_getBookmarkedDiscussions_5() throws Exception {
+    void test_getBookmarkedDiscussions_5() throws Exception {
         // Arrange
         String token = "validToken";
         String userId = "user123";
@@ -2848,7 +2775,7 @@ class DiscussionServiceImplTest {
      * and the appropriate error message when the search data is invalid.
      */
     @Test
-    public void test_searchDiscussionByCommunity_1() {
+    void test_searchDiscussionByCommunity_1() {
         // Arrange
         Map<String, Object> searchData = new HashMap<>();
         // Intentionally leave out required fields to trigger an error
@@ -2868,7 +2795,7 @@ class DiscussionServiceImplTest {
     * returns: response
     */
     @Test
-    public void test_searchDiscussionByCommunity_2() {
+    void test_searchDiscussionByCommunity_2() {
         // Arrange
         Map<String, Object> searchData = new HashMap<>();
         searchData.put(Constants.COMMUNITY_ID, "community123");
@@ -2901,7 +2828,7 @@ class DiscussionServiceImplTest {
      * returns: response
      */
     @Test
-    public void test_searchDiscussionByCommunity_3() {
+    void test_searchDiscussionByCommunity_3() {
         // Arrange
         Map<String, Object> searchData = new HashMap<>();
         searchData.put(Constants.COMMUNITY_ID, "testCommunityId");
@@ -2937,7 +2864,7 @@ class DiscussionServiceImplTest {
      * when the search data is missing required fields.
      */
     @Test
-    public void test_searchDiscussionByCommunity_invalidSearchData() {
+    void test_searchDiscussionByCommunity_invalidSearchData() {
         // Arrange
         Map<String, Object> invalidSearchData = new HashMap<>();
         // Intentionally leave out required fields
@@ -2957,7 +2884,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void testGetEnrichedDiscussionData_InvalidAuthToken() {
+    void testGetEnrichedDiscussionData_InvalidAuthToken() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -2980,7 +2907,7 @@ class DiscussionServiceImplTest {
      * when the request data is missing required fields or contains invalid data.
      */
     @Test
-    public void testGetEnrichedDiscussionData_InvalidRequestData() {
+    void testGetEnrichedDiscussionData_InvalidRequestData() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -3003,7 +2930,7 @@ class DiscussionServiceImplTest {
      * and INVALID_AUTH_TOKEN error message when the token validation fails.
      */
     @Test
-    public void test_getEnrichedDiscussionData_1() {
+    void test_getEnrichedDiscussionData_1() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         data.put("request", new HashMap<>());
@@ -3025,7 +2952,7 @@ class DiscussionServiceImplTest {
      * and the appropriate error message when the request data is invalid.
      */
     @Test
-    public void test_getEnrichedDiscussionData_2() {
+    void test_getEnrichedDiscussionData_2() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -3049,7 +2976,7 @@ class DiscussionServiceImplTest {
      * when an exception is thrown during the process of fetching enriched discussion data.
      */
     @Test
-    public void test_getEnrichedDiscussionData_3() {
+    void test_getEnrichedDiscussionData_3() {
         // Arrange
         String token = "validToken";
         String userId = "testUser";
@@ -3082,7 +3009,7 @@ class DiscussionServiceImplTest {
      * but encountering an exception during the process.
      */
     @Test
-    public void test_getEnrichedDiscussionData_4() {
+    void test_getEnrichedDiscussionData_4() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -3113,12 +3040,12 @@ class DiscussionServiceImplTest {
     }
 
     /**
-     * Test case for getEnrichedDiscussionData method when the user is authorized, 
+     * Test case for getEnrichedDiscussionData method when the user is authorized,
      * the request data is valid, and the method processes likes and reported filters.
      * This test verifies that the method returns the expected response when all conditions are met.
      */
     @Test
-    public void test_getEnrichedDiscussionData_5() {
+    void test_getEnrichedDiscussionData_5() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -3134,17 +3061,17 @@ class DiscussionServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123");
         when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
-            eq(Constants.KEYSPACE_SUNBIRD), 
-            eq(Constants.USER_POST_VOTES), 
-            anyMap(), 
-            isNull(), 
+            eq(Constants.KEYSPACE_SUNBIRD),
+            eq(Constants.USER_POST_VOTES),
+            anyMap(),
+            isNull(),
             isNull()
         )).thenReturn(Collections.emptyList());
         when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
-            eq(Constants.KEYSPACE_SUNBIRD), 
-            eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER), 
-            anyMap(), 
-            isNull(), 
+            eq(Constants.KEYSPACE_SUNBIRD),
+            eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER),
+            anyMap(),
+            isNull(),
             isNull()
         )).thenReturn(Collections.emptyList());
 
@@ -3166,7 +3093,7 @@ class DiscussionServiceImplTest {
      * but an exception occurs during processing.
      */
     @Test
-    public void test_getEnrichedDiscussionData_6() {
+    void test_getEnrichedDiscussionData_6() {
         // Arrange
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> requestData = new HashMap<>();
@@ -3198,7 +3125,7 @@ class DiscussionServiceImplTest {
      * returns: ProjectUtil.returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED)
      */
     @Test
-    public void test_getGlobalFeed_1() {
+    void test_getGlobalFeed_1() {
         // Arrange
         SearchCriteria searchCriteria = new SearchCriteria();
         String invalidToken = "invalidToken";
@@ -3253,45 +3180,12 @@ class DiscussionServiceImplTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(any())).thenReturn(null); // simulate cache miss
         when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockSearchResult);
-        //when(valueOperations.set(anyString(), any(), anyLong(), any())).thenReturn(true);
 
         ApiResponse response = discussionService.getGlobalFeed(searchCriteria, "token", false);
 
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
-
-//    @Test
-//    void testFetchCommunityFromPrimary_withValidCommunityIds() {
-//        // Given
-//        String communityId = "comm-123";
-//        List<String> communityIds = List.of(communityId);
-//
-//        // Create JsonNode for 'data' field
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        ObjectNode dataNode = objectMapper.createObjectNode();
-//        dataNode.set(Constants.COMMUNITY_NAME, new TextNode("Community A"));
-//
-//        CommunityEntity entity = new CommunityEntity();
-//        entity.setCommunityId(communityId);
-//        entity.setData(dataNode); // ✅ Correct: setting JsonNode, not Map
-//
-//        when(communityEngagementRepository.findAllById(communityIds))
-//                .thenReturn(List.of(entity));
-//
-//        // When
-//        List<Object> result = discussionService.fetchCommunityFromPrimary(communityIds);
-//
-//        // Then
-//        assertNotNull(result);
-//        assertEquals(1, result.size());
-//
-//        Map<String, Object> resultMap = (Map<String, Object>) result.get(0);
-//        assertEquals(communityId, resultMap.get(Constants.COMMUNITY_ID_KEY));
-//        assertEquals("Community A", resultMap.get(Constants.COMMUNITY_NAME));
-//
-//        verify(communityEngagementRepository).findAllById(communityIds);
-//    }
 
     @Test
     void testFetchUserFromPrimary_withCompleteProfileDetails() throws Exception {
