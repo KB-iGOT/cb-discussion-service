@@ -49,7 +49,6 @@ class CassandraConnectionManagerImplMethodTest {
         propertiesCacheStaticMock.when(PropertiesCache::getInstance).thenReturn(cache);
         when(cache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL)).thenReturn("ONE");
 
-        // Invoke private method using reflection
         Method method = ReflectionUtils.findMethod(CassandraConnectionManagerImpl.class, "getConsistencyLevel");
         method.setAccessible(true);
         ConsistencyLevel level = (ConsistencyLevel) ReflectionUtils.invokeMethod(method, null);
