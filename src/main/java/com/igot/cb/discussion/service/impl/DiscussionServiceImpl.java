@@ -163,6 +163,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
             communityObject.put(Constants.TYPE, Constants.POST);
             producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
+            Map<String, String> userPostCount = new HashMap<>();
+            userPostCount.put(Constants.USERID, userId);
+            userPostCount.put(Constants.STATUS, Constants.INCREMENT);
+            producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_DISCUSSION, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -462,6 +466,12 @@ public class DiscussionServiceImpl implements DiscussionService {
                         updateCacheForGlobalFeed(userId);
                         log.info("Updated cache for global feed");
                         producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
+                        if (Constants.QUESTION.equalsIgnoreCase(data.get(Constants.TYPE).asText())) {
+                            Map<String, String> userPostCount = new HashMap<>();
+                            userPostCount.put(Constants.USERID, userId);
+                            userPostCount.put(Constants.STATUS, Constants.DECREMENT);
+                            producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
+                        }
                         return response;
                     } else {
                         log.info("Discussion is already inactive.");
