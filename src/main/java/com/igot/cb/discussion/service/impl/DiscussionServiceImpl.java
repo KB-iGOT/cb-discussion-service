@@ -1052,6 +1052,20 @@ public class DiscussionServiceImpl implements DiscussionService {
                 updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
                 updateCacheForGlobalFeed(userId);
             }
+            if (status.equals(Constants.SUSPENDED)) {
+                deleteCacheByCommunity(SUSPENDED_POSTS_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+                deleteCacheByCommunity(ALL_REPORTED_POSTS_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+            }
+            if (status.equals(REPORTED)) {
+                deleteCacheByCommunity(ALL_REPORTED_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            }
+            if (QUESTION.equals(type)) {
+                deleteCacheByCommunity(REPORTED_QUESTION_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            } else if (ANSWER_POST.equals(type)) {
+                deleteCacheByCommunity(REPORTED_ANSWER_POST_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            } else if (ANSWER_POST_REPLY.equals(type)) {
+                deleteCacheByCommunity(REPORTED_ANSWER_POST_REPLY_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            }
             log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
