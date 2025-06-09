@@ -630,9 +630,9 @@ public class DiscussionServiceImpl implements DiscussionService {
                     Constants.DISCUSSION_ID, discussionId
             );
 
-            String firstName = helperMethodService.fetchUserFirstName(createdBy);
 
-            if (!userId.equals(createdBy)) {
+            String firstName = helperMethodService.fetchUserFirstName(userId);
+            log.info("Notification trigger started");
                 if (type.equalsIgnoreCase(Constants.QUESTION)) {
                     notificationTriggerService.triggerNotification(LIKED_POST, List.of(createdBy), TITLE, firstName, data);
                 } else if (type.equalsIgnoreCase(Constants.ANSWER_POST)) {
@@ -640,7 +640,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                 } else if (type.equalsIgnoreCase(Constants.ANSWER_POST_REPLY)) {
                     notificationTriggerService.triggerNotification(REPLIED_POST, List.of(createdBy), TITLE, firstName, data);
                 }
-            }
 
             if (Constants.ANSWER_POST.equals(type)) {
                 redisTemplate.opsForValue()

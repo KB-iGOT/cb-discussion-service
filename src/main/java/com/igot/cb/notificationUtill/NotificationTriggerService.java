@@ -116,6 +116,7 @@ public class NotificationTriggerService {
         Map<String, Object> message = new HashMap<>();
         message.put(PLACE_HOLDERS, placeholders);
         message.put(DATA, data);
+        log.info("notifications message in triggerNotification:{}", message);
 
         try {
             sendNotification(subCategory, userIds, message);
