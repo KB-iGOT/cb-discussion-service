@@ -101,6 +101,7 @@ class AnswerPostReplyServiceImplTest {
         data.put(Constants.TYPE, Constants.ANSWER_POST);
         data.put(Constants.STATUS, Constants.ACTIVE);
         data.put(Constants.COMMUNITY_ID, communityId);
+        data.put(Constants.CREATED_BY, userId);
         return new DiscussionEntity("discussionId123", data, true,
                 new Timestamp(System.currentTimeMillis()),
                 new Timestamp(System.currentTimeMillis()));
@@ -125,7 +126,7 @@ class AnswerPostReplyServiceImplTest {
         when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
         when(discussionRepository.save(any())).thenReturn(mockDiscussionEntity());
         when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("");
-        doNothing().when(notificationTriggerService).triggerNotification(any(), anyList(), any(), any(), any());
+//        doNothing().when(notificationTriggerService).triggerNotification(any(),any(), anyList(), any(), any(), any());
 
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
