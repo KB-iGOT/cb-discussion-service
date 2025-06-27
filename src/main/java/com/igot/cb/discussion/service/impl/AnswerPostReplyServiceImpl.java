@@ -374,24 +374,28 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
         try {
             ObjectNode answerPostReplyDataNode = (ObjectNode) answerPostReplyData;
-            Map<String, JsonNode> mergedUsers = new LinkedHashMap<>();
-            data.withArray(MENTIONED_USERS).forEach(user -> {
-                String userid = user.path(USER_ID_RQST).asText(null);
-                if (userid != null) mergedUsers.put(userid, user);
+
+            Set<String> existingMentionedUserIds = new HashSet<>();
+            data.withArray(MENTIONED_USERS).forEach(userNode -> {
+                String userid = userNode.path(USER_ID_RQST).asText(null);
+                if (userid != null) existingMentionedUserIds.add(userid);
             });
+            Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
+            ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();
             JsonNode incomingMentionedUsers = answerPostReplyData.path(MENTIONED_USERS);
-            if (!incomingMentionedUsers.isEmpty()) {
-                for (JsonNode user : incomingMentionedUsers) {
-                    String userid = user.path(USER_ID_RQST).asText(null);
-                    if (userid != null && mergedUsers.putIfAbsent(userid, user) == null) {
-                        newlyAddedUserIds.add(userid);
+            if (incomingMentionedUsers.isArray()) {
+                for (JsonNode userNode : incomingMentionedUsers) {
+                    String userid = userNode.path(USER_ID_RQST).asText(null);
+                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                        uniqueMentionedUsers.add(userNode);
+                        if (!existingMentionedUserIds.contains(userid)) {
+                            newlyAddedUserIds.add(userid);
+                        }
                     }
                 }
             }
-            ArrayNode mergedMentionedUsers = objectMapper.createArrayNode();
-            mergedUsers.values().forEach(mergedMentionedUsers::add);
-            answerPostReplyDataNode.set(MENTIONED_USERS, incomingMentionedUsers);
+            answerPostReplyDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
 
             answerPostReplyDataNode.remove(Constants.ANSWER_POST_REPLY_ID);
             if (!answerPostReplyDataNode.has(Constants.IS_INITIAL_UPLOAD) || !answerPostReplyDataNode.get(Constants.IS_INITIAL_UPLOAD).asBoolean()) {

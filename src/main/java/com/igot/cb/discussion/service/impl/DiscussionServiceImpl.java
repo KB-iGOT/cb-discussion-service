@@ -312,24 +312,27 @@ public class DiscussionServiceImpl implements DiscussionService {
             ObjectNode data = (ObjectNode) discussionDbData.getData();
             ObjectNode updateDataNode = (ObjectNode) updateData;
 
-            Map<String, JsonNode> mergedUsers = new LinkedHashMap<>();
-            data.withArray(MENTIONED_USERS).forEach(user -> {
-                String userid = user.path(USER_ID_RQST).asText(null);
-                if (userid != null) mergedUsers.put(userid, user);
+            Set<String> existingMentionedUserIds = new HashSet<>();
+            data.withArray(MENTIONED_USERS).forEach(userNode -> {
+                String userid = userNode.path(USER_ID_RQST).asText(null);
+                if (userid != null) existingMentionedUserIds.add(userid);
             });
+            Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
+            ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();
             JsonNode incomingMentionedUsers = updateData.path(MENTIONED_USERS);
-            if (!incomingMentionedUsers.isEmpty()) {
-                for (JsonNode user : incomingMentionedUsers) {
-                    String userid = user.path(USER_ID_RQST).asText(null);
-                    if (userid != null && mergedUsers.putIfAbsent(userid, user) == null) {
-                        newlyAddedUserIds.add(userid);
+            if (incomingMentionedUsers.isArray()) {
+                for (JsonNode userNode : incomingMentionedUsers) {
+                    String userid = userNode.path(USER_ID_RQST).asText(null);
+                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                        uniqueMentionedUsers.add(userNode);
+                        if (!existingMentionedUserIds.contains(userid)) {
+                            newlyAddedUserIds.add(userid);
+                        }
                     }
                 }
             }
-            ArrayNode mergedMentionedUsers = objectMapper.createArrayNode();
-            mergedUsers.values().forEach(mergedMentionedUsers::add);
-            updateDataNode.set(MENTIONED_USERS, mergedMentionedUsers);
+            updateDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
 
             if (data.get(Constants.COMMUNITY_ID) != null && !data.get(Constants.COMMUNITY_ID).asText().equals(updateDataNode.get(Constants.COMMUNITY_ID).asText())) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.COMMUNITY_ID_CANNOT_BE_UPDATED, HttpStatus.BAD_REQUEST, Constants.FAILED);
@@ -1316,24 +1319,27 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         try {
             ObjectNode answerPostDataNode = (ObjectNode) answerPostData;
-            Map<String, JsonNode> mergedUsers = new LinkedHashMap<>();
-            data.withArray(MENTIONED_USERS).forEach(user -> {
-                String userid = user.path(USER_ID_RQST).asText(null);
-                if (userid != null) mergedUsers.put(userid, user);
+            Set<String> existingMentionedUserIds = new HashSet<>();
+            data.withArray(MENTIONED_USERS).forEach(userNode -> {
+                String userid = userNode.path(USER_ID_RQST).asText(null);
+                if (userid != null) existingMentionedUserIds.add(userid);
             });
+            Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
+            ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();
             JsonNode incomingMentionedUsers = answerPostData.path(MENTIONED_USERS);
-            if (!incomingMentionedUsers.isEmpty()) {
-                for (JsonNode user : incomingMentionedUsers) {
-                    String userid = user.path(USER_ID_RQST).asText(null);
-                    if (userid != null && mergedUsers.putIfAbsent(userid, user) == null) {
-                        newlyAddedUserIds.add(userid);
+            if (incomingMentionedUsers.isArray()) {
+                for (JsonNode userNode : incomingMentionedUsers) {
+                    String userid = userNode.path(USER_ID_RQST).asText(null);
+                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                        uniqueMentionedUsers.add(userNode);
+                        if (!existingMentionedUserIds.contains(userid)) {
+                            newlyAddedUserIds.add(userid);
+                        }
                     }
                 }
             }
-            ArrayNode mergedMentionedUsers = objectMapper.createArrayNode();
-            mergedUsers.values().forEach(mergedMentionedUsers::add);
-            answerPostDataNode.put(MENTIONED_USERS, mergedMentionedUsers);
+            answerPostDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
 
             answerPostDataNode.remove(Constants.ANSWER_POST_ID);
 
