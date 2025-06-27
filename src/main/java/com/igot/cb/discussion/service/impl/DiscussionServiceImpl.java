@@ -130,7 +130,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
                 mentionedUsersNode.forEach(node -> {
                     String userid = node.path(USER_ID_RQST).asText(null);
-                    if (userid != null && !uniqueUserMap.containsKey(userid)) {
+                    if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
                         uniqueUserMap.put(userid, node);
                     }
                 });
@@ -192,7 +192,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             userPostCount.put(Constants.STATUS, Constants.INCREMENT);
             producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
             try {
-                if (!userIdList.isEmpty()) {
+                if (CollectionUtils.isNotEmpty(userIdList)){
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText(),
                             Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
@@ -315,7 +315,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Set<String> existingMentionedUserIds = new HashSet<>();
             data.withArray(MENTIONED_USERS).forEach(userNode -> {
                 String userid = userNode.path(USER_ID_RQST).asText(null);
-                if (userid != null) existingMentionedUserIds.add(userid);
+                if (StringUtils.isNotBlank(userid)) existingMentionedUserIds.add(userid);
             });
             Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
@@ -324,7 +324,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             if (incomingMentionedUsers.isArray()) {
                 for (JsonNode userNode : incomingMentionedUsers) {
                     String userid = userNode.path(USER_ID_RQST).asText(null);
-                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                    if (StringUtils.isNotBlank(userid) && seenUserIdsInRequest.add(userid)) {
                         uniqueMentionedUsers.add(userNode);
                         if (!existingMentionedUserIds.contains(userid)) {
                             newlyAddedUserIds.add(userid);
@@ -332,7 +332,9 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             }
+
             updateDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
+
 
             if (data.get(Constants.COMMUNITY_ID) != null && !data.get(Constants.COMMUNITY_ID).asText().equals(updateDataNode.get(Constants.COMMUNITY_ID).asText())) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.COMMUNITY_ID_CANNOT_BE_UPDATED, HttpStatus.BAD_REQUEST, Constants.FAILED);
@@ -377,7 +379,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateCacheForGlobalFeed(userId);
             log.info("Updated cache for global feed");
             try {
-                if (!newlyAddedUserIds.isEmpty()) {
+                if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, updateData.get(Constants.COMMUNITY_ID).asText(),
                             Constants.DISCUSSION_ID, updateData.get(Constants.PARENT_DISCUSSION_ID).asText()
@@ -854,7 +856,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
                 mentionedUsersNode.forEach(node -> {
                     String userid = node.path(USER_ID_RQST).asText(null);
-                    if (userid != null && !uniqueUserMap.containsKey(userid)) {
+                    if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
                         uniqueUserMap.put(userid, node);
                     }
                 });
@@ -931,7 +933,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (!userId.equals(discussionOwner)) {
                     notificationTriggerService.triggerNotification(LIKED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
                 }
-                if(!userIdList.isEmpty()){
+                if(CollectionUtils.isNotEmpty(userIdList)){
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, userIdList, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
@@ -1322,7 +1324,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Set<String> existingMentionedUserIds = new HashSet<>();
             data.withArray(MENTIONED_USERS).forEach(userNode -> {
                 String userid = userNode.path(USER_ID_RQST).asText(null);
-                if (userid != null) existingMentionedUserIds.add(userid);
+                if (StringUtils.isNotBlank(userid)) existingMentionedUserIds.add(userid);
             });
             Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
@@ -1331,7 +1333,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             if (incomingMentionedUsers.isArray()) {
                 for (JsonNode userNode : incomingMentionedUsers) {
                     String userid = userNode.path(USER_ID_RQST).asText(null);
-                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                    if (StringUtils.isNotBlank(userid) && seenUserIdsInRequest.add(userid)) {
                         uniqueMentionedUsers.add(userNode);
                         if (!existingMentionedUserIds.contains(userid)) {
                             newlyAddedUserIds.add(userid);
@@ -1366,7 +1368,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                             Constants.ANSWER_POST)));
             log.info("AnswerPost updated successfully");
             try {
-                if (!newlyAddedUserIds.isEmpty()) {
+                if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, data.get(Constants.COMMUNITY_ID).asText(),
                             Constants.DISCUSSION_ID, discussionEntity.getDiscussionId()

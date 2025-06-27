@@ -177,7 +177,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 if(!userId.equals(discussionOwner)) {
                     notificationTriggerService.triggerNotification(REPLIED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
                 }
-                if(!userIdList.isEmpty()){
+                if(CollectionUtils.isNotEmpty(userIdList)){
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, userIdList, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
@@ -378,7 +378,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             Set<String> existingMentionedUserIds = new HashSet<>();
             data.withArray(MENTIONED_USERS).forEach(userNode -> {
                 String userid = userNode.path(USER_ID_RQST).asText(null);
-                if (userid != null) existingMentionedUserIds.add(userid);
+                if (StringUtils.isNotBlank(userid)) existingMentionedUserIds.add(userid);
             });
             Set<String> seenUserIdsInRequest = new HashSet<>();
             List<String> newlyAddedUserIds = new ArrayList<>();
@@ -387,7 +387,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             if (incomingMentionedUsers.isArray()) {
                 for (JsonNode userNode : incomingMentionedUsers) {
                     String userid = userNode.path(USER_ID_RQST).asText(null);
-                    if (userid != null && seenUserIdsInRequest.add(userid)) {
+                    if (StringUtils.isNotBlank(userid) && seenUserIdsInRequest.add(userid)) {
                         uniqueMentionedUsers.add(userNode);
                         if (!existingMentionedUserIds.contains(userid)) {
                             newlyAddedUserIds.add(userid);
@@ -395,6 +395,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                     }
                 }
             }
+
             answerPostReplyDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
 
             answerPostReplyDataNode.remove(Constants.ANSWER_POST_REPLY_ID);
@@ -418,7 +419,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                             data.get(Constants.COMMUNITY_ID).asText())));
             log.info("AnswerPostReply updated successfully");
             try {
-                if (!newlyAddedUserIds.isEmpty()) {
+                if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, data.get(Constants.COMMUNITY_ID).asText(),
                             Constants.DISCUSSION_ID, data.get(Constants.PARENT_DISCUSSION_ID).asText()
