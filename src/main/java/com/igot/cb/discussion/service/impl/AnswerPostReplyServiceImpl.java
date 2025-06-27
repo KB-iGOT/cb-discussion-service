@@ -106,7 +106,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
                 mentionedUsersNode.forEach(node -> {
                     String userid = node.path(USER_ID_RQST).asText(null);
-                    if (userid != null && !uniqueUserMap.containsKey(userid)) {
+                    if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
                         uniqueUserMap.put(userid, node);
                     }
                 });
