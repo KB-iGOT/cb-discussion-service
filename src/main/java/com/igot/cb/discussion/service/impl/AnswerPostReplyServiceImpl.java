@@ -100,6 +100,21 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         }
 
         try {
+            JsonNode mentionedUsersNode = answerPostDataReplyData.get(MENTIONED_USERS);
+            List<String> userIdList = new ArrayList<>();
+            if (mentionedUsersNode != null && mentionedUsersNode.isArray() && mentionedUsersNode.size() > 0) {
+                Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
+                mentionedUsersNode.forEach(node -> {
+                    String userid = node.path(USER_ID_RQST).asText(null);
+                    if (userid != null && !uniqueUserMap.containsKey(userid)) {
+                        uniqueUserMap.put(userid, node);
+                    }
+                });
+                ArrayNode cleanArray = objectMapper.createArrayNode();
+                uniqueUserMap.values().forEach(cleanArray::add);
+                ((ObjectNode) answerPostDataReplyData).set(MENTIONED_USERS, cleanArray);
+                userIdList.addAll(uniqueUserMap.keySet());
+            }
             ObjectNode answerPostReplyDataNode = (ObjectNode) answerPostDataReplyData;
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
@@ -161,6 +176,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 log.info("Notification trigger started for create answerPost");
                 if(!userId.equals(discussionOwner)) {
                     notificationTriggerService.triggerNotification(REPLIED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
+                }
+                if(!userIdList.isEmpty()){
+                    notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, userIdList, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
@@ -356,6 +374,25 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
         try {
             ObjectNode answerPostReplyDataNode = (ObjectNode) answerPostReplyData;
+            Map<String, JsonNode> mergedUsers = new LinkedHashMap<>();
+            data.withArray(MENTIONED_USERS).forEach(user -> {
+                String userid = user.path(USER_ID_RQST).asText(null);
+                if (userid != null) mergedUsers.put(userid, user);
+            });
+            List<String> newlyAddedUserIds = new ArrayList<>();
+            JsonNode incomingMentionedUsers = answerPostReplyData.path(MENTIONED_USERS);
+            if (!incomingMentionedUsers.isEmpty()) {
+                for (JsonNode user : incomingMentionedUsers) {
+                    String userid = user.path(USER_ID_RQST).asText(null);
+                    if (userid != null && mergedUsers.putIfAbsent(userid, user) == null) {
+                        newlyAddedUserIds.add(userid);
+                    }
+                }
+            }
+            ArrayNode mergedMentionedUsers = objectMapper.createArrayNode();
+            mergedUsers.values().forEach(mergedMentionedUsers::add);
+            answerPostReplyDataNode.set(MENTIONED_USERS, incomingMentionedUsers);
+
             answerPostReplyDataNode.remove(Constants.ANSWER_POST_REPLY_ID);
             if (!answerPostReplyDataNode.has(Constants.IS_INITIAL_UPLOAD) || !answerPostReplyDataNode.get(Constants.IS_INITIAL_UPLOAD).asBoolean()) {
                 Timestamp currentTime = new Timestamp(System.currentTimeMillis());
@@ -376,6 +413,18 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                             data.get(Constants.PARENT_ANSWER_POST_ID).asText(),
                             data.get(Constants.COMMUNITY_ID).asText())));
             log.info("AnswerPostReply updated successfully");
+            try {
+                if (!newlyAddedUserIds.isEmpty()) {
+                    Map<String, Object> notificationData = Map.of(
+                            Constants.COMMUNITY_ID, data.get(Constants.COMMUNITY_ID).asText(),
+                            Constants.DISCUSSION_ID, data.get(Constants.PARENT_DISCUSSION_ID).asText()
+                    );
+                    String firstName = helperMethodService.fetchUserFirstName(userId);
+                    notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, newlyAddedUserIds, TITLE, firstName, notificationData);
+                }
+            } catch (Exception e) {
+                log.error("Error while triggering notification for update answerPostReply", e);
+            }
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
