@@ -192,7 +192,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             userPostCount.put(Constants.STATUS, Constants.INCREMENT);
             producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
             try {
-                if (CollectionUtils.isNotEmpty(userIdList)){
+                if (CollectionUtils.isNotEmpty(userIdList)) {
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText(),
                             Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
@@ -933,7 +933,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (!userId.equals(discussionOwner)) {
                     notificationTriggerService.triggerNotification(LIKED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
                 }
-                if(CollectionUtils.isNotEmpty(userIdList)){
+                if (CollectionUtils.isNotEmpty(userIdList)) {
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, userIdList, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {

@@ -177,7 +177,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 if(!userId.equals(discussionOwner)) {
                     notificationTriggerService.triggerNotification(REPLIED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
                 }
-                if(CollectionUtils.isNotEmpty(userIdList)){
+                if (CollectionUtils.isNotEmpty(userIdList)) {
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ALERT, userIdList, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
