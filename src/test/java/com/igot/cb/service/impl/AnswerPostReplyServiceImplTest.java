@@ -11,6 +11,8 @@ import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.impl.AnswerPostReplyServiceImpl;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -58,6 +60,8 @@ class AnswerPostReplyServiceImplTest {
     @Mock private ObjectMapper objectMapper;
     @Mock private RedisTemplate<String, SearchResult> redisTemplate;
     @Mock private ValueOperations<String, SearchResult> valueOperations;
+    @Mock private HelperMethodService helperMethodService;
+    @Mock private NotificationTriggerService notificationTriggerService;
     private final ObjectMapper realMapper = new ObjectMapper();
 
     private final String token = "validToken";
@@ -97,6 +101,7 @@ class AnswerPostReplyServiceImplTest {
         data.put(Constants.TYPE, Constants.ANSWER_POST);
         data.put(Constants.STATUS, Constants.ACTIVE);
         data.put(Constants.COMMUNITY_ID, communityId);
+        data.put(Constants.CREATED_BY, userId);
         return new DiscussionEntity("discussionId123", data, true,
                 new Timestamp(System.currentTimeMillis()),
                 new Timestamp(System.currentTimeMillis()));
@@ -120,6 +125,8 @@ class AnswerPostReplyServiceImplTest {
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
         when(discussionRepository.save(any())).thenReturn(mockDiscussionEntity());
+        when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("");
+//        doNothing().when(notificationTriggerService).triggerNotification(any(),any(), anyList(), any(), any(), any());
 
         ApiResponse response = service.createAnswerPostReply(payload, token);
 

@@ -18,6 +18,8 @@ import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.metrics.service.ApiMetricsTracker;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
@@ -53,6 +55,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.igot.cb.pores.util.Constants.*;
+
 @Service
 @Slf4j
 public class DiscussionServiceImpl implements DiscussionService {
@@ -83,6 +87,11 @@ public class DiscussionServiceImpl implements DiscussionService {
     private Producer producer;
     @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+    @Autowired
+    private HelperMethodService helperMethodService;
+
 
     @PostConstruct
     public void init() {
@@ -614,6 +623,30 @@ public class DiscussionServiceImpl implements DiscussionService {
                 updateCacheForGlobalFeed(userId);
             }
 
+            try {
+                String createdBy = dataNode.get(Constants.CREATED_BY).asText();
+
+                Map<String, Object> data = Map.of(
+                        Constants.COMMUNITY_ID, dataNode.get(Constants.COMMUNITY_ID).asText(),
+                        Constants.DISCUSSION_ID, type.equalsIgnoreCase(Constants.QUESTION) ? discussionId : discussionData.get(Constants.PARENT_DISCUSSION_ID)
+                );
+
+
+                String firstName = helperMethodService.fetchUserFirstName(userId);
+                log.info("Notification trigger started");
+                if (currentVote && !userId.equals(createdBy)) {
+                    if (type.equalsIgnoreCase(Constants.QUESTION)) {
+                        notificationTriggerService.triggerNotification(LIKED_POST, ENGAGEMENT, List.of(createdBy), TITLE, firstName, data);
+                    } else if (type.equalsIgnoreCase(Constants.ANSWER_POST)) {
+                        notificationTriggerService.triggerNotification(POST_COMMENT, ENGAGEMENT, List.of(createdBy), TITLE, firstName, data);
+                    } else if (type.equalsIgnoreCase(Constants.ANSWER_POST_REPLY)) {
+                        notificationTriggerService.triggerNotification(REPLIED_POST, ENGAGEMENT, List.of(createdBy), TITLE, firstName, data);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error while triggering notification", e);
+            }
+
             if (Constants.ANSWER_POST.equals(type)) {
                 redisTemplate.opsForValue()
                         .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
@@ -808,6 +841,22 @@ public class DiscussionServiceImpl implements DiscussionService {
             producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
 
             log.info("AnswerPost created successfully");
+
+            try {
+                Map<String, Object> notificationData = Map.of(
+                        Constants.COMMUNITY_ID, answerPostData.get(Constants.COMMUNITY_ID).asText(),
+                        Constants.DISCUSSION_ID, answerPostData.get(Constants.PARENT_DISCUSSION_ID).asText()
+                );
+                String discussionOwner = discussionEntity.getData().get(Constants.CREATED_BY).asText();
+                String createdBy = answerPostData.get(CREATED_BY).asText();
+                String firstName = helperMethodService.fetchUserFirstName(createdBy);
+                log.info("Notification trigger started for create answerPost");
+                if (!userId.equals(discussionOwner)) {
+                    notificationTriggerService.triggerNotification(LIKED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
+                }
+            } catch (Exception e) {
+                log.error("Error while triggering notification", e);
+            }
             map.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -1024,6 +1073,22 @@ public class DiscussionServiceImpl implements DiscussionService {
                 updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
                 updateCacheForGlobalFeed(userId);
             }
+            if (status.equals(Constants.SUSPENDED)) {
+                deleteCacheByCommunity(SUSPENDED_POSTS_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+                deleteCacheByCommunity(ALL_REPORTED_POSTS_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+            }
+            if (status.equals(REPORTED)) {
+                deleteCacheByCommunity(ALL_REPORTED_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            }
+            if (QUESTION.equals(type)) {
+                deleteCacheByCommunity(REPORTED_QUESTION_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            } else if (ANSWER_POST.equals(type)) {
+                deleteCacheByCommunity(REPORTED_ANSWER_POST_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            } else if (ANSWER_POST_REPLY.equals(type)) {
+                deleteCacheByCommunity(REPORTED_ANSWER_POST_REPLY_POSTS_CACHE_PREFIX + data.get(COMMUNITY_ID).asText());
+            }
+            String redisKey = Constants.REPORT_STATISTICS_CACHE_PREFIX + discussionId;
+            cacheService.deleteCache(redisKey);
             log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
@@ -1455,6 +1520,12 @@ public class DiscussionServiceImpl implements DiscussionService {
             List<String> userTagIdsList = discussionToUserTagMap.get(discussionId);
             boolean hasCreatedBy = createdById != null && userDetailsMap.containsKey(createdById);
             if (hasCreatedBy) {
+                Map<String, Object> userData = (Map<String, Object>) userDetailsMap.get(createdById);
+                Object designationObj = userData.get(DESIGNATION_KEY);
+                String designationStr = designationObj != null ? designationObj.toString() : "";
+                if (designationStr.isBlank() || "null".equalsIgnoreCase(designationStr)) {
+                    userData.put(DESIGNATION_KEY, "");
+                }
                 discussion.put(Constants.CREATED_BY, userDetailsMap.get(createdById));
             }
             if (isAnswerPost && userTagIdsList != null && !userTagIdsList.isEmpty()) {
@@ -2056,4 +2127,5 @@ public class DiscussionServiceImpl implements DiscussionService {
         criteria.setFacets(Collections.emptyList());
         return criteria;
     }
+
 }
