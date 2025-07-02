@@ -24,6 +24,7 @@
   },
   "required": [
     "type",
+    "description",
     "parentDiscussionId",
     "communityId"
   ],
