@@ -199,9 +199,9 @@ public class DiscussionServiceImpl implements DiscussionService {
                             Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
                     );
                     String firstName = helperMethodService.fetchUserFirstName(userId);
-                    if(!userId.equals(createdBy)) {
+//
                         notificationTriggerService.triggerNotification(TAGGED_POST, ENGAGEMENT, userIdList, TITLE, firstName, notificationData);
-                    }
+//
                 }
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
