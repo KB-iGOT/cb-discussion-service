@@ -385,14 +385,17 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateCacheForGlobalFeed(userId);
             log.info("Updated cache for global feed");
             try {
-                String createdBy = data.get(Constants.CREATED_BY).asText();
+                String discussionOwner = discussionDbData.getData().get(Constants.CREATED_BY).asText();
                 if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
-                    Map<String, Object> notificationData = Map.of(
-                            Constants.COMMUNITY_ID, discussionDbData.getData().get(Constants.COMMUNITY_ID).asText(),
-                            Constants.DISCUSSION_ID,discussionDbData.getDiscussionId()
-                    );
-                    String firstName = helperMethodService.fetchUserFirstName(userId);
-                    if(!userId.equals(createdBy)) {
+                    List<String> filteredUserIds = newlyAddedUserIds.stream()
+                            .filter(id -> !id.equals(discussionOwner))
+                            .collect(Collectors.toList());
+                    if (CollectionUtils.isNotEmpty(filteredUserIds)) {
+                        Map<String, Object> notificationData = Map.of(
+                                Constants.COMMUNITY_ID, discussionDbData.getData().get(Constants.COMMUNITY_ID).asText(),
+                                Constants.DISCUSSION_ID, discussionDbData.getDiscussionId()
+                        );
+                        String firstName = helperMethodService.fetchUserFirstName(userId);
                         notificationTriggerService.triggerNotification(TAGGED_POST, ENGAGEMENT, newlyAddedUserIds, TITLE, firstName, notificationData);
                     }
                 }
