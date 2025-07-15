@@ -180,8 +180,8 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                     notificationTriggerService.triggerNotification(REPLIED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);
                 }
                 if (CollectionUtils.isNotEmpty(userIdList)) {
-                    List<String> filteredUserIdList = userIdList.stream().filter(uniqueId -> !uniqueId.equals(discussionOwner)).collect(Collectors.toList());
-
+                    List<String> filteredUserIdList = userIdList.stream()
+                            .filter(uniqueId -> !uniqueId.equals(discussionOwner)).toList();
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
                         Map<String, Object> replyNotificationData = Map.of(
                                 Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),

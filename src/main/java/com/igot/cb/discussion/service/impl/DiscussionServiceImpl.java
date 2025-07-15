@@ -195,7 +195,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 String createdBy = discussionDetailsNode.get(Constants.CREATED_BY).asText();
                 if (CollectionUtils.isNotEmpty(userIdList)) {
                     List<String> filteredUserIdList = userIdList.stream()
-                            .filter(uniqueId -> !uniqueId.equals(createdBy)).collect(Collectors.toList());
+                            .filter(uniqueId -> !uniqueId.equals(createdBy)).toList();
 
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
                         Map<String, Object> notificationData = Map.of(
@@ -389,7 +389,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
                     List<String> filteredUserIds = newlyAddedUserIds.stream()
                             .filter(id -> !id.equals(discussionOwner))
-                            .collect(Collectors.toList());
+                            .toList();
                     if (CollectionUtils.isNotEmpty(filteredUserIds)) {
                         Map<String, Object> notificationData = Map.of(
                                 Constants.COMMUNITY_ID, discussionDbData.getData().get(Constants.COMMUNITY_ID).asText(),
@@ -947,7 +947,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 }
                 if (CollectionUtils.isNotEmpty(userIdList)) {
                     List<String> filteredUserIdList = userIdList.stream()
-                            .filter(uniqueId -> !uniqueId.equals(discussionOwner)).collect(Collectors.toList());
+                            .filter(uniqueId -> !uniqueId.equals(discussionOwner)).toList();
 
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
                         Map<String, Object> answerPostNotificationData = Map.of(
