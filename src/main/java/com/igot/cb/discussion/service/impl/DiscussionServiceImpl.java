@@ -203,7 +203,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                                 Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
                         );
                         String firstName = helperMethodService.fetchUserFirstName(userId);
-                        notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, filteredUserIdList, TITLE, firstName, notificationData);
+                        notificationTriggerService.triggerNotification(TAGGED_POST, ENGAGEMENT, filteredUserIdList, TITLE, firstName, notificationData);
                     }
                 }
             } catch (Exception e) {
