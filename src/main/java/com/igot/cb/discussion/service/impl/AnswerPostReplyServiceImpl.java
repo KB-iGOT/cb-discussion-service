@@ -181,7 +181,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 }
                 if (CollectionUtils.isNotEmpty(userIdList)) {
                     List<String> filteredUserIdList = userIdList.stream()
-                            .filter(uniqueId -> !uniqueId.equals(discussionOwner) && !uniqueId.equals(userId))
+                            .filter(uniqueId -> !uniqueId.equals(userId))
                             .toList();
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
                         Map<String, Object> replyNotificationData = Map.of(
