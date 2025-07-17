@@ -950,7 +950,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 }
                 else if (CollectionUtils.isNotEmpty(userIdList)) {
                     List<String> filteredUserIdList = userIdList.stream()
-                            .filter(uniqueId -> !uniqueId.equals(discussionOwner) && !uniqueId.equals(userId))
+                            .filter(uniqueId ->  !uniqueId.equals(userId))
                             .toList();
 
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
