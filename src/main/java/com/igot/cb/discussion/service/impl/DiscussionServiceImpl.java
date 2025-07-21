@@ -124,43 +124,23 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         updateMetricsApiCall(Constants.DISCUSSION_CREATE);
         try {
-            JsonNode mentionedUsersNode = discussionDetails.get(MENTIONED_USERS);
-            List<String> userIdList = new ArrayList<>();
-            if (mentionedUsersNode != null && mentionedUsersNode.isArray() && mentionedUsersNode.size() > 0) {
-                Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
-                mentionedUsersNode.forEach(node -> {
-                    String userid = node.path(USER_ID_RQST).asText(null);
-                    if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
-                        uniqueUserMap.put(userid, node);
-                    }
-                });
-                ArrayNode cleanArray = objectMapper.createArrayNode();
-                uniqueUserMap.values().forEach(cleanArray::add);
-                ((ObjectNode) discussionDetails).set(MENTIONED_USERS, cleanArray);
-                userIdList.addAll(uniqueUserMap.keySet());
-            }
+            List<String> userIdList = processMentionedUsers(discussionDetails);
             ObjectNode discussionDetailsNode = (ObjectNode) discussionDetails;
-            Map<String, Object> propertyMap = new HashMap<>();
-            propertyMap.put(Constants.USERID, userId);
-            propertyMap.put(Constants.COMMUNITY_ID, discussionDetailsNode.get(Constants.COMMUNITY_ID).asText());
-            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
-            if (communityDetails.isEmpty() || !(boolean) communityDetails.get(0).get(Constants.STATUS)) {
+            if (!isUserPartOfCommunity(userId, discussionDetails.get(Constants.COMMUNITY_ID).asText())) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.USER_NOT_PART_OF_COMMUNITY, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
             }
+            DiscussionEntity jsonNodeEntity = new DiscussionEntity();
+            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+            UUID id = Uuids.timeBased();
             discussionDetailsNode.put(Constants.CREATED_BY, userId);
             discussionDetailsNode.put(Constants.UP_VOTE_COUNT, 0L);
             discussionDetailsNode.put(Constants.STATUS, Constants.ACTIVE);
-
-            DiscussionEntity jsonNodeEntity = new DiscussionEntity();
-            Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-
-            UUID id = Uuids.timeBased();
             discussionDetailsNode.put(Constants.DISCUSSION_ID, String.valueOf(id));
-            jsonNodeEntity.setDiscussionId(String.valueOf(id));
-            jsonNodeEntity.setCreatedOn(currentTime);
             discussionDetailsNode.put(Constants.CREATED_ON, getFormattedCurrentTime(currentTime));
             discussionDetailsNode.put(Constants.UPDATED_ON, getFormattedCurrentTime(currentTime));
+            jsonNodeEntity.setDiscussionId(String.valueOf(id));
+            jsonNodeEntity.setCreatedOn(currentTime);
             jsonNodeEntity.setUpdatedOn(currentTime);
             jsonNodeEntity.setIsActive(true);
             discussionDetailsNode.put(Constants.IS_ACTIVE, true);
@@ -171,44 +151,16 @@ public class DiscussionServiceImpl implements DiscussionService {
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(discussionDetailsNode);
             Map<String, Object> map = objectMapper.convertValue(discussionDetailsNode, Map.class);
-
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
-            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), saveJsonEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
-            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + saveJsonEntity.getDiscussionId(), jsonNode);
-            deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + discussionDetails.get(Constants.COMMUNITY_ID).asText());
-            deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
+            updateDiscussionCacheAndSyncES(discussionDetails, saveJsonEntity, map, jsonNode, userId);
             updateCacheForFirstFivePages(discussionDetails.get(Constants.COMMUNITY_ID).asText(), false);
             updateCacheForGlobalFeed(userId);
             log.info("Updated cache for global feed");
-            Map<String, String> communityObject = new HashMap<>();
-            communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
-            communityObject.put(Constants.STATUS, Constants.INCREMENT);
-            communityObject.put(Constants.TYPE, Constants.POST);
-            producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
-            Map<String, String> userPostCount = new HashMap<>();
-            userPostCount.put(Constants.USERID, userId);
-            userPostCount.put(Constants.STATUS, Constants.INCREMENT);
-            producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
-            try {
-                String createdBy = discussionDetailsNode.get(Constants.CREATED_BY).asText();
-                if (CollectionUtils.isNotEmpty(userIdList)) {
-                    List<String> filteredUserIdList = userIdList.stream()
-                            .filter(uniqueId -> !uniqueId.equals(createdBy)).toList();
-
-                    if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
-                        Map<String, Object> notificationData = Map.of(
-                                Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText(),
-                                Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
-                        );
-                        String firstName = helperMethodService.fetchUserFirstName(userId);
-                        notificationTriggerService.triggerNotification(TAGGED_POST, ENGAGEMENT, filteredUserIdList, TITLE, firstName, notificationData);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error while triggering notification", e);
-            }
+            pushCommunityPostCountIncrement(discussionDetails);
+            pushUserPostCountIncrement(userId);
+            triggerMentionedUsersNotification(discussionDetails, discussionDetailsNode, userIdList, userId);
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_DISCUSSION, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -862,21 +814,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
 
         try {
-            JsonNode mentionedUsersNode = answerPostData.get(MENTIONED_USERS);
-            List<String> userIdList = new ArrayList<>();
-            if (mentionedUsersNode != null && mentionedUsersNode.isArray() && mentionedUsersNode.size() > 0) {
-                Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
-                mentionedUsersNode.forEach(node -> {
-                    String userid = node.path(USER_ID_RQST).asText(null);
-                    if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
-                        uniqueUserMap.put(userid, node);
-                    }
-                });
-                ArrayNode cleanArray = objectMapper.createArrayNode();
-                uniqueUserMap.values().forEach(cleanArray::add);
-                ((ObjectNode) answerPostData).set(MENTIONED_USERS, cleanArray);
-                userIdList.addAll(uniqueUserMap.keySet());
-            }
+            List<String> userIdList = processMentionedUsers(answerPostData);
             ObjectNode answerPostDataNode = (ObjectNode) answerPostData;
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
@@ -2263,6 +2201,79 @@ public class DiscussionServiceImpl implements DiscussionService {
         criteria.setOrderDirection(Constants.DESC);
         criteria.setFacets(Collections.emptyList());
         return criteria;
+    }
+
+    private List<String> processMentionedUsers(JsonNode discussionDetails) {
+        JsonNode mentionedUsersNode = discussionDetails.get(MENTIONED_USERS);
+        List<String> userIdList = new ArrayList<>();
+        if (mentionedUsersNode != null && mentionedUsersNode.isArray() && mentionedUsersNode.size() > 0) {
+            Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
+            mentionedUsersNode.forEach(node -> {
+                String userid = node.path(USER_ID_RQST).asText(null);
+                if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
+                    uniqueUserMap.put(userid, node);
+                }
+            });
+            ArrayNode cleanArray = objectMapper.createArrayNode();
+            uniqueUserMap.values().forEach(cleanArray::add);
+            ((ObjectNode) discussionDetails).set(MENTIONED_USERS, cleanArray);
+            userIdList.addAll(uniqueUserMap.keySet());
+        }
+        return userIdList;
+    }
+
+    private void triggerMentionedUsersNotification(JsonNode discussionDetails, ObjectNode discussionDetailsNode, List<String> userIdList, String userId) {
+        try {
+            String createdBy = discussionDetailsNode.get(Constants.CREATED_BY).asText();
+            if (CollectionUtils.isNotEmpty(userIdList)) {
+                List<String> filteredUserIdList = userIdList.stream()
+                        .filter(uniqueId -> !uniqueId.equals(createdBy)).toList();
+
+                if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
+                    Map<String, Object> notificationData = Map.of(
+                            Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText(),
+                            Constants.DISCUSSION_ID, discussionDetails.get(Constants.DISCUSSION_ID).asText()
+                    );
+                    String firstName = helperMethodService.fetchUserFirstName(userId);
+                    notificationTriggerService.triggerNotification(TAGGED_POST, ENGAGEMENT, filteredUserIdList, TITLE, firstName, notificationData);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error while triggering notification", e);
+        }
+    }
+
+    private boolean isUserPartOfCommunity(String userId, String communityId) {
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put(Constants.USERID, userId);
+        propertyMap.put(Constants.COMMUNITY_ID, communityId);
+        List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
+        return !communityDetails.isEmpty() && Boolean.TRUE.equals(communityDetails.get(0).get(Constants.STATUS));
+    }
+
+
+    private void pushUserPostCountIncrement(String userId) {
+        Map<String, String> userPostCount = new HashMap<>();
+        userPostCount.put(Constants.USERID, userId);
+        userPostCount.put(Constants.STATUS, Constants.INCREMENT);
+        producer.push(cbServerProperties.getKafkaUserPostCount(), userPostCount);
+    }
+
+    private void pushCommunityPostCountIncrement(JsonNode discussionDetails) {
+        Map<String, String> communityObject = new HashMap<>();
+        communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
+        communityObject.put(Constants.STATUS, Constants.INCREMENT);
+        communityObject.put(Constants.TYPE, Constants.POST);
+        producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
+    }
+
+
+    private void updateDiscussionCacheAndSyncES(JsonNode discussionDetails, DiscussionEntity saveJsonEntity, Map<String, Object> map, ObjectNode jsonNode, String userId) {
+        esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), saveJsonEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
+        cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + saveJsonEntity.getDiscussionId(), jsonNode);
+        deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + discussionDetails.get(Constants.COMMUNITY_ID).asText());
+        deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
     }
 
 }
