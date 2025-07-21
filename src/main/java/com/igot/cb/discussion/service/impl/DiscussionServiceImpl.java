@@ -956,7 +956,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
                         Map<String, Object> answerPostNotificationData = Map.of(
                                 Constants.COMMUNITY_ID, answerPostData.get(Constants.COMMUNITY_ID).asText(),
-                                Constants.DISCUSSION_ID, jsonNodeEntity.getDiscussionId()
+                                Constants.DISCUSSION_ID, answerPostData.get(Constants.PARENT_DISCUSSION_ID).asText()
                         );
                         notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, filteredUserIdList, TITLE, firstName, answerPostNotificationData);
                     }
@@ -1396,7 +1396,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
                     Map<String, Object> notificationData = Map.of(
                             Constants.COMMUNITY_ID, data.get(Constants.COMMUNITY_ID).asText(),
-                            Constants.DISCUSSION_ID, discussionEntity.getDiscussionId()
+                            Constants.DISCUSSION_ID, data.get(Constants.PARENT_DISCUSSION_ID).asText()
                     );
                     String firstName = helperMethodService.fetchUserFirstName(userId);
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, newlyAddedUserIds, TITLE, firstName, notificationData);
