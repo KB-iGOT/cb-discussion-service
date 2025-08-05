@@ -268,6 +268,20 @@ public class Constants {
     public static final String TAGGED_POST = "TAGGED_POST";
     public static final String ALERT = "ALERT";
     public static final String MENTIONED_USERS = "mentionedUsers";
+    public static final String FETCH_RESULT_CONSTANT = ".fetchResult:";
+    public static final String URI_CONSTANT = "URI: ";
+    public static final String TEXT = "text";
+    public static final String LANGUAGE = "language";
+    public static final String POST_ID = "post_id";
+    public static final String METADATA = "metadata";
+    public static final String CONTENT_TYPE = "content-type";
+    public static final String APPLICATION_JSON = "application/json";
+    public static final String AUTHORIZATION = "Authorization";
+    public static final String HEADER_MAP = "headerMap";
+    public static final String REQUEST_BODY = "requestBody";
+    public static final String SERVICE_CODE = "serviceCode";
+    public static final String PROFANITY_CHECK = "PROFANITY-CHECK";
+    public static final String LANGUAGE_CODE = "languageCode";
 
     private Constants() {
     }
