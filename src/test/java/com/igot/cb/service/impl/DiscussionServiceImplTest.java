@@ -20,6 +20,7 @@ import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,8 @@ import org.sunbird.cloud.storage.BaseStorageService;
 import org.sunbird.cloud.storage.factory.StorageServiceFactory;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -111,6 +114,9 @@ class DiscussionServiceImplTest {
     private BaseStorageService baseStorageService;
 
     @Mock
+    private RequestHandlerServiceImpl requestHandlerService;
+
+    @Mock
     private ObjectMapper objectMapper; // mock
     private final String discussionId = "discussionId";
     private final String token = "validToken";
@@ -168,6 +174,7 @@ class DiscussionServiceImplTest {
         ReflectionTestUtils.setField(discussionService, "payloadValidation", payloadValidation);
         ReflectionTestUtils.setField(discussionService, "accessTokenValidator", accessTokenValidator);
         ReflectionTestUtils.setField(discussionService, "producer", producer);
+        ReflectionTestUtils.setField(discussionService, "requestHandlerService", requestHandlerService);
 
         // Mock static factory method
         try (MockedStatic<StorageServiceFactory> mockedFactory = Mockito.mockStatic(StorageServiceFactory.class)) {
@@ -3355,6 +3362,76 @@ class DiscussionServiceImplTest {
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals("Index: 0, Size: 0",response.getParams().getErrMsg());
+    }
+
+
+    @Test
+    void testProcessProfanityCheck_HappyPath() throws Exception {
+        UUID id = UUID.randomUUID();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put(Constants.DESCRIPTION, "desc");
+        node.put(Constants.LANGUAGE_CODE, "en");
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = DiscussionServiceImpl.class.getDeclaredMethod("processProfanityCheck", UUID.class, ObjectNode.class);
+        m.setAccessible(true);
+        m.invoke(discussionService, id, node);
+        verify(requestHandlerService).fetchResultUsingPost(anyString(), anyMap(), anyMap());
+    }
+
+    @Test
+    void testProcessProfanityCheck_MissingDescription() throws Exception {
+        UUID id = UUID.randomUUID();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put(Constants.LANGUAGE_CODE, "en");
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = DiscussionServiceImpl.class.getDeclaredMethod("processProfanityCheck", UUID.class, ObjectNode.class);
+        m.setAccessible(true);
+        InvocationTargetException ex = assertThrows(InvocationTargetException.class, () -> m.invoke(discussionService, id, node));
+        assertTrue(ex.getCause() instanceof NullPointerException);
+    }
+
+    @Test
+    void testProcessProfanityCheck_MissingLanguageCode() throws Exception {
+        UUID id = UUID.randomUUID();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put(Constants.DESCRIPTION, "desc");
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = DiscussionServiceImpl.class.getDeclaredMethod("processProfanityCheck", UUID.class, ObjectNode.class);
+        m.setAccessible(true);
+        InvocationTargetException ex = assertThrows(InvocationTargetException.class, () -> m.invoke(discussionService, id, node));
+        assertTrue(ex.getCause() instanceof NullPointerException);
+    }
+
+    @Test
+    void testProcessProfanityCheck_NullDiscussionDetailsNode() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = DiscussionServiceImpl.class.getDeclaredMethod("processProfanityCheck", UUID.class, ObjectNode.class);
+        m.setAccessible(true);
+        InvocationTargetException ex = assertThrows(InvocationTargetException.class, () -> m.invoke(discussionService, id, null));
+        assertTrue(ex.getCause() instanceof NullPointerException);
+    }
+
+    @Test
+    void testProcessProfanityCheck_NullId() throws Exception {
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put(Constants.DESCRIPTION, "desc");
+        node.put(Constants.LANGUAGE_CODE, "en");
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = DiscussionServiceImpl.class.getDeclaredMethod("processProfanityCheck", UUID.class, ObjectNode.class);
+        m.setAccessible(true);
+        m.invoke(discussionService, null, node);
+        verify(requestHandlerService).fetchResultUsingPost(anyString(), anyMap(), anyMap());
     }
 
 }
