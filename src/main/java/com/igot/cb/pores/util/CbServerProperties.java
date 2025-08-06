@@ -94,4 +94,13 @@ public class CbServerProperties {
   @Value("${kafka.topic.user.post.count}")
   private String kafkaUserPostCount;
 
+  @Value("${cb.service.registry.base.url}")
+  private String cbServiceRegistryBaseUrl;
+
+  @Value("${cb.registry.textmoderation.api.path}")
+  private String cbRegistryTextModerationApiPath;
+
+  @Value("${cb.discussion.api.key}")
+  private String cbDiscussionApiKey;
+
 }
