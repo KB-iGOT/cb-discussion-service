@@ -212,7 +212,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            processProfanityCheck(id, discussionDetailsNode);
+            if (discussionDetailsNode.hasNonNull(Constants.LANGUAGE_CODE)) {
+                processProfanityCheck(id, discussionDetailsNode);
+            }
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_DISCUSSION, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
