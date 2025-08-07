@@ -9,6 +9,9 @@
     "description": {
       "type": "string"
     },
+    "language": {
+      "type": "string"
+    },
     "communityId": {
       "type": "string"
     },
@@ -27,7 +30,8 @@
   "required": [
     "type",
     "description",
-    "communityId"
+    "communityId",
+    "language"
   ],
     "additionalProperties": false
 }
