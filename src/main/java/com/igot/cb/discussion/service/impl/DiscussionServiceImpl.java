@@ -26,6 +26,7 @@ import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
+import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -95,6 +96,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Autowired
     private RequestHandlerServiceImpl requestHandlerService;
+
+    @Autowired
+    private IProfanityCheckService profanityCheckService;
 
     @PostConstruct
     public void init() {
@@ -212,8 +216,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            if (discussionDetailsNode.hasNonNull(Constants.LANGUAGE_CODE)) {
-                processProfanityCheck(id, discussionDetailsNode);
+            if (discussionDetailsNode.hasNonNull(Constants.LANGUAGE)) {
+                profanityCheckService.processProfanityCheck(String.valueOf(id), discussionDetailsNode);
             }
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);
@@ -2271,20 +2275,5 @@ public class DiscussionServiceImpl implements DiscussionService {
         return criteria;
     }
 
-    private void processProfanityCheck(UUID id, ObjectNode discussionDetailsNode) {
-        Map<String, String> headerMap = new HashMap<>();
-        headerMap.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
-        headerMap.put(Constants.AUTHORIZATION, cbServerProperties.getCbDiscussionApiKey());
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put(Constants.POST_ID, String.valueOf(id));
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put(Constants.TEXT, discussionDetailsNode.get(Constants.DESCRIPTION).asText());
-        requestBody.put(Constants.LANGUAGE, discussionDetailsNode.get(Constants.LANGUAGE_CODE).asText());
-        requestBody.put(Constants.METADATA, metadata);
-        Map<String, Object> mainRequest = new HashMap<>();
-        mainRequest.put(Constants.HEADER_MAP, headerMap);
-        mainRequest.put(Constants.REQUEST_BODY, requestBody);
-        mainRequest.put(Constants.SERVICE_CODE, Constants.PROFANITY_CHECK);
-        requestHandlerService.fetchResultUsingPost(cbServerProperties.getCbServiceRegistryBaseUrl() + "/" + cbServerProperties.getCbRegistryTextModerationApiPath(), mainRequest, headerMap);
-    }
+
 }
