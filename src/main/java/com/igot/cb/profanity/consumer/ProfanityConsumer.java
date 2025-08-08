@@ -1,4 +1,4 @@
-package com.igot.cb.consumer;
+package com.igot.cb.profanity.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
