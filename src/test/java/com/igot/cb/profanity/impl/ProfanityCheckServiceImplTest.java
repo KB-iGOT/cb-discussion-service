@@ -40,7 +40,7 @@ class ProfanityCheckServiceImplTest {
         String id = String.valueOf(UUID.randomUUID());
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.DESCRIPTION, "desc");
-        node.put(Constants.LANGUAGE_CODE, "en");
+        node.put(Constants.LANGUAGE, "en");
         when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -54,7 +54,7 @@ class ProfanityCheckServiceImplTest {
     void testProcessProfanityCheck_MissingDescription() throws Exception {
         String id = String.valueOf(UUID.randomUUID());
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-        node.put(Constants.LANGUAGE_CODE, "en");
+        node.put(Constants.LANGUAGE, "en");
         lenient().when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         lenient().when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         lenient().when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -94,7 +94,7 @@ class ProfanityCheckServiceImplTest {
     void testProcessProfanityCheck_NullId() throws Exception {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.DESCRIPTION, "desc");
-        node.put(Constants.LANGUAGE_CODE, "en");
+        node.put(Constants.LANGUAGE, "en");
         when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
