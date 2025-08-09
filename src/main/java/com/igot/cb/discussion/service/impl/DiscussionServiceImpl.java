@@ -1765,7 +1765,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return errorMsg.toString();
     }
 
-    private void deleteCacheByCommunity(String prefix) {
+    public void deleteCacheByCommunity(String prefix) {
         String pattern = prefix + "_*";
         Set<String> keys = redisTemplate.keys(pattern);
         if (!keys.isEmpty()) {
@@ -1776,7 +1776,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
     }
 
-    private void updateCacheForFirstFivePages(String communityId, boolean isDocumentType) {
+    public void updateCacheForFirstFivePages(String communityId, boolean isDocumentType) {
         SearchCriteria searchCriteria = getCriteria(0, 5 * cbServerProperties.getDiscussionEsDefaultPageSize());
         Map<String, Object> filterCriteria = new HashMap<>();
         filterCriteria.put(Constants.COMMUNITY_ID, communityId);
