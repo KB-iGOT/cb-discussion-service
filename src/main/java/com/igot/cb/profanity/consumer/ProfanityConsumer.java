@@ -89,7 +89,7 @@ public class ProfanityConsumer {
      * @param discussionId the ID of the discussion
      * @param isProfane    indicates whether the discussion is profane
      */
-    private void generateRedisTokenKey(String discussionId, boolean isProfane) {
+    private void syncProfaneDetailsToES(String discussionId, boolean isProfane) {
         Optional<DiscussionEntity> discussionEntity = discussionRepository.findById(discussionId);
         if(discussionEntity.isPresent()) {
             DiscussionEntity discussionDbData = discussionEntity.get();
