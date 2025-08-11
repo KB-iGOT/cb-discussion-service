@@ -412,6 +412,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
+            if (updateData.hasNonNull(Constants.LANGUAGE)) {
+                profanityCheckService.processProfanityCheck(discussionId,(ObjectNode)updateData);
+            }
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
             DiscussionServiceUtil.createErrorResponse(response, "Failed to update the discussion", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);

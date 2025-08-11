@@ -8,18 +8,21 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
+import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Component
@@ -43,6 +46,13 @@ public class ProfanityConsumer {
 
     @Autowired
     private DiscussionService discussionService;
+
+    @Autowired
+    private CassandraOperation cassandraOperation;
+
+    @Autowired
+    @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
+    private RedisTemplate<String, SearchResult> redisTemplate;
 
     /**
      * Kafka listener for processing profanity check messages.
@@ -73,7 +83,13 @@ public class ProfanityConsumer {
         }
     }
 
-    private void syncProfaneDetailsToES(String discussionId, boolean isProfane) {
+    /**
+     * Sync the profane details to Elasticsearch and deletes relevant caches.
+     *
+     * @param discussionId the ID of the discussion
+     * @param isProfane    indicates whether the discussion is profane
+     */
+    private void generateRedisTokenKey(String discussionId, boolean isProfane) {
         Optional<DiscussionEntity> discussionEntity = discussionRepository.findById(discussionId);
         if(discussionEntity.isPresent()) {
             DiscussionEntity discussionDbData = discussionEntity.get();
@@ -84,10 +100,8 @@ public class ProfanityConsumer {
                 Map<String, Object> map = objectMapper.convertValue(data, new TypeReference<Map<String, Object>>() {});
                 map.put(Constants.IS_PROFANE, isProfane);
                 esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionDbData.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
-                if(isProfane){
-                    discussionService.deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + map.get(Constants.COMMUNITY_ID));
-                    discussionService.deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + map.get(Constants.COMMUNITY_ID) + Constants.UNDER_SCORE + map.get(Constants.CREATED_BY));
-                    discussionService.updateCacheForFirstFivePages((String) map.get(Constants.COMMUNITY_ID), false);
+                if (isProfane) {
+
                 }
             }
         }else {
