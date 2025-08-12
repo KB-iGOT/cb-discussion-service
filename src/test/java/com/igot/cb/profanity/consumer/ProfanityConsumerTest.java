@@ -292,7 +292,7 @@ class ProfanityConsumerTest {
         verify(esUtilService).updateDocument(eq("discussionEntity"), eq(discussionId), anyMap(), eq("jsonPath"));
         verify(notificationTriggerService).triggerNotification(
                 eq(Constants.PROFANITY_CHECK),
-                eq("question"),
+                eq(Constants.ALERT),
                 eq(Collections.singletonList("user123")),
                 eq(Constants.TITLE),
                 eq("TestUser"),
@@ -376,7 +376,7 @@ class ProfanityConsumerTest {
         verify(esUtilService).updateDocument(eq("discussionEntity"), eq(discussionId), anyMap(), eq("jsonPath"));
         verify(notificationTriggerService).triggerNotification(
                 eq(Constants.PROFANITY_CHECK),
-                eq("answer_post_reply"),
+                eq(Constants.ALERT),
                 eq(Collections.singletonList("user123")),
                 eq(Constants.TITLE),
                 eq("TestUser"),
