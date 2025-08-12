@@ -2,7 +2,6 @@ package com.igot.cb.profanity.impl;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
