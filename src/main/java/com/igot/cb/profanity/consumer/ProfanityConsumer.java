@@ -132,7 +132,7 @@ public class ProfanityConsumer {
                             Constants.DISCUSSION_ID, data.get(Constants.DISCUSSION_ID).asText(),
                             IS_PROFANE, true
                     );
-                    notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, type, Collections.singletonList(userId), TITLE, firstName, notificationData);
+                    notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, ALERT, Collections.singletonList(userId), TITLE, firstName, notificationData);
                 }
             }
         } else {
@@ -167,7 +167,7 @@ public class ProfanityConsumer {
                             Constants.DISCUSSION_ID, data.get(Constants.DISCUSSION_ID).asText(),
                             IS_PROFANE, true
                     );
-                    notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, type, Collections.singletonList(userId), TITLE, firstName, notificationData);
+                    notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, ALERT, Collections.singletonList(userId), TITLE, firstName, notificationData);
                 }
             }
         } else {
