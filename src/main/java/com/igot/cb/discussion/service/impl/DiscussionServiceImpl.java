@@ -412,6 +412,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
+            if (updateData.hasNonNull(Constants.LANGUAGE)) {
+                ((ObjectNode) updateData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+                profanityCheckService.processProfanityCheck(discussionId, (ObjectNode) updateData);
+            }
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
             DiscussionServiceUtil.createErrorResponse(response, "Failed to update the discussion", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -974,6 +978,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
+            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
+                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostDataNode);
+            }
         } catch (Exception e) {
             log.error("Failed to create AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -1413,6 +1420,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
+            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
+                ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+                profanityCheckService.processProfanityCheck(discussionEntity.getDiscussionId(), (ObjectNode) answerPostData);
+            }
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -1765,7 +1776,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return errorMsg.toString();
     }
 
-    private void deleteCacheByCommunity(String prefix) {
+    public void deleteCacheByCommunity(String prefix) {
         String pattern = prefix + "_*";
         Set<String> keys = redisTemplate.keys(pattern);
         if (!keys.isEmpty()) {
@@ -1776,7 +1787,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
     }
 
-    private void updateCacheForFirstFivePages(String communityId, boolean isDocumentType) {
+    public void updateCacheForFirstFivePages(String communityId, boolean isDocumentType) {
         SearchCriteria searchCriteria = getCriteria(0, 5 * cbServerProperties.getDiscussionEsDefaultPageSize());
         Map<String, Object> filterCriteria = new HashMap<>();
         filterCriteria.put(Constants.COMMUNITY_ID, communityId);

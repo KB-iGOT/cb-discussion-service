@@ -64,11 +64,15 @@
         },
         "required": ["userId", "userName"]
       }
+    },
+    "language": {
+      "type": "string"
     }
   },
   "required": [
     "discussionId",
-    "communityId"
+    "communityId",
+    "language"
   ],
   "additionalProperties": false,
   "allOf": [

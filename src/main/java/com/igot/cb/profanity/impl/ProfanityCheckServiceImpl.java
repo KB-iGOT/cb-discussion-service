@@ -37,6 +37,7 @@ public class ProfanityCheckServiceImpl implements IProfanityCheckService {
         headerMap.put(Constants.AUTHORIZATION, cbServerProperties.getCbDiscussionApiKey());
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Constants.POST_ID, id);
+        metadata.put(Constants.TYPE, discussionDetailsNode.get(Constants.TYPE).asText());
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put(Constants.TEXT, discussionDetailsNode.get(Constants.DESCRIPTION).asText());
         requestBody.put(Constants.LANGUAGE, discussionDetailsNode.get(Constants.LANGUAGE).asText());

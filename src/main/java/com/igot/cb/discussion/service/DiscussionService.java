@@ -43,4 +43,8 @@ public interface DiscussionService {
     ApiResponse getEnrichedDiscussionData(Map<String, Object> data, String token);
 
     ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride);
+
+    void deleteCacheByCommunity(String communityId);
+
+    void updateCacheForFirstFivePages(String communityId, boolean b);
 }
