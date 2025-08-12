@@ -433,9 +433,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         boolean isTrending = isTrendingPost(searchCriteria);
         String cacheKey = generateRedisTokenKey(searchCriteria);
         SearchResult searchResult = null;
-        if (!isOverride) {
-            searchResult = redisTemplate.opsForValue().get(cacheKey);
-        }
+//        if (!isOverride) {
+//            searchResult = redisTemplate.opsForValue().get(cacheKey);
+//        }
 
         if (searchResult != null) {
             log.info("DiscussionServiceImpl::searchDiscussion:  search result fetched from redis");
