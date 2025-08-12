@@ -41,6 +41,7 @@ class ProfanityCheckServiceImplTest {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.DESCRIPTION, "desc");
         node.put(Constants.LANGUAGE, "en");
+        node.put(Constants.TYPE, "postType");
         when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -55,6 +56,7 @@ class ProfanityCheckServiceImplTest {
         String id = String.valueOf(UUID.randomUUID());
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.LANGUAGE, "en");
+        node.put(Constants.TYPE, "postType");
         lenient().when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         lenient().when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         lenient().when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -69,6 +71,7 @@ class ProfanityCheckServiceImplTest {
         String id = String.valueOf(UUID.randomUUID());
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.DESCRIPTION, "desc");
+        node.put(Constants.TYPE, "postType");
         lenient().when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         lenient().when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         lenient().when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -95,6 +98,7 @@ class ProfanityCheckServiceImplTest {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.put(Constants.DESCRIPTION, "desc");
         node.put(Constants.LANGUAGE, "en");
+        node.put(Constants.TYPE, "reply");
         when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
         when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
         when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
@@ -102,5 +106,20 @@ class ProfanityCheckServiceImplTest {
         m.setAccessible(true);
         m.invoke(profanityCheckService, null, node);
         verify(requestHandlerService).fetchResultUsingPost(anyString(), anyMap(), anyMap());
+    }
+
+    @Test
+    void testProcessProfanityCheck_MissingTypeField() throws Exception {
+        String id = UUID.randomUUID().toString();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put(Constants.DESCRIPTION, "desc");
+        node.put(Constants.LANGUAGE, "en");
+        lenient().when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        lenient().when(cbServerProperties.getCbServiceRegistryBaseUrl()).thenReturn("http://base-url");
+        lenient().when(cbServerProperties.getCbRegistryTextModerationApiPath()).thenReturn("moderation");
+        Method m = ProfanityCheckServiceImpl.class.getDeclaredMethod("processProfanityCheck", String.class, ObjectNode.class);
+        m.setAccessible(true);
+        InvocationTargetException ex = assertThrows(InvocationTargetException.class, () -> m.invoke(profanityCheckService, id, node));
+        assertTrue(ex.getCause() instanceof NullPointerException);
     }
 }

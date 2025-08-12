@@ -20,6 +20,7 @@ import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
+import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
@@ -70,6 +71,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Autowired
     @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
     private RedisTemplate<String, SearchResult> redisTemplate;
+
+    @Autowired
+    private IProfanityCheckService profanityCheckService;
 
     @Override
     public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {
@@ -193,6 +197,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                 }
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
+            }
+            if (answerPostDataReplyData.hasNonNull(Constants.LANGUAGE)) {
+                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostReplyDataNode);
             }
         } catch (Exception e) {
             log.error("Failed to create AnswerPost: {}", e.getMessage(), e);
@@ -444,6 +451,10 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
+            if (answerPostReplyData.hasNonNull(Constants.LANGUAGE)) {
+                answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());
+                profanityCheckService.processProfanityCheck(discussionAnswerPostReplyEntity.getDiscussionId(), answerPostReplyDataNode);
+            }
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);

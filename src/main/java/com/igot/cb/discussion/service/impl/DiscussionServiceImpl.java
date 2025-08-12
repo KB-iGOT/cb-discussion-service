@@ -413,7 +413,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                 log.error("Error while triggering notification", e);
             }
             if (updateData.hasNonNull(Constants.LANGUAGE)) {
-                profanityCheckService.processProfanityCheck(discussionId,(ObjectNode)updateData);
+                ((ObjectNode) updateData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+                profanityCheckService.processProfanityCheck(discussionId, (ObjectNode) updateData);
             }
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
@@ -977,6 +978,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
+            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
+                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostDataNode);
+            }
         } catch (Exception e) {
             log.error("Failed to create AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -1416,6 +1420,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
+            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
+                ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+                profanityCheckService.processProfanityCheck(discussionEntity.getDiscussionId(), (ObjectNode) answerPostData);
+            }
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
