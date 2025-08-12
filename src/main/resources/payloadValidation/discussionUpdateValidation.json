@@ -71,8 +71,7 @@
   },
   "required": [
     "discussionId",
-    "communityId",
-    "language"
+    "communityId"
   ],
   "additionalProperties": false,
   "allOf": [
