@@ -30,8 +30,7 @@
   "required": [
     "type",
     "description",
-    "communityId",
-    "language"
+    "communityId"
   ],
     "additionalProperties": false
 }
