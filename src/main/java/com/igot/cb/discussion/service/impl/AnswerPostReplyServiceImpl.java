@@ -148,6 +148,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             jsonNodeEntity.setData(answerPostReplyDataNode);
             jsonNodeEntity.setCreatedOn(currentTime);
             jsonNodeEntity.setUpdatedOn(currentTime);
+            jsonNodeEntity.setIsProfane(false);
             discussionAnswerPostReplyRepository.save(jsonNodeEntity);
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
@@ -448,6 +449,8 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             } catch (Exception e) {
                 log.error("Error while triggering notification for update answerPostReply", e);
             }
+            map.remove(IS_PROFANE);
+            map.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);

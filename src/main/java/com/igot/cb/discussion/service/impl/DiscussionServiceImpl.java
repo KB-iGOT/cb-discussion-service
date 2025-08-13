@@ -172,6 +172,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setIsActive(true);
             discussionDetailsNode.put(Constants.IS_ACTIVE, true);
             jsonNodeEntity.setData(discussionDetailsNode);
+            jsonNodeEntity.setIsProfane(false);
             long postgresTime = System.currentTimeMillis();
             DiscussionEntity saveJsonEntity = discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.INSERT, postgresTime);
@@ -387,6 +388,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             Map<String, Object> responseMap = objectMapper.convertValue(discussionDbData, new TypeReference<Map<String, Object>>() {
             });
+            responseMap.remove(IS_PROFANE);
+            responseMap.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.setResult(responseMap);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -920,6 +923,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setData(answerPostDataNode);
             jsonNodeEntity.setCreatedOn(currentTime);
             jsonNodeEntity.setUpdatedOn(currentTime);
+            jsonNodeEntity.setIsProfane(false);
             long timer = System.currentTimeMillis();
             discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.INSERT, timer);
@@ -1418,6 +1422,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
+            map.remove(IS_PROFANE);
+            map.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
