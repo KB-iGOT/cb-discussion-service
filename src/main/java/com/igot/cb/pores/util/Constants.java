@@ -280,7 +280,7 @@ public class Constants {
     public static final String HEADER_MAP = "headerMap";
     public static final String REQUEST_BODY = "requestBody";
     public static final String SERVICE_CODE = "serviceCode";
-    public static final String PROFANITY_CHECK = "PROFANITY-CHECK";
+    public static final String PROFANITY_CHECK = "PROFANITY_CHECK";
     public static final String LANGUAGE_CODE = "languageCode";
     public static final String REQUEST_DATA = "request_data";
     public static final String RESPONSE_DATA = "response_data";
