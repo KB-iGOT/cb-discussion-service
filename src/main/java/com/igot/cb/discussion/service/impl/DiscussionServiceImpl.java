@@ -388,8 +388,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             Map<String, Object> responseMap = objectMapper.convertValue(discussionDbData, new TypeReference<Map<String, Object>>() {
             });
-            responseMap.remove(IS_PROFANE);
-            responseMap.remove(Constants.PROFANITY_RESPONSE);
+            if (MapUtils.isNotEmpty(responseMap)) {
+                responseMap.remove(IS_PROFANE);
+                responseMap.remove(Constants.PROFANITY_RESPONSE);
+            }
             response.setResponseCode(HttpStatus.OK);
             response.setResult(responseMap);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -1401,8 +1403,8 @@ public class DiscussionServiceImpl implements DiscussionService {
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);
-            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
+            Map<String, Object> discussionAnswerPostDetailMap = objectMapper.convertValue(jsonNode, Map.class);
+            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionEntity.getDiscussionId(), discussionAnswerPostDetailMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + String.valueOf(discussionEntity.getDiscussionId()), jsonNode);
             redisTemplate.opsForValue()
                     .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(
@@ -1422,11 +1424,13 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            map.remove(IS_PROFANE);
-            map.remove(Constants.PROFANITY_RESPONSE);
+            if(MapUtils.isNotEmpty(discussionAnswerPostDetailMap)) {
+                discussionAnswerPostDetailMap.remove(IS_PROFANE);
+                discussionAnswerPostDetailMap.remove(Constants.PROFANITY_RESPONSE);
+            }
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
-            response.setResult(map);
+            response.setResult(discussionAnswerPostDetailMap);
             if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
                 ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
                 profanityCheckService.processProfanityCheck(discussionEntity.getDiscussionId(), (ObjectNode) answerPostData);
