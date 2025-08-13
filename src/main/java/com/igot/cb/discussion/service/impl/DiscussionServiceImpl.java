@@ -388,8 +388,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             Map<String, Object> responseMap = objectMapper.convertValue(discussionDbData, new TypeReference<Map<String, Object>>() {
             });
-            responseMap.remove(IS_PROFANE);
-            responseMap.remove(Constants.PROFANITY_RESPONSE);
+            if (MapUtils.isNotEmpty(responseMap)) {
+                responseMap.remove(IS_PROFANE);
+                responseMap.remove(Constants.PROFANITY_RESPONSE);
+            }
             response.setResponseCode(HttpStatus.OK);
             response.setResult(responseMap);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -1422,8 +1424,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            map.remove(IS_PROFANE);
-            map.remove(Constants.PROFANITY_RESPONSE);
+            if(MapUtils.isNotEmpty(map)) {
+                map.remove(IS_PROFANE);
+                map.remove(Constants.PROFANITY_RESPONSE);
+            }
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
