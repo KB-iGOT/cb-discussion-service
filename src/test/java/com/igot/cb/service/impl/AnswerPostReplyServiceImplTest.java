@@ -203,7 +203,7 @@ class AnswerPostReplyServiceImplTest {
         entity.setDiscussionId("disc123");
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(entity));
+        when(discussionAnswerPostReplyRepository.findDiscussionAnswerPostReplyBasedOnDiscussionId(replyId)).thenReturn(Optional.of(entity));
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
 
@@ -230,7 +230,7 @@ class AnswerPostReplyServiceImplTest {
         entity.setDiscussionId("disc123");
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(entity));
+        when(discussionAnswerPostReplyRepository.findDiscussionAnswerPostReplyBasedOnDiscussionId(replyId)).thenReturn(Optional.of(entity));
 
         ApiResponse response = service.updateAnswerPostReply(inputNode, token);
 
@@ -747,7 +747,7 @@ class AnswerPostReplyServiceImplTest {
         entity.setData(dbData);
         entity.setDiscussionId("reply123");
 
-        when(discussionAnswerPostReplyRepository.findById(answerPostReplyId)).thenReturn(Optional.of(entity));
+        when(discussionAnswerPostReplyRepository.findDiscussionAnswerPostReplyBasedOnDiscussionId(answerPostReplyId)).thenReturn(Optional.of(entity));
 
         // Force exception in convertValue
         ApiResponse response = service.updateAnswerPostReply(inputData, token);
