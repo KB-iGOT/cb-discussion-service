@@ -378,7 +378,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             return response;
         }
 
-        DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findDiscussionAnswerPostReplyBasedOnDiscussionId(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);
+        DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findById(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);
         if (discussionAnswerPostReplyEntity == null || !discussionAnswerPostReplyEntity.getIsActive()) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_ANSWER_POST_REPLY_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }
@@ -449,6 +449,8 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             } catch (Exception e) {
                 log.error("Error while triggering notification for update answerPostReply", e);
             }
+            map.remove(IS_PROFANE);
+            map.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);

@@ -315,7 +315,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateMetricsApiCall(Constants.DISCUSSION_UPDATE);
             String discussionId = updateData.get(Constants.DISCUSSION_ID).asText();
             long postgresTime = System.currentTimeMillis();
-            Optional<DiscussionEntity> discussionEntity = discussionRepository.findDiscussionBasedOnDiscussionId(discussionId);
+            Optional<DiscussionEntity> discussionEntity = discussionRepository.findById(discussionId);
             updateMetricsDbOperation(Constants.DISCUSSION_UPDATE, Constants.POSTGRES, Constants.READ, postgresTime);
             if (!discussionEntity.isPresent()) {
                 DiscussionServiceUtil.createErrorResponse(response, "Discussion not found", HttpStatus.NOT_FOUND, Constants.FAILED);
@@ -388,6 +388,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             Map<String, Object> responseMap = objectMapper.convertValue(discussionDbData, new TypeReference<Map<String, Object>>() {
             });
+            responseMap.remove(IS_PROFANE);
+            responseMap.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.setResult(responseMap);
             response.getParams().setStatus(Constants.SUCCESS);
@@ -1346,7 +1348,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         updateMetricsApiCall(Constants.DISCUSSION_ANSWER_POST);
         long redisTimer = System.currentTimeMillis();
-        DiscussionEntity discussionEntity = discussionRepository.findDiscussionBasedOnDiscussionId(answerPostData.get(Constants.ANSWER_POST_ID).asText()).orElse(null);
+        DiscussionEntity discussionEntity = discussionRepository.findById(answerPostData.get(Constants.ANSWER_POST_ID).asText()).orElse(null);
         updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.READ, redisTimer);
         if (discussionEntity == null || !discussionEntity.getIsActive()) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_DISCUSSION_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
@@ -1420,6 +1422,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
+            map.remove(IS_PROFANE);
+            map.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(map);
