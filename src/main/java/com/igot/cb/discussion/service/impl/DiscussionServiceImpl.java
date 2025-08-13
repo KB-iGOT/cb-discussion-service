@@ -455,6 +455,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 searchCriteria.setFilterCriteriaMap(new HashMap<>());
             }
             searchCriteria.getFilterCriteriaMap().put(Constants.IS_ACTIVE, true);
+            searchCriteria.getFilterCriteriaMap().put(IS_PROFANE, false);
 
             if (!searchCriteria.getFilterCriteriaMap().containsKey(Constants.STATUS) ||
                     (!searchCriteria.getFilterCriteriaMap().get(Constants.STATUS).equals(Collections.singletonList(Constants.REPORTED)) &&
@@ -1573,7 +1574,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             searchCriteria.setPageSize((int) requestData.get(Constants.PAGE_SIZE));
             searchCriteria.setOrderDirection(Constants.DESC);
             searchCriteria.setOrderBy(Constants.CREATED_ON);
-
+            searchCriteria.getFilterCriteriaMap().put(IS_PROFANE, false);
             if (requestData.containsKey(Constants.SEARCH_STRING) && StringUtils.isNotBlank((String) requestData.get(Constants.SEARCH_STRING))) {
                 if (((String) requestData.get(Constants.SEARCH_STRING)).length() < 3) {
                     DiscussionServiceUtil.createErrorResponse(response, Constants.MINIMUM_CHARACTERS_NEEDED, HttpStatus.BAD_REQUEST, Constants.FAILED_CONST);
@@ -1725,7 +1726,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             filterCriteria.put(Constants.TYPE, Constants.QUESTION);
             filterCriteria.put(Constants.STATUS, Arrays.asList(Constants.ACTIVE, Constants.REPORTED));
             filterCriteria.put(Constants.IS_ACTIVE, true);
-
+            filterCriteria.put(IS_PROFANE, false);
             searchCriteria.getFilterCriteriaMap().putAll(filterCriteria);
             searchResult = esUtilService.searchDocuments(cbServerProperties.getDiscussionEntity(), searchCriteria, cbServerProperties.getElasticDiscussionJsonPath());
             List<Map<String, Object>> discussions = searchResult.getData();
@@ -1799,6 +1800,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         filterCriteria.put(Constants.STATUS, Arrays.asList(Constants.ACTIVE, Constants.REPORTED));
         filterCriteria.put(Constants.IS_ACTIVE, true);
+        filterCriteria.put(IS_PROFANE, false);
         searchCriteria.getFilterCriteriaMap().putAll(filterCriteria);
 
         try {
@@ -2250,6 +2252,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         searchCriteria.setFilterCriteriaMap(new HashMap<>());
         searchCriteria.setRequestedFields(Arrays.asList(Constants.COMMUNITY_ID));
         searchCriteria.getFilterCriteriaMap().put(Constants.STATUS, Constants.ACTIVE);
+        searchCriteria.getFilterCriteriaMap().put(IS_PROFANE, false);
         searchCriteria.setOrderBy(Constants.COUNT_OF_ANSWER_POST_COUNT);
         searchCriteria.setOrderDirection(Constants.DESC);
         searchCriteria.setPageNumber(0);
