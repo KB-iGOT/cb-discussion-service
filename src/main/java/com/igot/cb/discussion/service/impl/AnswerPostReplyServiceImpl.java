@@ -148,7 +148,6 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             jsonNodeEntity.setData(answerPostReplyDataNode);
             jsonNodeEntity.setCreatedOn(currentTime);
             jsonNodeEntity.setUpdatedOn(currentTime);
-            jsonNodeEntity.setIsProfane(false);
             discussionAnswerPostReplyRepository.save(jsonNodeEntity);
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
@@ -378,7 +377,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             return response;
         }
 
-        DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findDiscussionAnswerPostReplyBasedOnDiscussionId(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);
+        DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findById(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);
         if (discussionAnswerPostReplyEntity == null || !discussionAnswerPostReplyEntity.getIsActive()) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_ANSWER_POST_REPLY_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }

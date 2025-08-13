@@ -361,7 +361,7 @@ class DiscussionServiceImplTest {
                 .put("title", "Updated title");
 
         when(accessTokenValidator.verifyUserToken(anyString())).thenReturn("user-123");
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("discussion123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("discussion123")).thenReturn(Optional.of(discussionEntity));
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion_index");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("discussion.json");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
@@ -413,7 +413,7 @@ class DiscussionServiceImplTest {
                 .put(Constants.COMMUNITY_ID, "community-1");
 
         when(accessTokenValidator.verifyUserToken(anyString())).thenReturn("user-123");
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("discussion123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("discussion123")).thenReturn(Optional.of(discussionEntity));
 
         ApiResponse response = discussionService.updateDiscussion(updateData, "valid_token");
 
@@ -428,7 +428,7 @@ class DiscussionServiceImplTest {
                 .put(Constants.COMMUNITY_ID, "community-2");
 
         when(accessTokenValidator.verifyUserToken(anyString())).thenReturn("user-123");
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("discussion123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("discussion123")).thenReturn(Optional.of(discussionEntity));
 
         ApiResponse response = discussionService.updateDiscussion(updateData, "valid_token");
 
@@ -443,7 +443,7 @@ class DiscussionServiceImplTest {
                 .put(Constants.COMMUNITY_ID, "community-1");
 
         when(accessTokenValidator.verifyUserToken(anyString())).thenReturn("user-123");
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("discussion123")).thenThrow(new RuntimeException("DB error"));
+        when(discussionRepository.findById("discussion123")).thenThrow(new RuntimeException("DB error"));
 
         ApiResponse response = discussionService.updateDiscussion(updateData, "valid_token");
 
@@ -2320,7 +2320,7 @@ class DiscussionServiceImplTest {
         data.put(Constants.TYPE, "QUESTION"); // Set type to something other than ANSWER_POST
         discussionEntity.setData(data);
 
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("testAnswerPostId")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("testAnswerPostId")).thenReturn(Optional.of(discussionEntity));
 
         // Act
         ApiResponse response = discussionService.updateAnswerPost(answerPostData, token);
@@ -2351,7 +2351,7 @@ class DiscussionServiceImplTest {
         data.put(Constants.STATUS, Constants.SUSPENDED);
         discussionEntity.setData(data);
 
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("answerPost123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("answerPost123")).thenReturn(Optional.of(discussionEntity));
 
         // Act
         ApiResponse response = discussionService.updateAnswerPost(answerPostData, token);
@@ -2389,7 +2389,7 @@ class DiscussionServiceImplTest {
         data.put(Constants.COMMUNITY_ID, "community123");
         discussionEntity.setData(data);
 
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("answerPost123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("answerPost123")).thenReturn(Optional.of(discussionEntity));
         when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(discussionEntity);
 
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionEntity");
@@ -2434,7 +2434,7 @@ class DiscussionServiceImplTest {
         discussionEntity.setData(data);
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionRepository.findDiscussionBasedOnDiscussionId(answerId)).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById(answerId)).thenReturn(Optional.of(discussionEntity));
         when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(discussionEntity);
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionEntity");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("elasticPath");
@@ -2472,7 +2472,7 @@ class DiscussionServiceImplTest {
 
         // Mocks
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123");
-        when(discussionRepository.findDiscussionBasedOnDiscussionId("answer-post-123")).thenReturn(Optional.of(mockEntity));
+        when(discussionRepository.findById("answer-post-123")).thenReturn(Optional.of(mockEntity));
         doThrow(new RuntimeException("Simulated DB failure")).when(discussionRepository).save(any());
 
         // Act

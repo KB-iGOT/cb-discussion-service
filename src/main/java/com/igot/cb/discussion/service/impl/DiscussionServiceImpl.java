@@ -172,7 +172,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setIsActive(true);
             discussionDetailsNode.put(Constants.IS_ACTIVE, true);
             jsonNodeEntity.setData(discussionDetailsNode);
-            jsonNodeEntity.setIsProfane(false);
             long postgresTime = System.currentTimeMillis();
             DiscussionEntity saveJsonEntity = discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.INSERT, postgresTime);
@@ -315,7 +314,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateMetricsApiCall(Constants.DISCUSSION_UPDATE);
             String discussionId = updateData.get(Constants.DISCUSSION_ID).asText();
             long postgresTime = System.currentTimeMillis();
-            Optional<DiscussionEntity> discussionEntity = discussionRepository.findDiscussionBasedOnDiscussionId(discussionId);
+            Optional<DiscussionEntity> discussionEntity = discussionRepository.findById(discussionId);
             updateMetricsDbOperation(Constants.DISCUSSION_UPDATE, Constants.POSTGRES, Constants.READ, postgresTime);
             if (!discussionEntity.isPresent()) {
                 DiscussionServiceUtil.createErrorResponse(response, "Discussion not found", HttpStatus.NOT_FOUND, Constants.FAILED);
@@ -921,7 +920,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             jsonNodeEntity.setData(answerPostDataNode);
             jsonNodeEntity.setCreatedOn(currentTime);
             jsonNodeEntity.setUpdatedOn(currentTime);
-            jsonNodeEntity.setIsProfane(false);
             long timer = System.currentTimeMillis();
             discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.INSERT, timer);
@@ -1346,7 +1344,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         updateMetricsApiCall(Constants.DISCUSSION_ANSWER_POST);
         long redisTimer = System.currentTimeMillis();
-        DiscussionEntity discussionEntity = discussionRepository.findDiscussionBasedOnDiscussionId(answerPostData.get(Constants.ANSWER_POST_ID).asText()).orElse(null);
+        DiscussionEntity discussionEntity = discussionRepository.findById(answerPostData.get(Constants.ANSWER_POST_ID).asText()).orElse(null);
         updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.READ, redisTimer);
         if (discussionEntity == null || !discussionEntity.getIsActive()) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_DISCUSSION_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
