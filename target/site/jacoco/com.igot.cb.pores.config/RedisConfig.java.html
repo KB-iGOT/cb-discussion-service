@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.config</a> &gt; <span class="el_source">RedisConfig.java</span></div><h1>RedisConfig.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.config;
+
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.igot.cb.pores.util.Constants;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+
+@Configuration
+@EnableCaching
+<span class="fc" id="L24">public class RedisConfig {</span>
+
+  @Value(&quot;${spring.redis.cacheTtl}&quot;)
+  private long cacheTtl;
+
+  @Value(&quot;${spring.redis.host}&quot;)
+  private String redisHost;
+
+  @Value(&quot;${spring.redis.port}&quot;)
+  private int redisPort;
+
+  @Value(&quot;${spring.redis.data.host}&quot;)
+  private String redisDataHost;
+
+  @Value(&quot;${spring.redis.data.port}&quot;)
+  private int redisDataPort;
+
+  // Default Redis connection (for caching)
+  @Bean(name = Constants.REDIS_CONNECTION_FACTORY)
+  public RedisConnectionFactory redisConnectionFactory() {
+<span class="fc" id="L44">    RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();</span>
+<span class="fc" id="L45">    config.setHostName(redisHost);</span>
+<span class="fc" id="L46">    config.setPort(redisPort);</span>
+<span class="fc" id="L47">    config.setDatabase(0);</span>
+<span class="fc" id="L48">    LettuceClientConfiguration clientConfig = LettucePoolingClientConfiguration.builder()</span>
+<span class="fc" id="L49">            .commandTimeout(Duration.ofMillis(cacheTtl))</span>
+<span class="fc" id="L50">            .poolConfig(buildPoolConfig())</span>
+<span class="fc" id="L51">            .build();</span>
+<span class="fc" id="L52">    return new LettuceConnectionFactory(config, clientConfig);</span>
+  }
+
+  // Redis connection for data
+  @Bean(name = Constants.REDIS_DATA_CONNECTION_FACTORY)
+  public RedisConnectionFactory redisDataConnectionFactory() {
+<span class="fc" id="L58">    RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();</span>
+<span class="fc" id="L59">    config.setHostName(redisDataHost);</span>
+<span class="fc" id="L60">    config.setPort(redisDataPort);</span>
+<span class="fc" id="L61">    config.setDatabase(0);</span>
+<span class="fc" id="L62">    LettuceClientConfiguration clientConfig = LettucePoolingClientConfiguration.builder()</span>
+<span class="fc" id="L63">            .commandTimeout(Duration.ofMillis(cacheTtl))</span>
+<span class="fc" id="L64">            .poolConfig(buildPoolConfig())</span>
+<span class="fc" id="L65">            .build();</span>
+<span class="fc" id="L66">    return new LettuceConnectionFactory(config, clientConfig);</span>
+  }
+
+  // RedisTemplate for general string caching
+  @Bean
+  public RedisTemplate&lt;String, String&gt; redisTemplate(
+          @Qualifier(Constants.REDIS_CONNECTION_FACTORY) RedisConnectionFactory redisConnectionFactory) {
+<span class="fc" id="L73">    RedisTemplate&lt;String, String&gt; template = new RedisTemplate&lt;&gt;();</span>
+<span class="fc" id="L74">    template.setConnectionFactory(redisConnectionFactory);</span>
+<span class="fc" id="L75">    template.setKeySerializer(new StringRedisSerializer());</span>
+<span class="fc" id="L76">    template.setValueSerializer(new StringRedisSerializer());</span>
+<span class="fc" id="L77">    return template;</span>
+  }
+
+  // RedisTemplate for data Redis
+  @Bean(name = Constants.REDIS_DATA_TEMPLATE)
+  public RedisTemplate&lt;String, String&gt; redisDataTemplate(
+          @Qualifier(Constants.REDIS_DATA_CONNECTION_FACTORY) RedisConnectionFactory redisDataConnectionFactory) {
+<span class="fc" id="L84">    RedisTemplate&lt;String, String&gt; template = new RedisTemplate&lt;&gt;();</span>
+<span class="fc" id="L85">    template.setConnectionFactory(redisDataConnectionFactory);</span>
+<span class="fc" id="L86">    template.setKeySerializer(new StringRedisSerializer());</span>
+<span class="fc" id="L87">    template.setValueSerializer(new StringRedisSerializer());</span>
+<span class="fc" id="L88">    return template;</span>
+  }
+
+  // RedisTemplate for SearchResult object
+  @Bean(name = Constants.SEARCH_RESULT_REDIS_TEMPLATE)
+  public RedisTemplate&lt;String, SearchResult&gt; searchResultRedisTemplate(
+          @Qualifier(Constants.REDIS_CONNECTION_FACTORY) RedisConnectionFactory redisConnectionFactory) {
+<span class="fc" id="L95">    RedisTemplate&lt;String, SearchResult&gt; template = new RedisTemplate&lt;&gt;();</span>
+<span class="fc" id="L96">    template.setConnectionFactory(redisConnectionFactory);</span>
+<span class="fc" id="L97">    template.setKeySerializer(new StringRedisSerializer());</span>
+<span class="fc" id="L98">    return template;</span>
+  }
+
+  private GenericObjectPoolConfig&lt;?&gt; buildPoolConfig() {
+<span class="fc" id="L102">    GenericObjectPoolConfig&lt;?&gt; poolConfig = new GenericObjectPoolConfig&lt;&gt;();</span>
+<span class="fc" id="L103">    poolConfig.setMaxTotal(3000);</span>
+<span class="fc" id="L104">    poolConfig.setMaxIdle(128);</span>
+<span class="fc" id="L105">    poolConfig.setMinIdle(100);</span>
+<span class="fc" id="L106">    poolConfig.setMaxWait(Duration.ofMillis(5000));</span>
+<span class="fc" id="L107">    return poolConfig;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RestExceptionHandling.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.exceptions</a> &gt; <span class="el_source">RestExceptionHandling.java</span></div><h1>RestExceptionHandling.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.exceptions;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+<span class="fc" id="L11">@Slf4j</span>
+<span class="fc" id="L12">public class RestExceptionHandling {</span>
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity handleException(Exception ex) {
+<span class="fc" id="L16">        log.debug(&quot;RestExceptionHandler::handleException::&quot; + ex);</span>
+<span class="fc" id="L17">        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;</span>
+<span class="fc" id="L18">        ErrorResponse errorResponse = null;</span>
+<span class="fc bfc" id="L19" title="All 2 branches covered.">        if (ex instanceof CustomException) {</span>
+<span class="fc" id="L20">            CustomException CustomException = (CustomException) ex;</span>
+<span class="fc" id="L21">            status = HttpStatus.BAD_REQUEST;</span>
+            // Check if the CustomException provides an HTTP status code
+<span class="pc bpc" id="L23" title="1 of 2 branches missed.">            if (CustomException != null) {</span>
+                try {
+<span class="fc" id="L25">                    status = CustomException.getHttpStatusCode();</span>
+<span class="nc" id="L26">                } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L27">                    log.warn(&quot;Invalid HTTP status code provided in CustomException: &quot; + CustomException.getHttpStatusCode());</span>
+<span class="fc" id="L28">                }</span>
+            }
+<span class="fc" id="L30">            errorResponse = ErrorResponse.builder()</span>
+<span class="fc" id="L31">                    .code(CustomException.getCode())</span>
+<span class="fc" id="L32">                    .message(CustomException.getMessage())</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">                    .httpStatusCode(CustomException.getHttpStatusCode() != null</span>
+<span class="fc" id="L34">                            ? CustomException.getHttpStatusCode().value()</span>
+<span class="nc" id="L35">                            : status.value())</span>
+<span class="fc" id="L36">                    .build();</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">            if (StringUtils.isNotBlank(CustomException.getMessage())) {</span>
+<span class="fc" id="L38">                log.error(CustomException.getMessage());</span>
+            }
+
+<span class="fc" id="L41">            return new ResponseEntity&lt;&gt;(errorResponse, status);</span>
+        }
+<span class="fc" id="L43">        errorResponse = ErrorResponse.builder()</span>
+<span class="fc" id="L44">                .code(&quot;ERROR&quot;)</span>
+<span class="fc" id="L45">                .message(ex.getMessage())</span>
+<span class="fc" id="L46">                .httpStatusCode(status.value())</span>
+<span class="fc" id="L47">                .build();</span>
+<span class="fc" id="L48">        return new ResponseEntity&lt;&gt;(errorResponse, status);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

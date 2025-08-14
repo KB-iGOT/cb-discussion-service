@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CassandraConnectionManagerImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.transactional.cassandrautils</a> &gt; <span class="el_source">CassandraConnectionManagerImpl.java</span></div><h1>CassandraConnectionManagerImpl.java</h1><pre class="source lang-java linenums">package com.igot.cb.transactional.cassandrautils;
+
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
+import com.datastax.oss.driver.api.core.ProtocolVersion;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.metadata.Metadata;
+import com.datastax.oss.driver.api.core.metadata.Node;
+import com.datastax.oss.driver.internal.core.time.AtomicTimestampGenerator;
+import com.igot.cb.pores.exceptions.CustomException;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.PropertiesCache;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import java.util.stream.Collectors;
+import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+
+/**
+ * @author Ruksana
+ * &lt;p&gt;
+ * Manages Cassandra connections and sessions.
+ */
+@Component
+public class CassandraConnectionManagerImpl implements CassandraConnectionManager {
+<span class="fc" id="L35">    private static final Logger logger = LoggerFactory.getLogger(CassandraConnectionManagerImpl.class);</span>
+<span class="fc" id="L36">    private static final Map&lt;String, CqlSession&gt; cassandraSessionMap = new ConcurrentHashMap&lt;&gt;(2);</span>
+    private static CqlSession session;
+
+    /**
+     * Method invoked after bean creation for initialization
+     */
+<span class="fc" id="L42">    public CassandraConnectionManagerImpl() {</span>
+        // Initialize the connection and register shutdown hook
+<span class="fc" id="L44">        registerShutdownHook();</span>
+<span class="nc" id="L45">        createCassandraConnection();</span>
+<span class="nc" id="L46">    }</span>
+
+    /**
+     * Retrieves a session for the specified keyspace.
+     * If a session for the keyspace already exists, returns it; otherwise, creates a new session.
+     *
+     * @param keyspaceName The keyspace for which to retrieve the session.
+     * @return The session object for the specified keyspace.
+     */
+    @Override
+    public CqlSession getSession(String keyspaceName) {
+        // Check if session for keyspace already exists
+<span class="nc" id="L58">        CqlSession currentSession = cassandraSessionMap.get(keyspaceName);</span>
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        if (currentSession != null&amp;&amp; !currentSession.isClosed()) {</span>
+<span class="nc" id="L60">            return currentSession;</span>
+        } else {
+            // Create new session scoped to keyspace using the USE command
+<span class="nc" id="L63">            CqlSession newSession = createCassandraConnectionWithKeySpaces(keyspaceName);</span>
+<span class="nc" id="L64">            cassandraSessionMap.put(keyspaceName, newSession);</span>
+<span class="nc" id="L65">            return newSession;</span>
+        }
+    }
+
+    /**
+     * Creates a Cassandra connection based on properties
+     */
+    private CqlSession createCassandraConnectionWithKeySpaces(String keySpaceName) {
+        try {
+            // Load the properties required for connection
+<span class="fc" id="L75">            PropertiesCache cache = PropertiesCache.getInstance();</span>
+<span class="fc" id="L76">            String cassandraHost = cache.getProperty(Constants.CASSANDRA_CONFIG_HOST);</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">            if (StringUtils.isBlank(cassandraHost)) {</span>
+<span class="fc" id="L78">                throw new CustomException(</span>
+                        Constants.ERROR,
+                        &quot;Cassandra host is not configured&quot;,
+                        HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+<span class="nc" id="L83">            List&lt;String&gt; hosts = Arrays.asList(cassandraHost.split(&quot;,&quot;));</span>
+<span class="nc" id="L84">            List&lt;InetSocketAddress&gt; contactPoints = hosts.stream()</span>
+<span class="nc" id="L85">                    .map(host -&gt; new InetSocketAddress(host.trim(), 9042)) // Assuming default port 9042</span>
+<span class="nc" id="L86">                    .collect(Collectors.toList());</span>
+<span class="nc" id="L87">            List&lt;String&gt; contactPointsString = hosts.stream()</span>
+<span class="nc" id="L88">                    .map(host -&gt; host.trim() + &quot;:9042&quot;) // Ensure proper host:port format</span>
+<span class="nc" id="L89">                    .collect(Collectors.toList());</span>
+<span class="nc" id="L90">            DriverConfigLoader loader = DriverConfigLoader.programmaticBuilder()</span>
+<span class="nc" id="L91">                    .withStringList(DefaultDriverOption.CONTACT_POINTS, contactPointsString)</span>
+<span class="nc" id="L92">                    .withString(DefaultDriverOption.REQUEST_CONSISTENCY, getConsistencyLevel().name())</span>
+<span class="nc" id="L93">                    .withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, &quot;datacenter1&quot;)</span>
+<span class="nc" id="L94">                    .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE,</span>
+<span class="nc" id="L95">                            Integer.parseInt(cache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_LOCAL)))</span>
+<span class="nc" id="L96">                    .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE,</span>
+<span class="nc" id="L97">                            Integer.parseInt(cache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_REMOTE)))</span>
+<span class="nc" id="L98">                    .withInt(DefaultDriverOption.HEARTBEAT_INTERVAL,</span>
+<span class="nc" id="L99">                            Integer.parseInt(cache.getProperty(Constants.HEARTBEAT_INTERVAL)))</span>
+<span class="nc" id="L100">                    .withInt(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, 10000)</span>
+<span class="nc" id="L101">                    .withInt(DefaultDriverOption.REQUEST_TIMEOUT, 10000)</span>
+<span class="nc" id="L102">                    .withString(DefaultDriverOption.PROTOCOL_VERSION, ProtocolVersion.V4.toString())</span>
+<span class="nc" id="L103">                    .withClass(DefaultDriverOption.RETRY_POLICY_CLASS, com.datastax.oss.driver.internal.core.retry.DefaultRetryPolicy.class)</span>
+<span class="nc" id="L104">                    .withClass(DefaultDriverOption.TIMESTAMP_GENERATOR_CLASS, AtomicTimestampGenerator.class)</span>
+<span class="nc" id="L105">                    .build();</span>
+            CqlSession sessionWithKeyspaces;
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            if (StringUtils.isNotBlank(keySpaceName)) {</span>
+<span class="nc" id="L108">                sessionWithKeyspaces = CqlSession.builder()</span>
+<span class="nc" id="L109">                        .addContactPoints(contactPoints)</span>
+<span class="nc" id="L110">                        .withLocalDatacenter(&quot;datacenter1&quot;)</span>
+<span class="nc" id="L111">                        .withKeyspace(keySpaceName)</span>
+<span class="nc" id="L112">                        .withConfigLoader(loader)</span>
+<span class="nc" id="L113">                        .build();</span>
+            } else {
+<span class="nc" id="L115">                sessionWithKeyspaces = CqlSession.builder()</span>
+<span class="nc" id="L116">                        .addContactPoints(contactPoints)</span>
+<span class="nc" id="L117">                        .withLocalDatacenter(&quot;datacenter1&quot;)</span>
+<span class="nc" id="L118">                        .withConfigLoader(loader)</span>
+<span class="nc" id="L119">                        .build();</span>
+            }
+<span class="nc" id="L121">            logger.info(&quot;Connected to the keyspaces: &quot; + keySpaceName);</span>
+            // Get metadata and log cluster information
+<span class="nc" id="L123">            final Metadata metadata = sessionWithKeyspaces.getMetadata();</span>
+<span class="nc" id="L124">            logger.info(String.format(&quot;Connected to cluster: %s&quot;, metadata.getClusterName()));</span>
+            // Log nodes in the cluster
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            for (Node host : metadata.getNodes().values()) {</span>
+<span class="nc" id="L127">                logger.info(String.format(&quot;Datacenter: %s; Host: %s; Rack: %s&quot;, host.getDatacenter(), host.getEndPoint(), host.getRack()));</span>
+<span class="nc" id="L128">            }</span>
+<span class="nc" id="L129">            return sessionWithKeyspaces;</span>
+<span class="fc" id="L130">        } catch (Exception e) {</span>
+<span class="fc" id="L131">            logger.error(&quot;Error while creating Cassandra connection&quot;, e);</span>
+<span class="fc" id="L132">            throw new CustomException(</span>
+                    Constants.ERROR,
+<span class="fc" id="L134">                    e.getMessage(),</span>
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private void createCassandraConnection() {
+        try {
+<span class="nc" id="L141">            session = createCassandraConnectionWithKeySpaces(null);</span>
+<span class="fc" id="L142">        } catch (Exception e) {</span>
+<span class="fc" id="L143">            logger.error(&quot;Error while creating Cassandra connection&quot;, e);</span>
+<span class="fc" id="L144">            throw new CustomException(</span>
+                    Constants.ERROR,
+<span class="fc" id="L146">                    e.getMessage(),</span>
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+<span class="nc" id="L148">        }</span>
+<span class="nc" id="L149">    }</span>
+
+    /**
+     * Retrieves consistency level from properties
+     *
+     * @return -consistency level from properties
+     */
+    private static ConsistencyLevel getConsistencyLevel() {
+<span class="fc" id="L157">        String consistency = PropertiesCache.getInstance().readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL);</span>
+<span class="fc" id="L158">        logger.info(&quot;CassandraConnectionManagerImpl:getConsistencyLevel: level = &quot; + consistency);</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        if (StringUtils.isBlank(consistency)) return null;</span>
+
+        try {
+<span class="fc" id="L162">            return DefaultConsistencyLevel.valueOf(consistency.toUpperCase());</span>
+<span class="fc" id="L163">        } catch (IllegalArgumentException exception) {</span>
+<span class="fc" id="L164">            logger.info(&quot;CassandraConnectionManagerImpl:getConsistencyLevel: Exception occurred with error message = &quot;</span>
+<span class="fc" id="L165">                    + exception.getMessage());</span>
+        }
+<span class="fc" id="L167">        return null;</span>
+    }
+
+
+
+    /**
+     * Registers a shutdown hook to clean-up resources
+     */
+    public static void registerShutdownHook() {
+<span class="fc" id="L176">        Runtime runtime = Runtime.getRuntime();</span>
+<span class="fc" id="L177">        runtime.addShutdownHook(new ResourceCleanUp());</span>
+<span class="fc" id="L178">        logger.info(&quot;Cassandra ShutDownHook registered.&quot;);</span>
+<span class="fc" id="L179">    }</span>
+
+    /**
+     * Cleans up Cassandra resources during shutdown
+     */
+<span class="fc" id="L184">    static class ResourceCleanUp extends Thread {</span>
+        @Override
+        public void run() {
+            try {
+<span class="fc" id="L188">                logger.info(&quot;Started resource cleanup for Cassandra.&quot;);</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">                for (Map.Entry&lt;String, CqlSession&gt; entry : cassandraSessionMap.entrySet()) {</span>
+<span class="nc" id="L190">                    entry.getValue().close();</span>
+<span class="nc" id="L191">                }</span>
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                if (session != null) {</span>
+<span class="nc" id="L193">                    session.close();</span>
+                }
+<span class="fc" id="L195">                logger.info(&quot;Completed resource cleanup for Cassandra.&quot;);</span>
+<span class="nc" id="L196">            } catch (Exception ex) {</span>
+<span class="nc" id="L197">                logger.error(&quot;Error during resource cleanup&quot;, ex);</span>
+<span class="fc" id="L198">            }</span>
+<span class="fc" id="L199">        }</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

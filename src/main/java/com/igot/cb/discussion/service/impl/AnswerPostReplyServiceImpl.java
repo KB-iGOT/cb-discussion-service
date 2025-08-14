@@ -153,8 +153,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(answerPostReplyDataNode);
-            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), String.valueOf(id), map, cbServerProperties.getElasticDiscussionJsonPath());
+            Map<String, Object> discussionAnswerPostReplyDetailsMap = objectMapper.convertValue(jsonNode, Map.class);
+            discussionAnswerPostReplyDetailsMap.put(Constants.IS_PROFANE, false);
+            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), String.valueOf(id), discussionAnswerPostReplyDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + id, jsonNode);
             updateAnswerPostReplyToAnswerPost(discussionEntity, String.valueOf(id), Constants.INCREMENT);
             redisTemplate.opsForValue()
@@ -167,10 +168,10 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                             answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),
                             Constants.ANSWER_POST)));
             log.info("AnswerPostReply post created successfully");
-            map.put(Constants.CREATED_ON, currentTime);
+            discussionAnswerPostReplyDetailsMap.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
-            response.setResult(map);
+            response.setResult(discussionAnswerPostReplyDetailsMap);
             try {
                 Map<String, Object> notificationData = Map.of(
                         Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),
@@ -425,12 +426,14 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             }
             data.setAll(answerPostReplyDataNode);
             discussionAnswerPostReplyEntity.setData(data);
+            discussionAnswerPostReplyEntity.setIsProfane(false);
             discussionAnswerPostReplyRepository.save(discussionAnswerPostReplyEntity);
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);
-            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionAnswerPostReplyEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
+            Map<String, Object> discussionAnswerPostReplyDetailsMap = objectMapper.convertValue(jsonNode, Map.class);
+            discussionAnswerPostReplyDetailsMap.put(Constants.IS_PROFANE, false);
+            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionAnswerPostReplyEntity.getDiscussionId(), discussionAnswerPostReplyDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionAnswerPostReplyEntity.getDiscussionId(), jsonNode);
             redisTemplate.opsForValue()
                     .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(
@@ -449,11 +452,11 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             } catch (Exception e) {
                 log.error("Error while triggering notification for update answerPostReply", e);
             }
-            map.remove(IS_PROFANE);
-            map.remove(Constants.PROFANITY_RESPONSE);
+            discussionAnswerPostReplyDetailsMap.remove(IS_PROFANE);
+            discussionAnswerPostReplyDetailsMap.remove(Constants.PROFANITY_RESPONSE);
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
-            response.setResult(map);
+            response.setResult(discussionAnswerPostReplyDetailsMap);
             if (answerPostReplyData.hasNonNull(Constants.LANGUAGE)) {
                 answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());
                 profanityCheckService.processProfanityCheck(discussionAnswerPostReplyEntity.getDiscussionId(), answerPostReplyDataNode);

@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CassandraOperationImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.transactional.cassandrautils</a> &gt; <span class="el_source">CassandraOperationImpl.java</span></div><h1>CassandraOperationImpl.java</h1><pre class="source lang-java linenums">package com.igot.cb.transactional.cassandrautils;
+
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
+import com.datastax.oss.driver.api.querybuilder.delete.Delete;
+import com.datastax.oss.driver.api.querybuilder.relation.Relation;
+import com.datastax.oss.driver.api.querybuilder.select.Select;
+import com.datastax.oss.driver.api.querybuilder.term.Term;
+import com.datastax.oss.driver.api.querybuilder.update.Assignment;
+import com.datastax.oss.driver.api.querybuilder.update.Update;
+import com.datastax.oss.driver.api.querybuilder.update.UpdateStart;
+import com.datastax.oss.driver.api.querybuilder.update.UpdateWithAssignments;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.ApiResponse;
+
+import java.text.MessageFormat;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+
+/**
+ * @author Mahesh RV
+ * @author Ruksana
+ */
+@Component
+<span class="fc" id="L38">public class CassandraOperationImpl implements CassandraOperation {</span>
+
+<span class="fc" id="L40">    private Logger logger = LoggerFactory.getLogger(CassandraOperationImpl.class);</span>
+
+    @Autowired
+    CassandraConnectionManager connectionManager;
+
+    private Select processQuery(String keyspaceName, String tableName, Map&lt;String, Object&gt; propertyMap,
+                                List&lt;String&gt; fields) {
+        Select select;
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (CollectionUtils.isNotEmpty(fields)) {</span>
+<span class="fc" id="L49">            select = QueryBuilder.selectFrom(keyspaceName, tableName).columns(fields);</span>
+        } else {
+<span class="fc" id="L51">            select = QueryBuilder.selectFrom(keyspaceName, tableName).all();</span>
+        }
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (MapUtils.isEmpty(propertyMap)) {</span>
+<span class="nc" id="L54">            return select; // Build and return the query</span>
+        }
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        for (Map.Entry&lt;String, Object&gt; entry : propertyMap.entrySet()) {</span>
+<span class="fc" id="L57">            String columnName = entry.getKey();</span>
+<span class="fc" id="L58">            Object value = entry.getValue();</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (value instanceof List) {</span>
+<span class="nc" id="L60">                List&lt;?&gt; valueList = (List&lt;?&gt;) value;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                if (CollectionUtils.isNotEmpty(valueList)) {</span>
+<span class="nc" id="L62">                    List&lt;Term&gt; terms = valueList.stream()</span>
+<span class="nc" id="L63">                            .map(QueryBuilder::literal)</span>
+<span class="nc" id="L64">                            .collect(Collectors.toList());</span>
+<span class="nc" id="L65">                    select = select.whereColumn(columnName).in(terms);</span>
+                }
+<span class="nc" id="L67">            } else {</span>
+<span class="fc" id="L68">                select = select.whereColumn(columnName).isEqualTo(QueryBuilder.literal(value));</span>
+            }
+<span class="fc" id="L70">        }</span>
+<span class="fc" id="L71">        return select;</span>
+    }
+
+
+    private Select processQueryWithoutFiltering(String keyspaceName, String tableName, Map&lt;String, Object&gt; propertyMap,
+                                                List&lt;String&gt; fields) {
+        Select selectQuery;
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (CollectionUtils.isNotEmpty(fields)) {</span>
+<span class="nc" id="L79">            selectQuery = QueryBuilder.selectFrom(keyspaceName, tableName).columns(fields);</span>
+        } else {
+<span class="nc" id="L81">            selectQuery = QueryBuilder.selectFrom(keyspaceName, tableName).all();</span>
+        }
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (MapUtils.isNotEmpty(propertyMap)) {</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            for (Map.Entry&lt;String, Object&gt; entry : propertyMap.entrySet()) {</span>
+<span class="nc" id="L85">                String columnName = entry.getKey();</span>
+<span class="nc" id="L86">                Object value = entry.getValue();</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">                if (value instanceof List) {</span>
+<span class="nc" id="L88">                    List&lt;?&gt; valueList = (List&lt;?&gt;) value;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                    if (CollectionUtils.isNotEmpty(valueList)) {</span>
+<span class="nc" id="L90">                        List&lt;Term&gt; terms = valueList.stream()</span>
+<span class="nc" id="L91">                                .map(QueryBuilder::literal)</span>
+<span class="nc" id="L92">                                .collect(Collectors.toList());</span>
+<span class="nc" id="L93">                        selectQuery = selectQuery.whereColumn(columnName).in(terms);</span>
+                    }
+<span class="nc" id="L95">                } else {</span>
+<span class="nc" id="L96">                    selectQuery = selectQuery.whereColumn(columnName).isEqualTo(QueryBuilder.literal(value));</span>
+                }
+<span class="nc" id="L98">            }</span>
+        }
+<span class="nc" id="L100">        return selectQuery;</span>
+    }
+
+    @Override
+    public List&lt;Map&lt;String, Object&gt;&gt; getRecordsByPropertiesByKey(String keyspaceName,
+                                                                 String tableName, Map&lt;String, Object&gt; propertyMap, List&lt;String&gt; fields, String key) {
+<span class="fc" id="L106">        Select selectQuery = null;</span>
+<span class="fc" id="L107">        List&lt;Map&lt;String, Object&gt;&gt; response = new ArrayList&lt;&gt;();</span>
+        try {
+<span class="fc" id="L109">            selectQuery = processQueryWithFiltering(keyspaceName, tableName, propertyMap, fields);</span>
+<span class="fc" id="L110">            CqlSession session = connectionManager.getSession(keyspaceName);</span>
+<span class="nc" id="L111">            ResultSet results = session.execute(selectQuery.build());</span>
+<span class="nc" id="L112">            response = CassandraUtil.createResponse(results);</span>
+<span class="nc" id="L113">            logger.info(response.toString());</span>
+
+<span class="fc" id="L115">        } catch (Exception e) {</span>
+<span class="fc" id="L116">            logger.error(Constants.EXCEPTION_MSG_FETCH + tableName + &quot; : &quot; + e.getMessage(), e);</span>
+<span class="nc" id="L117">        }</span>
+<span class="fc" id="L118">        return response;</span>
+    }
+
+    @Override
+    public Object insertRecord(String keyspaceName, String tableName, Map&lt;String, Object&gt; request) {
+<span class="fc" id="L123">        ApiResponse response = new ApiResponse();</span>
+        try {
+<span class="fc" id="L125">            String query = CassandraUtil.getPreparedStatement(keyspaceName, tableName, request);</span>
+<span class="fc" id="L126">            CqlSession session = connectionManager.getSession(keyspaceName);</span>
+<span class="fc" id="L127">            PreparedStatement statement = session.prepare(query);</span>
+<span class="fc" id="L128">            BoundStatement boundStatement = statement.bind(request.values().toArray());</span>
+<span class="nc" id="L129">            session.execute(boundStatement);</span>
+<span class="nc" id="L130">            response.put(Constants.RESPONSE, Constants.SUCCESS);</span>
+<span class="fc" id="L131">        } catch (Exception e) {</span>
+<span class="fc" id="L132">            String errMsg = String.format(&quot;Exception occurred while inserting record to %s %s&quot;, tableName, e.getMessage());</span>
+<span class="fc" id="L133">            logger.error(&quot;Error inserting record into {}: {}: {}&quot;, tableName, e.getMessage(), e);</span>
+<span class="fc" id="L134">            response.put(Constants.RESPONSE, Constants.FAILED);</span>
+<span class="fc" id="L135">            response.put(Constants.ERROR_MESSAGE, errMsg);</span>
+<span class="nc" id="L136">        }</span>
+<span class="fc" id="L137">        return response;</span>
+    }
+
+    @Override
+    public List&lt;Map&lt;String, Object&gt;&gt; getRecordsByPropertiesWithoutFiltering(String keyspaceName, String tableName, Map&lt;String, Object&gt; propertyMap, List&lt;String&gt; fields, Integer limit) {
+
+<span class="fc" id="L143">        List&lt;Map&lt;String, Object&gt;&gt; response = new ArrayList&lt;&gt;();</span>
+        try {
+<span class="fc" id="L145">            Select selectQuery = null;</span>
+<span class="fc" id="L146">            selectQuery = processQuery(keyspaceName, tableName, propertyMap, fields);</span>
+
+<span class="fc bfc" id="L148" title="All 2 branches covered.">            if (limit != null) selectQuery = selectQuery.limit(limit);</span>
+<span class="fc" id="L149">            String queryString = selectQuery.toString();</span>
+<span class="fc" id="L150">            SimpleStatement statement = SimpleStatement.newInstance(queryString);</span>
+<span class="fc" id="L151">            ResultSet results = connectionManager.getSession(keyspaceName).execute(statement);</span>
+<span class="fc" id="L152">            response = CassandraUtil.createResponse(results);</span>
+
+<span class="fc" id="L154">        } catch (Exception e) {</span>
+<span class="fc" id="L155">            logger.error(&quot;Error fetching records from {}: {}&quot;, tableName, e.getMessage());</span>
+<span class="fc" id="L156">        }</span>
+<span class="fc" id="L157">        return response;</span>
+    }
+
+    @Override
+    public Map&lt;String,Object&gt; updateRecord(
+            String keyspaceName, String tableName, Map&lt;String, Object&gt; request) {
+<span class="fc" id="L163">        long startTime = System.currentTimeMillis();</span>
+<span class="fc" id="L164">        logger.debug(&quot;Cassandra Service updateRecord method started at ==&quot; + startTime);</span>
+<span class="fc" id="L165">        Map&lt;String,Object&gt; response = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L166">        String query = getUpdateQueryStatement(keyspaceName, tableName, request);</span>
+        try {
+<span class="fc" id="L168">            PreparedStatement statement = connectionManager.getSession(keyspaceName).prepare(query);</span>
+<span class="fc" id="L169">            Object[] array = new Object[request.size()];</span>
+<span class="fc" id="L170">            int i = 0;</span>
+<span class="fc" id="L171">            String str = &quot;&quot;;</span>
+<span class="fc" id="L172">            int index = query.lastIndexOf(Constants.SET.trim());</span>
+<span class="fc" id="L173">            str = query.substring(index + 4);</span>
+<span class="fc" id="L174">            str = str.replace(Constants.EQUAL_WITH_QUE_MARK, &quot;&quot;);</span>
+<span class="fc" id="L175">            str = str.replace(Constants.WHERE_ID, &quot;&quot;);</span>
+<span class="fc" id="L176">            str = str.replace(Constants.SEMICOLON, &quot;&quot;);</span>
+<span class="fc" id="L177">            String[] arr = str.split(&quot;,&quot;);</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">            for (String key : arr) {</span>
+<span class="fc" id="L179">                array[i++] = request.get(key.trim());</span>
+            }
+<span class="fc" id="L181">            array[i] = request.get(Constants.ID);</span>
+<span class="fc" id="L182">            BoundStatement boundStatement = statement.bind(array);</span>
+<span class="fc" id="L183">            connectionManager.getSession(keyspaceName).execute(boundStatement);</span>
+<span class="fc" id="L184">            response.put(Constants.RESPONSE, Constants.SUCCESS);</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            if (tableName.equalsIgnoreCase(Constants.USER)) {</span>
+<span class="nc" id="L186">                logger.info(&quot;Cassandra Service updateRecord in user table :&quot; + request);</span>
+            }
+<span class="nc" id="L188">        } catch (Exception e) {</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            if (e.getMessage().contains(Constants.UNKNOWN_IDENTIFIER)) {</span>
+<span class="nc" id="L190">                logger.error(</span>
+<span class="nc" id="L191">                        Constants.EXCEPTION_MSG_UPDATE + tableName + &quot; : &quot; + e.getMessage(), e);</span>
+<span class="nc" id="L192">                String errMsg = String.format(&quot;Exception occurred while updating record to to %s %s&quot;, tableName, e.getMessage());</span>
+<span class="nc" id="L193">                response.put(Constants.RESPONSE, Constants.FAILED);</span>
+<span class="nc" id="L194">                response.put(Constants.ERROR_MESSAGE, errMsg);</span>
+            }
+<span class="nc" id="L196">            logger.error(Constants.EXCEPTION_MSG_UPDATE + tableName + &quot; : &quot; + e.getMessage(), e);</span>
+        } finally {
+<span class="fc" id="L198">            logQueryElapseTime(&quot;updateRecord&quot;, startTime, query);</span>
+        }
+<span class="fc" id="L200">        return response;</span>
+    }
+
+    public static String getUpdateQueryStatement(
+            String keyspaceName, String tableName, Map&lt;String, Object&gt; map) {
+<span class="fc" id="L205">        StringBuilder query =</span>
+                new StringBuilder(
+                        Constants.UPDATE + keyspaceName + Constants.DOT + tableName + Constants.SET);
+<span class="fc" id="L208">        Set&lt;String&gt; key = new HashSet&lt;&gt;(map.keySet());</span>
+<span class="fc" id="L209">        key.remove(Constants.ID);</span>
+<span class="fc" id="L210">        query.append(String.join(&quot; = ? ,&quot;, key));</span>
+<span class="fc" id="L211">        query.append(</span>
+                Constants.EQUAL_WITH_QUE_MARK + Constants.WHERE_ID + Constants.EQUAL_WITH_QUE_MARK);
+<span class="fc" id="L213">        return query.toString();</span>
+    }
+
+    protected void logQueryElapseTime(
+            String operation, long startTime, String query) {
+<span class="fc" id="L218">        logger.info(&quot;Cassandra query : &quot; + query);</span>
+<span class="fc" id="L219">        long stopTime = System.currentTimeMillis();</span>
+<span class="fc" id="L220">        long elapsedTime = stopTime - startTime;</span>
+<span class="fc" id="L221">        String message =</span>
+                &quot;Cassandra operation {0} started at {1} and completed at {2}. Total time elapsed is {3}.&quot;;
+<span class="fc" id="L223">        MessageFormat mf = new MessageFormat(message);</span>
+<span class="fc" id="L224">        logger.debug(mf.format(new Object[] {operation, startTime, stopTime, elapsedTime}));</span>
+<span class="fc" id="L225">    }</span>
+
+    public Map&lt;String, Object&gt; updateRecordByCompositeKey(String keyspaceName, String tableName, Map&lt;String, Object&gt; updateAttributes,
+                                                          Map&lt;String, Object&gt; compositeKey) {
+<span class="fc" id="L229">        Map&lt;String, Object&gt; response = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L230">        CqlSession session = null;</span>
+        try {
+<span class="fc" id="L232">            session = connectionManager.getSession(keyspaceName);</span>
+<span class="fc" id="L233">            UpdateStart updateStart = QueryBuilder.update(keyspaceName, tableName);</span>
+<span class="fc" id="L234">            UpdateWithAssignments updateWithAssignments = updateStart.set(updateAttributes.entrySet().stream()</span>
+<span class="fc" id="L235">                    .map(entry -&gt; Assignment.setColumn(entry.getKey(), QueryBuilder.literal(entry.getValue())))</span>
+<span class="fc" id="L236">                    .toArray(Assignment[]::new));</span>
+<span class="fc" id="L237">            Update update = updateWithAssignments.where(compositeKey.entrySet().stream()</span>
+<span class="fc" id="L238">                    .map(entry -&gt; Relation.column(entry.getKey()).isEqualTo(QueryBuilder.literal(entry.getValue())))</span>
+<span class="fc" id="L239">                    .toArray(Relation[]::new));</span>
+<span class="fc" id="L240">            SimpleStatement statement = update.build();</span>
+<span class="fc" id="L241">            session.execute(statement);</span>
+<span class="fc" id="L242">            response.put(Constants.RESPONSE, Constants.SUCCESS);</span>
+<span class="fc" id="L243">        } catch (Exception e) {</span>
+<span class="fc" id="L244">            String errMsg = String.format(&quot;Exception occurred while updating record to %s: %s&quot;, tableName, e.getMessage());</span>
+<span class="fc" id="L245">            logger.error(errMsg, e);</span>
+<span class="fc" id="L246">            response.put(Constants.RESPONSE, Constants.FAILED);</span>
+<span class="fc" id="L247">            response.put(Constants.ERROR_MESSAGE, errMsg);</span>
+<span class="fc" id="L248">            throw e;</span>
+<span class="fc" id="L249">        }</span>
+<span class="fc" id="L250">        return response;</span>
+    }
+
+    @Override
+    public void deleteRecord(String keyspaceName, String tableName, Map&lt;String, Object&gt; compositeKeyMap) {
+<span class="fc" id="L255">        Delete delete = null;</span>
+        try {
+<span class="fc" id="L257">            CqlSession session = connectionManager.getSession(keyspaceName);</span>
+<span class="fc" id="L258">            delete = (Delete) QueryBuilder.deleteFrom(keyspaceName, tableName);</span>
+
+<span class="fc bfc" id="L260" title="All 2 branches covered.">            for (Map.Entry&lt;String, Object&gt; entry : compositeKeyMap.entrySet()) {</span>
+<span class="fc" id="L261">                delete = delete.whereColumn(entry.getKey()).isEqualTo(QueryBuilder.literal(entry.getValue()));</span>
+<span class="fc" id="L262">            }</span>
+<span class="fc" id="L263">            session.execute(delete.build());</span>
+<span class="fc" id="L264">        } catch (Exception e) {</span>
+<span class="fc" id="L265">            logger.error(String.format(&quot;CassandraOperationImpl: deleteRecord by composite key. %s %s %s&quot;,</span>
+<span class="fc" id="L266">                    Constants.EXCEPTION_MSG_DELETE, tableName, e.getMessage()));</span>
+<span class="fc" id="L267">            throw e;</span>
+<span class="fc" id="L268">        }</span>
+<span class="fc" id="L269">    }</span>
+
+    private Select processQueryWithFiltering(String keyspaceName, String tableName, Map&lt;String, Object&gt; propertyMap,
+                                             List&lt;String&gt; fields) {
+        Select select;
+<span class="pc bpc" id="L274" title="1 of 2 branches missed.">        if (CollectionUtils.isNotEmpty(fields)) {</span>
+<span class="fc" id="L275">            select = QueryBuilder.selectFrom(keyspaceName, tableName).columns(fields);</span>
+        } else {
+<span class="nc" id="L277">            select = QueryBuilder.selectFrom(keyspaceName, tableName).all();</span>
+        }
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">        if (MapUtils.isEmpty(propertyMap)) {</span>
+<span class="nc" id="L280">            return select.allowFiltering(); // Build and return the query</span>
+        }
+<span class="fc bfc" id="L282" title="All 2 branches covered.">        for (Map.Entry&lt;String, Object&gt; entry : propertyMap.entrySet()) {</span>
+<span class="fc" id="L283">            String columnName = entry.getKey();</span>
+<span class="fc" id="L284">            Object value = entry.getValue();</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">            if (value instanceof List) {</span>
+<span class="nc" id="L286">                List&lt;?&gt; valueList = (List&lt;?&gt;) value;</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                if (CollectionUtils.isNotEmpty(valueList)) {</span>
+<span class="nc" id="L288">                    List&lt;Term&gt; terms = valueList.stream()</span>
+<span class="nc" id="L289">                            .map(QueryBuilder::literal)</span>
+<span class="nc" id="L290">                            .collect(Collectors.toList());</span>
+<span class="nc" id="L291">                    select = select.whereColumn(columnName).in(terms);</span>
+                }
+<span class="nc" id="L293">            } else {</span>
+<span class="fc" id="L294">                select = select.whereColumn(columnName).isEqualTo(QueryBuilder.literal(value));</span>
+            }
+<span class="fc" id="L296">        }</span>
+<span class="fc" id="L297">        select.allowFiltering();</span>
+<span class="fc" id="L298">        return select;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

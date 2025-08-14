@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CassandraUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.transactional.cassandrautils</a> &gt; <span class="el_source">CassandraUtil.java</span></div><h1>CassandraUtil.java</h1><pre class="source lang-java linenums">package com.igot.cb.transactional.cassandrautils;
+
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.igot.cb.pores.util.Constants;
+
+
+import java.util.*;
+
+/**
+ * @author Mahesh RV
+ * @author Ruksana
+ */
+public final class CassandraUtil {
+
+    private CassandraUtil() {
+    }
+
+<span class="fc" id="L19">    private static final CassandraPropertyReader propertiesCache = CassandraPropertyReader.getInstance();</span>
+
+
+    public static String getPreparedStatement(
+            String keyspaceName, String tableName, Map&lt;String, Object&gt; map) {
+<span class="fc" id="L24">        StringBuilder query = new StringBuilder();</span>
+<span class="fc" id="L25">        query.append(Constants.INSERT_INTO).append(keyspaceName).append(Constants.DOT).append(tableName).append(Constants.OPEN_BRACE);</span>
+<span class="fc" id="L26">        Set&lt;String&gt; keySet = map.keySet();</span>
+<span class="fc" id="L27">        query.append(String.join(&quot;,&quot;, keySet)).append(Constants.VALUES_WITH_BRACE);</span>
+<span class="fc" id="L28">        StringBuilder commaSepValueBuilder = new StringBuilder();</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        for (int i = 0; i &lt; keySet.size(); i++) {</span>
+<span class="fc" id="L30">            commaSepValueBuilder.append(Constants.QUE_MARK);</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">            if (i != keySet.size() - 1) {</span>
+<span class="fc" id="L32">                commaSepValueBuilder.append(Constants.COMMA);</span>
+            }
+        }
+<span class="fc" id="L35">        query.append(commaSepValueBuilder).append(Constants.CLOSING_BRACE);</span>
+<span class="fc" id="L36">        return query.toString();</span>
+    }
+
+
+    public static List&lt;Map&lt;String, Object&gt;&gt; createResponse(ResultSet results) {
+<span class="fc" id="L41">        List&lt;Map&lt;String, Object&gt;&gt; responseList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L42">        Map&lt;String, String&gt; columnsMapping = fetchColumnsMapping(results);</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        for (Row row : results) {</span>
+<span class="fc" id="L44">            Map&lt;String, Object&gt; rowMap = new HashMap&lt;&gt;();</span>
+<span class="pc" id="L45">            columnsMapping.forEach((key, value) -&gt; rowMap.put(key, row.getObject(value)));</span>
+<span class="fc" id="L46">            responseList.add(rowMap);</span>
+<span class="fc" id="L47">        }</span>
+<span class="fc" id="L48">        return responseList;</span>
+    }
+
+    public static Map&lt;String, Object&gt; createResponse(ResultSet results, String key) {
+<span class="fc" id="L52">        Map&lt;String, Object&gt; responseList = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L53">        Map&lt;String, String&gt; columnsMapping = fetchColumnsMapping(results);</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        for (Row row : results) {</span>
+<span class="fc" id="L55">            Map&lt;String, Object&gt; rowMap = new HashMap&lt;&gt;();</span>
+<span class="pc" id="L56">            columnsMapping.forEach((key1, value) -&gt; rowMap.put(key1, row.getObject(value)));</span>
+<span class="fc" id="L57">            responseList.put((String) rowMap.get(key), rowMap);</span>
+<span class="fc" id="L58">        }</span>
+<span class="fc" id="L59">        return responseList;</span>
+    }
+
+    public static Map&lt;String, String&gt; fetchColumnsMapping(ResultSet results) {
+<span class="fc" id="L63">        Map&lt;String, String&gt; columnsMapping = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L64">        results.getColumnDefinitions().forEach(column -&gt; {</span>
+<span class="nc" id="L65">            String property = propertiesCache.readProperty(column.getName().asInternal()).trim();</span>
+<span class="nc" id="L66">            columnsMapping.put(property, column.getName().asInternal());</span>
+<span class="nc" id="L67">        });</span>
+<span class="fc" id="L68">        return columnsMapping;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

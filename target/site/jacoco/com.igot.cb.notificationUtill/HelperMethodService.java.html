@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HelperMethodService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.notificationUtill</a> &gt; <span class="el_source">HelperMethodService.java</span></div><h1>HelperMethodService.java</h1><pre class="source lang-java linenums">package com.igot.cb.notificationUtill;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.metrics.service.ApiMetricsTracker;
+import com.igot.cb.pores.cache.CacheService;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+<span class="fc" id="L20">@Slf4j</span>
+<span class="nc" id="L21">public class HelperMethodService {</span>
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private CassandraOperation cassandraOperation;
+    @Autowired
+    private CacheService cacheService;
+
+    public List&lt;Object&gt; fetchDataForKeys(List&lt;String&gt; keys, boolean isUserData) {
+        // Fetch values for all keys from Redis
+        List&lt;Object&gt; values;
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (isUserData) {</span>
+<span class="nc" id="L33">            values = cacheService.hget(keys);</span>
+        } else {
+<span class="nc" id="L35">            values = cacheService.hgetMulti(keys);</span>
+        }
+
+        // Create a map of key-value pairs, converting stringified JSON objects to User objects
+<span class="nc" id="L39">        return keys.stream()</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">                .filter(key -&gt; values.get(keys.indexOf(key)) != null) // Filter out null values</span>
+<span class="nc" id="L41">                .map(key -&gt; {</span>
+<span class="nc" id="L42">                    String stringifiedJson = (String) values.get(keys.indexOf(key)); // Cast the value to String</span>
+                    try {
+                        // Convert the stringified JSON to a User object using ObjectMapper
+<span class="nc" id="L45">                        return objectMapper.readValue(stringifiedJson, Object.class); // You can map this to a specific User type if needed</span>
+<span class="nc" id="L46">                    } catch (Exception e) {</span>
+<span class="nc" id="L47">                        log.error(&quot;Failed to fetch user data from redis &quot;, e.getMessage(), e);</span>
+<span class="nc" id="L48">                        return null; // Return null in case of error</span>
+                    }
+                })
+<span class="nc" id="L51">                .collect(Collectors.toList());</span>
+    }
+
+    public List&lt;Object&gt; fetchUserFromPrimary(List&lt;String&gt; userIds) {
+<span class="nc" id="L55">        log.info(&quot;DiscussionServiceImpl::fetchUserFromPrimary: Fetching user data from Cassandra&quot;);</span>
+<span class="nc" id="L56">        List&lt;Object&gt; userList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L57">        Map&lt;String, Object&gt; propertyMap = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L58">        propertyMap.put(Constants.ID, userIds);</span>
+<span class="nc" id="L59">        long startTime = System.currentTimeMillis();</span>
+<span class="nc" id="L60">        List&lt;Map&lt;String, Object&gt;&gt; userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(</span>
+                Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
+<span class="nc" id="L62">                Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);</span>
+<span class="nc" id="L63">        updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.CASSANDRA, Constants.READ, startTime);</span>
+<span class="nc" id="L64">        userList = userInfoList.stream()</span>
+<span class="nc" id="L65">                .map(userInfo -&gt; {</span>
+<span class="nc" id="L66">                    Map&lt;String, Object&gt; userMap = new HashMap&lt;&gt;();</span>
+
+                    // Extract user ID and user name
+<span class="nc" id="L69">                    String userId = (String) userInfo.get(Constants.ID);</span>
+<span class="nc" id="L70">                    String userName = (String) userInfo.get(Constants.FIRST_NAME);</span>
+
+<span class="nc" id="L72">                    userMap.put(Constants.USER_ID_KEY, userId);</span>
+<span class="nc" id="L73">                    userMap.put(Constants.FIRST_NAME_KEY, userName);</span>
+
+                    // Process profile details if present
+<span class="nc" id="L76">                    String profileDetails = (String) userInfo.get(Constants.PROFILE_DETAILS);</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                    if (StringUtils.isNotBlank(profileDetails)) {</span>
+                        try {
+                            // Convert JSON profile details to a Map
+<span class="nc" id="L80">                            Map&lt;String, Object&gt; profileDetailsMap = objectMapper.readValue(profileDetails,</span>
+<span class="nc" id="L81">                                    new TypeReference&lt;HashMap&lt;String, Object&gt;&gt;() {</span>
+                                    });
+
+                            // Check for profile image and add to userMap if available
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                            if (MapUtils.isNotEmpty(profileDetailsMap)) {</span>
+<span class="nc bnc" id="L86" title="All 4 branches missed.">                                if (profileDetailsMap.containsKey(Constants.PROFILE_IMG) &amp;&amp; StringUtils.isNotBlank((String) profileDetailsMap.get(Constants.PROFILE_IMG))) {</span>
+<span class="nc" id="L87">                                    userMap.put(Constants.PROFILE_IMG_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));</span>
+                                }
+<span class="nc bnc" id="L89" title="All 4 branches missed.">                                if (profileDetailsMap.containsKey(Constants.DESIGNATION_KEY) &amp;&amp; StringUtils.isNotEmpty((String) profileDetailsMap.get(Constants.DESIGNATION_KEY))) {</span>
+
+<span class="nc" id="L91">                                    userMap.put(Constants.DESIGNATION_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));</span>
+                                }
+<span class="nc bnc" id="L93" title="All 4 branches missed.">                                if (profileDetailsMap.containsKey(Constants.EMPLOYMENT_DETAILS) &amp;&amp; MapUtils.isNotEmpty(</span>
+<span class="nc bnc" id="L94" title="All 4 branches missed.">                                        (Map&lt;?, ?&gt;) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)) &amp;&amp; ((Map&lt;?, ?&gt;) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).containsKey(Constants.DEPARTMENT_KEY) &amp;&amp; StringUtils.isNotBlank(</span>
+<span class="nc" id="L95">                                        (String) ((Map&lt;?, ?&gt;) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY))) {</span>
+<span class="nc" id="L96">                                    userMap.put(Constants.DEPARTMENT, (String) ((Map&lt;?, ?&gt;) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));</span>
+
+                                }
+                            }
+<span class="nc" id="L100">                        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L101">                            log.error(&quot;Error occurred while converting json object to json string&quot;, e);</span>
+<span class="nc" id="L102">                        }</span>
+                    }
+
+<span class="nc" id="L105">                    return userMap;</span>
+                })
+<span class="nc" id="L107">                .collect(Collectors.toList());</span>
+<span class="nc" id="L108">        return userList;</span>
+    }
+
+    private void updateMetricsDbOperation(String apiName, String dbType, String operationType, long time) {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (ApiMetricsTracker.isTrackingEnabled()) {</span>
+<span class="nc" id="L113">            ApiMetricsTracker.recordDbOperation(apiName, dbType, operationType, System.currentTimeMillis() - time);</span>
+        }
+<span class="nc" id="L115">    }</span>
+
+    public String fetchUserFirstName(String userId) {
+<span class="nc" id="L118">        List&lt;Object&gt; redisResults = fetchDataForKeys(List.of(Constants.USER_PREFIX + userId), true);</span>
+<span class="nc bnc" id="L119" title="All 4 branches missed.">        if (!redisResults.isEmpty() &amp;&amp; redisResults.get(0) instanceof Map) {</span>
+<span class="nc" id="L120">            String name = (String) ((Map&lt;?, ?&gt;) redisResults.get(0)).get(Constants.FIRST_NAME_KEY);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if (StringUtils.isNotBlank(name)) return name;</span>
+        }
+
+<span class="nc" id="L124">        List&lt;Object&gt; cassandraResults = fetchUserFromPrimary(List.of(userId));</span>
+<span class="nc bnc" id="L125" title="All 4 branches missed.">        if (!cassandraResults.isEmpty() &amp;&amp; cassandraResults.get(0) instanceof Map) {</span>
+<span class="nc" id="L126">            String name = (String) ((Map&lt;?, ?&gt;) cassandraResults.get(0)).get(Constants.FIRST_NAME_KEY);</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">            if (StringUtils.isNotBlank(name)) return name;</span>
+        }
+
+<span class="nc" id="L130">        return &quot;User&quot;;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

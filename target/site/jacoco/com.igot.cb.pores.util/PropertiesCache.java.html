@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertiesCache.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.util</a> &gt; <span class="el_source">PropertiesCache.java</span></div><h1>PropertiesCache.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.util;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+/**
+ * @author Mahesh RV
+ * @author Ruksana
+ * &lt;p&gt;
+ * A utility class to cache and retrieve properties.
+ * It loads properties from specified files and provides methods to access them.
+ * Also handles environment variable overrides for properties.
+ */
+public class PropertiesCache {
+    // Logger for logging messages
+<span class="fc" id="L21">    private final Logger logger = LogManager.getLogger(getClass());</span>
+
+    // Array of file names from which properties are loaded
+<span class="fc" id="L24">    private final String[] fileName = {</span>
+            &quot;cassandra.config.properties&quot;,
+            &quot;cassandratablecolumn.properties&quot;,
+            &quot;application.properties&quot;,
+            &quot;customerror.properties&quot;
+    };
+    // Properties object to store loaded properties
+<span class="fc" id="L31">    private final Properties configProp = new Properties();</span>
+
+    /**
+     * Private constructor to prevent instantiation from outside
+     */
+<span class="fc" id="L36">    private PropertiesCache() {</span>
+        // Load properties from each file
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        for (String file : fileName) {</span>
+<span class="fc" id="L39">            InputStream in = this.getClass().getClassLoader().getResourceAsStream(file);</span>
+            try {
+<span class="fc" id="L41">                configProp.load(in);</span>
+<span class="nc" id="L42">            } catch (IOException e) {</span>
+<span class="fc" id="L43">            }</span>
+        }
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Method to get singleton instance of PropertiesCache
+     *
+     * @return - returns the instance of PropertiesCache
+     */
+    public static PropertiesCache getInstance() {
+
+        // change the lazy holder implementation to simple singleton implementation ...
+<span class="fc" id="L55">        return PropertiesCacheHolder.propertiesCache;</span>
+    }
+
+    private static final class PropertiesCacheHolder {
+<span class="fc" id="L59">        static final PropertiesCache propertiesCache = new PropertiesCache();</span>
+    }
+
+    /**
+     * Method to get a property value
+     *
+     * @param key -key to be fetched.
+     * @return - returns the values.
+     */
+    public String getProperty(String key) {
+<span class="fc" id="L69">        String value = System.getenv(key);</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (StringUtils.isNotBlank(value)) return value;</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        return configProp.getProperty(key) != null ? configProp.getProperty(key) : key;</span>
+    }
+
+    /**
+     * Method to read a property value
+     *
+     * @param key - key to be read
+     * @return - returns the value.
+     */
+    public String readProperty(String key) {
+<span class="nc" id="L81">        String value = System.getenv(key);</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (StringUtils.isNotBlank(value)) return value;</span>
+<span class="nc" id="L83">        return configProp.getProperty(key);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

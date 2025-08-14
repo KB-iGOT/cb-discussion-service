@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CacheService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.cache</a> &gt; <span class="el_source">CacheService.java</span></div><h1>CacheService.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.cache;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.pores.util.Constants;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+@Service
+<span class="fc" id="L17">@Slf4j</span>
+<span class="fc" id="L18">public class CacheService {</span>
+
+  @Autowired
+  private RedisTemplate&lt;String, String&gt; redisTemplate;
+
+  @Autowired
+  @Qualifier(Constants.REDIS_DATA_TEMPLATE)
+  private RedisTemplate&lt;String, String&gt; redisDataTemplate;
+
+  @Autowired
+  private ObjectMapper objectMapper;
+
+  @Value(&quot;${spring.redis.cacheTtl}&quot;)
+  private long cacheTtl;
+
+  public void putCache(String key, Object object) {
+    try {
+<span class="fc" id="L35">      String data = objectMapper.writeValueAsString(object);</span>
+<span class="fc" id="L36">      redisTemplate.opsForValue().set(Constants.REDIS_KEY_PREFIX + key, data, cacheTtl, TimeUnit.SECONDS);</span>
+<span class="fc" id="L37">    } catch (Exception e) {</span>
+<span class="fc" id="L38">      log.error(&quot;Error while putting data in Redis cache: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L39">    }</span>
+<span class="fc" id="L40">  }</span>
+
+  public String getCache(String key) {
+    try {
+<span class="fc" id="L44">      return redisTemplate.opsForValue().get(Constants.REDIS_KEY_PREFIX + key);</span>
+<span class="fc" id="L45">    } catch (Exception e) {</span>
+<span class="fc" id="L46">      log.error(&quot;Error while getting data from Redis cache: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L47">      return null;</span>
+    }
+  }
+
+  public Long deleteCache(String key) {
+    try {
+<span class="fc" id="L53">      boolean result = redisTemplate.delete(Constants.REDIS_KEY_PREFIX + key);</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">      if (result) {</span>
+<span class="fc" id="L55">        log.info(&quot;Field deleted successfully from key {}.&quot;, key);</span>
+      } else {
+<span class="fc" id="L57">        log.warn(&quot;Field not found in key {}.&quot;, key);</span>
+      }
+<span class="nc" id="L59">    } catch (Exception e) {</span>
+<span class="nc" id="L60">      log.error(&quot;Error while deleting key {} from Redis: {}&quot;, key, e.getMessage(), e);</span>
+<span class="fc" id="L61">    }</span>
+<span class="fc" id="L62">    return null;</span>
+  }
+
+  public List&lt;Object&gt; hget(List&lt;String&gt; keys) {
+<span class="fc" id="L66">    List&lt;Object&gt; resultList = new ArrayList&lt;&gt;();</span>
+    try {
+<span class="fc bfc" id="L68" title="All 2 branches covered.">      for (String key : keys) {</span>
+<span class="fc" id="L69">        String value = redisDataTemplate.opsForValue().get(key);</span>
+<span class="fc" id="L70">        resultList.add(value);</span>
+<span class="fc" id="L71">      }</span>
+<span class="fc" id="L72">    } catch (Exception e) {</span>
+<span class="fc" id="L73">      log.error(&quot;Error while fetching data from Redis: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L74">    }</span>
+<span class="fc" id="L75">    return resultList;</span>
+  }
+
+  public List&lt;Object&gt; hgetMulti(List&lt;String&gt; keys) {
+<span class="fc" id="L79">    List&lt;Object&gt; resultList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L80">    List&lt;String&gt; values = redisTemplate.opsForValue().multiGet(keys);</span>
+<span class="fc" id="L81">    resultList.addAll(values);</span>
+<span class="fc" id="L82">    return resultList;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

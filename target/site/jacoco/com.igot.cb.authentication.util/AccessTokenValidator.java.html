@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AccessTokenValidator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.authentication.util</a> &gt; <span class="el_source">AccessTokenValidator.java</span></div><h1>AccessTokenValidator.java</h1><pre class="source lang-java linenums">package com.igot.cb.authentication.util;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.PropertiesCache;
+import org.apache.commons.lang3.StringUtils;
+import org.keycloak.common.util.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+
+/**
+ * @author Mahesh RV
+ */
+@Component
+<span class="fc" id="L22">public class AccessTokenValidator {</span>
+
+    @Autowired
+    KeyManager keyManager;
+
+<span class="fc" id="L27">    private static Logger logger = LoggerFactory.getLogger(AccessTokenValidator.class.getName());</span>
+<span class="fc" id="L28">    private static final ObjectMapper mapper = new ObjectMapper();</span>
+<span class="fc" id="L29">    private static PropertiesCache cache = PropertiesCache.getInstance();</span>
+<span class="fc" id="L30">    private static final String REALM_URL = cache.getProperty(Constants.SSO_URL) + &quot;realms/&quot; + cache.getProperty(Constants.SSO_REALM);</span>
+
+
+    /**
+     * Validates the provided JWT token.
+     *
+     * @param token The JWT token to be validated.
+     * @return A map containing the token body if the token is valid and not expired, otherwise an empty map.
+     */
+    private Map&lt;String, Object&gt; validateToken(String token) {
+        try {
+            // Split the token into its elements
+<span class="fc" id="L42">            String[] tokenElements = token.split(&quot;\\.&quot;);</span>
+            // Check if the token has at least three elements
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">            if (tokenElements.length &lt; 3) {</span>
+<span class="nc" id="L45">                throw new IllegalArgumentException(&quot;Invalid token format&quot;);</span>
+            }
+            // Extract header, body, and signature from token elements
+<span class="fc" id="L48">            String header = tokenElements[0];</span>
+<span class="fc" id="L49">            String body = tokenElements[1];</span>
+<span class="fc" id="L50">            String signature = tokenElements[2];</span>
+            // Concatenate header and body to form the payload
+<span class="fc" id="L52">            String payload = header + Constants.DOT_SEPARATOR + body;</span>
+            // Parse header data from base64 encoded header
+<span class="fc" id="L54">            Map&lt;String, Object&gt; headerData = mapper.readValue(new String(decodeFromBase64(header)), new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {</span>
+            });
+<span class="fc" id="L56">            String keyId = headerData.get(&quot;kid&quot;).toString();</span>
+            // Verify the token signature
+<span class="nc" id="L58">            boolean isValid = CryptoUtil.verifyRSASign(payload, decodeFromBase64(signature), keyManager.getPublicKey(keyId).getPublicKey(), Constants.SHA_256_WITH_RSA);</span>
+            // If token signature is valid, parse token body and check expiration
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            if (isValid) {</span>
+<span class="nc" id="L61">                Map&lt;String, Object&gt; tokenBody = mapper.readValue(new String(decodeFromBase64(body)), new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {</span>
+                });
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                if (isExpired((Integer) tokenBody.get(&quot;exp&quot;))) {</span>
+<span class="nc" id="L64">                    logger.error(&quot;Token expired: {}&quot;, token);</span>
+<span class="nc" id="L65">                    return Collections.emptyMap();</span>
+                }
+<span class="nc" id="L67">                return tokenBody;</span>
+            }
+<span class="fc" id="L69">        } catch (IOException | IllegalArgumentException e) {</span>
+<span class="fc" id="L70">            logger.error(&quot;Error validating token: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L71">        } catch (Exception ex) {</span>
+<span class="nc" id="L72">            logger.error(&quot;Unexpected error validating token: {}&quot;, ex.getMessage());</span>
+<span class="pc" id="L73">        }</span>
+<span class="fc" id="L74">        return Collections.emptyMap();</span>
+    }
+
+
+    /**
+     * Verifies the user token and extracts the user ID from it.
+     *
+     * @param token The user token to be verified.
+     * @return The user ID extracted from the token, or UNAUTHORIZED if verification fails or an exception occurs.
+     */
+    public String verifyUserToken(String token) {
+        // Initialize user ID to UNAUTHORIZED
+<span class="fc" id="L86">        String userId = Constants.UNAUTHORIZED;</span>
+        try {
+            // Validate the token and obtain its payload
+<span class="fc" id="L89">            Map&lt;String, Object&gt; payload = validateToken(token);</span>
+            // Check if payload is not empty and issuer is valid
+<span class="pc bpc" id="L91" title="3 of 4 branches missed.">            if (!payload.isEmpty() &amp;&amp; checkIss((String) payload.get(&quot;iss&quot;))) {</span>
+                // Extract user ID from payload
+<span class="nc" id="L93">                userId = (String) payload.get(Constants.SUB);</span>
+                // If user ID is not blank, extract the actual user ID
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                if (StringUtils.isNotBlank(userId)) {</span>
+<span class="nc" id="L96">                    userId = userId.substring(userId.lastIndexOf(&quot;:&quot;) + 1);</span>
+                }
+            }
+<span class="nc" id="L99">        } catch (Exception ex) {</span>
+<span class="nc" id="L100">            logger.error(&quot;Exception in verifyUserAccessToken: verify &quot;, ex);</span>
+<span class="fc" id="L101">        }</span>
+<span class="fc" id="L102">        return userId;</span>
+    }
+
+    /**
+     * Checks if the issuer of the token matches the predefined realm URL.
+     *
+     * @param iss The issuer extracted from the token.
+     * @return true if the issuer matches the realm URL, false otherwise.
+     */
+    private boolean checkIss(String iss) {
+        // Check if the realm URL is blank or if the issuer does not match the realm URL
+<span class="nc bnc" id="L113" title="All 4 branches missed.">        if (StringUtils.isBlank(REALM_URL) || !REALM_URL.equalsIgnoreCase(iss)) {</span>
+<span class="nc" id="L114">            logger.warn(&quot;Issuer does not match the expected realm URL. Issuer: {}, Expected: {}&quot;, iss, REALM_URL);</span>
+<span class="nc" id="L115">            return false;</span>
+        }
+<span class="nc" id="L117">        logger.info(&quot;Issuer validation successful. Issuer: {}&quot;, iss);</span>
+<span class="nc" id="L118">        return true;</span>
+    }
+
+
+    private boolean isExpired(Integer expiration) {
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        return (Time.currentTime() &gt; expiration);</span>
+    }
+
+    private byte[] decodeFromBase64(String data) {
+<span class="fc" id="L127">        return Base64Util.decode(data, 11);</span>
+    }
+
+    /**
+     * Fetches the user ID from the provided access token.
+     *
+     * @param accessToken The access token from which to fetch the user ID.
+     * @return The user ID fetched from the access token, or null if the token is invalid or an exception occurs.
+     */
+    public String fetchUserIdFromAccessToken(String accessToken) {
+        // Initialize clientAccessTokenId to null
+<span class="fc" id="L138">        String clientAccessTokenId = null;</span>
+        // Check if the accessToken is not null
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (accessToken != null) {</span>
+            try {
+                // Verify the access token to fetch the user ID
+<span class="fc" id="L143">                clientAccessTokenId = verifyUserToken(accessToken);</span>
+                // If the user ID is UNAUTHORIZED, set it to null
+<span class="fc bfc" id="L145" title="All 2 branches covered.">                if (Constants.UNAUTHORIZED.equalsIgnoreCase(clientAccessTokenId)) {</span>
+<span class="fc" id="L146">                    clientAccessTokenId = null;</span>
+                }
+<span class="fc" id="L148">            } catch (Exception ex) {</span>
+<span class="fc" id="L149">                String errMsg = &quot;Exception occurred while fetching the userid from the access token. Exception: &quot; + ex.getMessage();</span>
+<span class="fc" id="L150">                logger.error(errMsg, ex);</span>
+<span class="fc" id="L151">                clientAccessTokenId = null;</span>
+<span class="fc" id="L152">            }</span>
+        }
+<span class="fc" id="L154">        return clientAccessTokenId;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

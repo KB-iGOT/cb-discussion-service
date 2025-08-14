@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PayloadValidation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.util</a> &gt; <span class="el_source">PayloadValidation.java</span></div><h1>PayloadValidation.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.util;
+
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.igot.cb.pores.exceptions.CustomException;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.ValidationMessage;
+
+import lombok.extern.slf4j.Slf4j;
+
+<span class="fc" id="L18">@Slf4j</span>
+@Service
+<span class="fc" id="L20">public class PayloadValidation {</span>
+
+  @Autowired
+  JsonSchemaCache schemaCache;
+
+<span class="fc" id="L25">  private Logger logger = LoggerFactory.getLogger(PayloadValidation.class);</span>
+
+  public void validatePayload(String schemaKey, JsonNode payload) {
+    try {
+<span class="fc" id="L29">      JsonSchema schema = schemaCache.getSchema(schemaKey);</span>
+
+<span class="fc bfc" id="L31" title="All 2 branches covered.">      if (schema == null) {</span>
+<span class="fc" id="L32">        String errorMsg = String.format(&quot;Schema not found for key: %s&quot;, schemaKey);</span>
+<span class="fc" id="L33">        throw new CustomException(errorMsg, errorMsg, HttpStatus.BAD_REQUEST);</span>
+      }
+
+<span class="fc bfc" id="L36" title="All 2 branches covered.">      if (payload.isArray()) {</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        for (JsonNode objectNode : payload) {</span>
+<span class="fc" id="L38">          validateObject(schema, objectNode);</span>
+<span class="fc" id="L39">        }</span>
+      } else {
+<span class="fc" id="L41">        validateObject(schema, payload);</span>
+      }
+<span class="fc" id="L43">    } catch (Exception e) {</span>
+<span class="fc" id="L44">      logger.error(&quot;Failed to validate payload&quot;, e);</span>
+<span class="fc" id="L45">      throw new CustomException(&quot;Failed to validate payload&quot;, e.getMessage(), HttpStatus.BAD_REQUEST);</span>
+<span class="fc" id="L46">    }</span>
+<span class="fc" id="L47">  }</span>
+
+  private void validateObject(JsonSchema schema, JsonNode objectNode) {
+<span class="fc" id="L50">    Set&lt;ValidationMessage&gt; validationMessages = schema.validate(objectNode);</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">    if (!validationMessages.isEmpty()) {</span>
+<span class="fc" id="L52">      StringBuilder errorMessage = new StringBuilder(&quot;Validation error(s): \n&quot;);</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">      for (ValidationMessage message : validationMessages) {</span>
+<span class="fc" id="L54">        errorMessage.append(message.getMessage()).append(&quot;\n&quot;);</span>
+<span class="fc" id="L55">      }</span>
+<span class="fc" id="L56">      logger.error(&quot;Validation Error&quot;, errorMessage.toString());</span>
+<span class="fc" id="L57">      throw new CustomException(&quot;Validation Error&quot;, errorMessage.toString(), HttpStatus.BAD_REQUEST);</span>
+    }
+<span class="fc" id="L59">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

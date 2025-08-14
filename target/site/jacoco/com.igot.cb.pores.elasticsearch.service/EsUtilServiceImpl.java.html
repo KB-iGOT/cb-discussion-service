@@ -1,0 +1,579 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EsUtilServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.pores.elasticsearch.service</a> &gt; <span class="el_source">EsUtilServiceImpl.java</span></div><h1>EsUtilServiceImpl.java</h1><pre class="source lang-java linenums">package com.igot.cb.pores.elasticsearch.service;
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
+import co.elastic.clients.elasticsearch._types.Refresh;
+import co.elastic.clients.elasticsearch._types.SortOptions;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
+import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregation;
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.elasticsearch.core.search.SourceConfig;
+import co.elastic.clients.elasticsearch.indices.GetIndexRequest;
+import co.elastic.clients.elasticsearch.indices.GetIndexResponse;
+import co.elastic.clients.elasticsearch.indices.RefreshRequest;
+import co.elastic.clients.json.JsonData;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.pores.exceptions.CustomException;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.elasticsearch.config.EsConfig;
+import com.igot.cb.pores.elasticsearch.dto.FacetDTO;
+import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.networknt.schema.JsonSchemaFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+@Service
+<span class="fc" id="L46">@Slf4j</span>
+public class EsUtilServiceImpl implements EsUtilService {
+    private final ElasticsearchClient elasticsearchClient;
+<span class="fc" id="L49">    private static final Map&lt;String, Map&lt;String, Object&gt;&gt; schemaCache = new ConcurrentHashMap&lt;&gt;();</span>
+
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+<span class="fc" id="L54">    public EsUtilServiceImpl(ElasticsearchClient elasticsearchClient) {</span>
+<span class="fc" id="L55">        this.elasticsearchClient = elasticsearchClient;</span>
+<span class="fc" id="L56">    }</span>
+
+    @Override
+    public String addDocument(
+            String esIndexName, String id, Map&lt;String, Object&gt; document, String JsonFilePath) {
+        try {
+<span class="fc" id="L62">            JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance();</span>
+<span class="fc" id="L63">            InputStream schemaStream = schemaFactory.getClass().getResourceAsStream(JsonFilePath);</span>
+<span class="fc" id="L64">            Map&lt;String, Object&gt; map = objectMapper.readValue(schemaStream,</span>
+<span class="fc" id="L65">                    new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {</span>
+                    });
+<span class="fc" id="L67">            Iterator&lt;Entry&lt;String, Object&gt;&gt; iterator = document.entrySet().iterator();</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">            while (iterator.hasNext()) {</span>
+<span class="fc" id="L69">                Entry&lt;String, Object&gt; entry = iterator.next();</span>
+<span class="fc" id="L70">                String key = entry.getKey();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">                if (!map.containsKey(key)) {</span>
+<span class="fc" id="L72">                    iterator.remove();</span>
+                }
+<span class="fc" id="L74">            }</span>
+<span class="fc" id="L75">            IndexRequest&lt;Map&lt;String,Object&gt;&gt; indexRequest = new IndexRequest.Builder&lt;Map&lt;String, Object&gt;&gt;()</span>
+<span class="fc" id="L76">                    .index(esIndexName)</span>
+<span class="fc" id="L77">                    .id(id)</span>
+<span class="fc" id="L78">                    .document(document)</span>
+<span class="fc" id="L79">                    .refresh(Refresh.True)</span>
+<span class="fc" id="L80">                    .build();</span>
+<span class="fc" id="L81">            IndexResponse response = elasticsearchClient.index(indexRequest);</span>
+<span class="fc" id="L82">            return &quot;Successfully indexed document with id: &quot; + response.result();</span>
+<span class="fc" id="L83">        } catch (Exception e) {</span>
+<span class="fc" id="L84">            log.error(&quot;Issue while Indexing to es: {}&quot;, e.getMessage(),e);</span>
+<span class="fc" id="L85">            return null;</span>
+        }
+    }
+
+    @Override
+    public String updateDocument(
+            String index, String entityId, Map&lt;String, Object&gt; updatedDocument, String JsonFilePath) {
+        try {
+<span class="fc" id="L93">            JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance();</span>
+<span class="fc" id="L94">            InputStream schemaStream = schemaFactory.getClass().getResourceAsStream(JsonFilePath);</span>
+<span class="fc" id="L95">            Map&lt;String, Object&gt; map = objectMapper.readValue(schemaStream,</span>
+<span class="fc" id="L96">                    new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {</span>
+                    });
+<span class="fc" id="L98">            Iterator&lt;Entry&lt;String, Object&gt;&gt; iterator = updatedDocument.entrySet().iterator();</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            while (iterator.hasNext()) {</span>
+<span class="fc" id="L100">                Entry&lt;String, Object&gt; entry = iterator.next();</span>
+<span class="fc" id="L101">                String key = entry.getKey();</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">                if (!map.containsKey(key)) {</span>
+<span class="fc" id="L103">                    iterator.remove();</span>
+                }
+<span class="fc" id="L105">            }</span>
+<span class="fc" id="L106">            IndexRequest&lt;Map&lt;String, Object&gt;&gt; indexRequest = new IndexRequest.Builder&lt;Map&lt;String, Object&gt;&gt;()</span>
+<span class="fc" id="L107">                    .index(index)</span>
+<span class="fc" id="L108">                    .id(entityId)</span>
+<span class="fc" id="L109">                    .document(updatedDocument)</span>
+<span class="fc" id="L110">                    .refresh(Refresh.True)</span>
+<span class="fc" id="L111">                    .build();</span>
+<span class="fc" id="L112">            IndexResponse response = elasticsearchClient.index(indexRequest);</span>
+<span class="fc" id="L113">            return response.result().jsonValue();</span>
+<span class="nc" id="L114">        } catch (IOException e) {</span>
+<span class="nc" id="L115">            log.error(&quot;Error while updating document in elasticsearch: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L116">            throw new RuntimeException(&quot;Errod occured while updating es index&quot;);</span>
+        }
+    }
+
+    @Override
+    public void deleteDocument(String documentId, String esIndexName) {
+        try {
+<span class="fc" id="L123">            DeleteRequest request = new DeleteRequest.Builder().index(esIndexName).id(documentId).build();</span>
+<span class="fc" id="L124">            DeleteResponse response = elasticsearchClient.delete(request);</span>
+<span class="pc bpc" id="L125" title="1 of 2 branches missed.">            if (response.result().jsonValue().equalsIgnoreCase(&quot;DELETED&quot;)) {</span>
+<span class="fc" id="L126">                log.info(&quot;Document deleted successfully from elasticsearch.&quot;);</span>
+<span class="fc" id="L127">                RefreshRequest refreshRequest = new RefreshRequest.Builder().index(esIndexName).build();</span>
+<span class="fc" id="L128">                elasticsearchClient.indices().refresh(refreshRequest);</span>
+<span class="fc" id="L129">                log.info(&quot;Index refreshed to reflect the document deletion.&quot;);</span>
+<span class="fc" id="L130">            } else {</span>
+<span class="nc" id="L131">                log.error(&quot;Document not found or failed to delete from elasticsearch.&quot;);</span>
+            }
+<span class="nc" id="L133">        } catch (Exception e) {</span>
+<span class="nc" id="L134">            log.error(&quot;Error occurred during deleting document in elasticsearch&quot;);</span>
+<span class="fc" id="L135">        }</span>
+<span class="fc" id="L136">    }</span>
+
+    @Override
+    public SearchResult searchDocuments(String esIndexName, SearchCriteria searchCriteria, String JsonFilePath) {
+<span class="fc" id="L140">        SearchRequest.Builder searchRequestBuilder = buildSearchRequest(searchCriteria, JsonFilePath);</span>
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        assert searchRequestBuilder != null;</span>
+<span class="fc" id="L142">        searchRequestBuilder.index(esIndexName);</span>
+        try {
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">            if (searchCriteria != null) {</span>
+<span class="fc" id="L145">                int pageNumber = searchCriteria.getPageNumber();</span>
+<span class="fc" id="L146">                int pageSize = searchCriteria.getPageSize();</span>
+<span class="fc" id="L147">                int from = pageNumber * pageSize;</span>
+<span class="fc" id="L148">                searchRequestBuilder.from(from);</span>
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">                if (pageSize &gt; 0) {</span>
+<span class="fc" id="L150">                    searchRequestBuilder.size(pageSize);</span>
+                }
+            }
+<span class="fc" id="L153">            SearchRequest searchRequest = searchRequestBuilder.build();</span>
+<span class="fc" id="L154">            log.info(&quot;Final search query: {}&quot;, searchRequest.toString());</span>
+<span class="fc" id="L155">            SearchResponse&lt;Object&gt; paginatedSearchResponse =</span>
+<span class="fc" id="L156">                    elasticsearchClient.search(searchRequest, Object.class);</span>
+<span class="fc" id="L157">            List&lt;Map&lt;String, Object&gt;&gt; paginatedResult = extractPaginatedResult(paginatedSearchResponse);</span>
+<span class="fc" id="L158">            Map&lt;String, List&lt;FacetDTO&gt;&gt; fieldAggregations =</span>
+<span class="fc" id="L159">                    extractFacetData(paginatedSearchResponse, searchCriteria);</span>
+<span class="fc" id="L160">            SearchResult searchResult = new SearchResult();</span>
+<span class="fc" id="L161">            searchResult.setData(paginatedResult);</span>
+<span class="fc" id="L162">            searchResult.setFacets(fieldAggregations);</span>
+<span class="fc" id="L163">            searchResult.setTotalCount(paginatedSearchResponse.hits().total().value());</span>
+<span class="fc" id="L164">            return searchResult;</span>
+<span class="fc" id="L165">        } catch (IOException e) {</span>
+<span class="fc" id="L166">            log.error(&quot;Error while fetching details from elastic search&quot;);</span>
+<span class="fc" id="L167">            return null;</span>
+        }
+    }
+
+    private Map&lt;String, List&lt;FacetDTO&gt;&gt; extractFacetData(
+            SearchResponse&lt;Object&gt; searchResponse, SearchCriteria searchCriteria) {
+<span class="fc" id="L173">        Map&lt;String, List&lt;FacetDTO&gt;&gt; fieldAggregations = new HashMap&lt;&gt;();</span>
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">        if (searchCriteria.getFacets() != null) {</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            for (String field : searchCriteria.getFacets()) {</span>
+<span class="nc" id="L176">                Aggregate aggregate = searchResponse</span>
+<span class="nc" id="L177">                        .aggregations()</span>
+<span class="nc" id="L178">                        .get(field + &quot;_agg&quot;);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                if (aggregate.isSterms()) {</span>
+<span class="nc" id="L180">                    List&lt;FacetDTO&gt; fieldValueList = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                    for (StringTermsBucket bucket : aggregate.sterms().buckets().array()) {</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                        if (!bucket.key().stringValue().isEmpty()) {</span>
+<span class="nc" id="L183">                            FacetDTO facetDTO = new FacetDTO(bucket.key().stringValue(), bucket.docCount());</span>
+<span class="nc" id="L184">                            fieldValueList.add(facetDTO);</span>
+                        }
+<span class="nc" id="L186">                    }</span>
+<span class="nc" id="L187">                    fieldAggregations.put(field, fieldValueList);</span>
+                }
+<span class="nc" id="L189">            }</span>
+        }
+<span class="fc" id="L191">        return fieldAggregations;</span>
+    }
+
+    private List&lt;Map&lt;String, Object&gt;&gt; extractPaginatedResult(SearchResponse&lt;Object&gt; paginatedSearchResponse) {
+<span class="fc" id="L195">        List&lt;Map&lt;String, Object&gt;&gt; paginatedResult = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        for (Hit&lt;Object&gt; hit : paginatedSearchResponse.hits().hits()) {</span>
+<span class="fc" id="L197">            paginatedResult.add((Map&lt;String, Object&gt;) hit.source());</span>
+<span class="fc" id="L198">        }</span>
+<span class="fc" id="L199">        return paginatedResult;</span>
+    }
+
+    private SearchRequest.Builder buildSearchRequest(SearchCriteria searchCriteria, String JsonFilePath) {
+<span class="fc" id="L203">        log.info(&quot;Building search query&quot;);</span>
+<span class="pc bpc" id="L204" title="2 of 4 branches missed.">        if (searchCriteria == null || searchCriteria.toString().isEmpty()) {</span>
+<span class="nc" id="L205">            log.error(&quot;Search criteria body is missing&quot;);</span>
+<span class="nc" id="L206">            return null;</span>
+        }
+<span class="fc" id="L208">        BoolQuery.Builder boolQueryBuilder = buildFilterQuery(searchCriteria.getFilterCriteriaMap());</span>
+<span class="fc" id="L209">        SearchRequest.Builder searchSourceBuilder = new SearchRequest.Builder();</span>
+<span class="fc" id="L210">        searchSourceBuilder.query(boolQueryBuilder.build()._toQuery());</span>
+<span class="fc" id="L211">        addSortToSearchSourceBuilder(searchCriteria, searchSourceBuilder, JsonFilePath);</span>
+<span class="fc" id="L212">        addRequestedFieldsToSearchSourceBuilder(searchCriteria, searchSourceBuilder);</span>
+       // addQueryStringToFilter(searchCriteria.getSearchString(), boolQueryBuilder);
+<span class="fc" id="L214">        String searchString = searchCriteria.getSearchString();</span>
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">        if (isNotBlank(searchString)) {</span>
+<span class="nc" id="L216">            boolQueryBuilder.must(Query.of(q -&gt; q.matchPhrase(mp -&gt; mp.field(Constants.DESCRIPTION).query(searchString))));</span>
+        }
+<span class="fc" id="L218">        addFacetsToSearchSourceBuilder(searchCriteria.getFacets(), searchSourceBuilder);</span>
+<span class="fc" id="L219">        Query queryPart = buildQueryPart(searchCriteria.getQuery());</span>
+<span class="fc" id="L220">        boolQueryBuilder.must(queryPart);</span>
+<span class="fc" id="L221">        log.info(&quot;final search query result {}&quot;, searchSourceBuilder);</span>
+<span class="fc" id="L222">        return searchSourceBuilder;</span>
+    }
+
+    private BoolQuery.Builder buildFilterQuery(Map&lt;String, Object&gt; filterCriteriaMap) {
+<span class="fc" id="L226">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="fc" id="L227">        List&lt;Query&gt; mustNotQueries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L228">        List&lt;Query&gt; boolQueries = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (filterCriteriaMap != null) {</span>
+<span class="fc" id="L230">            filterCriteriaMap.forEach(</span>
+                    (field, value) -&gt; {
+<span class="pc bpc" id="L232" title="3 of 4 branches missed.">                        if (field.equals(&quot;must_not&quot;) &amp;&amp; value instanceof ArrayList) {</span>
+<span class="nc" id="L233">                            mustNotQueries.add(Query.of(q -&gt;q.termsSet(t-&gt;t.field(field).terms((ArrayList&lt;String&gt;) value))));</span>
+<span class="pc bpc" id="L234" title="1 of 2 branches missed.">                        } else if (value instanceof Boolean) {</span>
+<span class="nc" id="L235">                            boolQueries.add(Query.of(q -&gt;q.term(t-&gt;t.field(field).value((boolean)value))));</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">                        } else if (value instanceof List&lt;?&gt;) {</span>
+<span class="fc" id="L237">                            List&lt;FieldValue&gt; termsList = ((List&lt;?&gt;) value).stream()</span>
+<span class="fc" id="L238">                                    .map(v -&gt; FieldValue.of(v.toString()))</span>
+<span class="fc" id="L239">                                    .collect(Collectors.toList());</span>
+<span class="fc" id="L240">                            boolQueryBuilder.must(Query.of(q -&gt; q.terms(t -&gt; t.field(field + Constants.KEYWORD).terms(terms -&gt; terms.value(termsList)))));</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">                        } else if (value instanceof String) {</span>
+<span class="nc" id="L242">                            boolQueryBuilder.must(Query.of(q -&gt; q.terms(t -&gt;</span>
+<span class="nc" id="L243">                                    t.field(field + Constants.KEYWORD)</span>
+<span class="nc" id="L244">                                            .terms(terms -&gt; terms.value(List.of(FieldValue.of((String) value))))</span>
+                            )));
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">                        } else if (value instanceof Set) {</span>
+<span class="nc" id="L247">                            Set&lt;String&gt; termsSet = (Set&lt;String&gt;) value;</span>
+<span class="nc" id="L248">                            List&lt;FieldValue&gt; termsList = termsSet.stream()</span>
+<span class="nc" id="L249">                                    .map(FieldValue::of)</span>
+<span class="nc" id="L250">                                    .collect(Collectors.toList());</span>
+<span class="nc" id="L251">                            boolQueryBuilder.must(Query.of(q -&gt; q.terms(t -&gt; t.field(field + Constants.KEYWORD).terms(terms -&gt; terms.value(termsList)))));</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">                        } else if (value instanceof Map) {</span>
+<span class="fc" id="L253">                            Map&lt;String, Object&gt; nestedMap = (Map&lt;String, Object&gt;) value;</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">                            if (isRangeQuery(nestedMap)) {</span>
+                                // Handle range query
+<span class="nc" id="L256">                                BoolQuery.Builder rangeOrNullQuery = QueryBuilders.bool();</span>
+<span class="nc" id="L257">                                RangeQuery.Builder rangeQuery = QueryBuilders.range().field(field);</span>
+<span class="nc" id="L258">                                nestedMap.forEach((rangeOperator, rangeValue) -&gt; {</span>
+<span class="nc bnc" id="L259" title="All 5 branches missed.">                                    switch (rangeOperator) {</span>
+                                        case Constants.SEARCH_OPERATION_GREATER_THAN_EQUALS:
+<span class="nc" id="L261">                                            rangeQuery.gte((JsonData) rangeValue);</span>
+<span class="nc" id="L262">                                            break;</span>
+                                        case Constants.SEARCH_OPERATION_LESS_THAN_EQUALS:
+<span class="nc" id="L264">                                            rangeQuery.lte((JsonData) rangeValue);</span>
+<span class="nc" id="L265">                                            break;</span>
+                                        case Constants.SEARCH_OPERATION_GREATER_THAN:
+<span class="nc" id="L267">                                            rangeQuery.gt((JsonData) rangeValue);</span>
+<span class="nc" id="L268">                                            break;</span>
+                                        case Constants.SEARCH_OPERATION_LESS_THAN:
+<span class="nc" id="L270">                                            rangeQuery.lt((JsonData) rangeValue);</span>
+                                            break;
+                                    }
+<span class="nc" id="L273">                                });</span>
+<span class="nc" id="L274">                                rangeOrNullQuery.should(rangeQuery.build()._toQuery());</span>
+<span class="nc" id="L275">                                rangeOrNullQuery.should(Query.of(q -&gt; q.bool(b -&gt; b.mustNot(Query.of(qn -&gt; qn.exists(e -&gt; e.field(field)))))));</span>
+<span class="nc" id="L276">                                boolQueryBuilder.must(rangeOrNullQuery.build()._toQuery());</span>
+<span class="nc" id="L277">                            } else {</span>
+<span class="fc" id="L278">                                nestedMap.forEach((nestedField, nestedValue) -&gt; {</span>
+<span class="fc" id="L279">                                    String fullPath = field + &quot;.&quot; + nestedField;</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">                                    if (nestedValue instanceof Boolean) {</span>
+<span class="nc" id="L281">                                        boolQueryBuilder.must(Query.of(q -&gt; q.term(t -&gt; t.field(fullPath).value((Boolean) nestedValue))));</span>
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">                                    } else if (nestedValue instanceof String) {</span>
+<span class="nc" id="L283">                                        List&lt;FieldValue&gt; termList = Collections.singletonList(FieldValue.of((String) nestedValue));</span>
+<span class="nc" id="L284">                                        boolQueryBuilder.must(Query.of(q -&gt; q.terms(t -&gt; t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) termList))));</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">                                    } else if (nestedValue instanceof ArrayList) {</span>
+<span class="nc" id="L286">                                        boolQueryBuilder.must(Query.of(q -&gt; q.terms(t -&gt; t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) nestedValue))));</span>
+                                    }
+<span class="fc" id="L288">                                });</span>
+                            }
+                        }
+<span class="fc" id="L291">                    });</span>
+<span class="pc" id="L292">            mustNotQueries.forEach(mustNotQuery -&gt; boolQueryBuilder.mustNot(mustNotQuery));</span>
+<span class="pc" id="L293">            boolQueries.forEach(boolQuery -&gt; boolQueryBuilder.must(boolQuery));</span>
+        }
+<span class="fc" id="L295">        return boolQueryBuilder;</span>
+    }
+
+    private void addSortToSearchSourceBuilder( SearchCriteria searchCriteria,
+            SearchRequest.Builder searchRequestBuilder,
+            String jsonFilePath) {
+
+<span class="pc bpc" id="L302" title="1 of 4 branches missed.">        if (isNotBlank(searchCriteria.getOrderBy()) &amp;&amp; isNotBlank(searchCriteria.getOrderDirection())) {</span>
+<span class="fc" id="L303">            String sortField = searchCriteria.getOrderBy();</span>
+<span class="nc" id="L304">            Map&lt;String, Object&gt; schemaMap = readJsonSchema(jsonFilePath);</span>
+<span class="nc" id="L305">            Map&lt;String, Object&gt; fieldMap = (Map&lt;String, Object&gt;) schemaMap.get(sortField);</span>
+
+<span class="nc bnc" id="L307" title="All 2 branches missed.">            if (MapUtils.isEmpty(fieldMap) ||</span>
+<span class="nc bnc" id="L308" title="All 4 branches missed.">                    (!Constants.NUMBER.equals(fieldMap.get(Constants.TYPE)) &amp;&amp; !Constants.LONG.equals(fieldMap.get(Constants.TYPE)))) {</span>
+<span class="nc" id="L309">                sortField += Constants.KEYWORD;</span>
+            }
+
+<span class="nc" id="L312">            String finalSortField = sortField;</span>
+<span class="nc" id="L313">            searchRequestBuilder.sort(s -&gt; s.field(f -&gt; f</span>
+<span class="nc" id="L314">                    .field(finalSortField)</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    .order(Constants.ASC.equalsIgnoreCase(searchCriteria.getOrderDirection()) ? SortOrder.Asc : SortOrder.Desc)</span>
+            ));
+        }
+<span class="fc" id="L318">    }</span>
+
+    private void addRequestedFieldsToSearchSourceBuilder(
+            SearchCriteria searchCriteria, SearchRequest.Builder searchRequestBuilder) {
+<span class="fc bfc" id="L322" title="All 2 branches covered.">        if (searchCriteria.getRequestedFields() == null) {</span>
+            // Get all fields in response
+<span class="fc" id="L324">            searchRequestBuilder.source(SourceConfig.of(sc -&gt; sc.fetch(true)));</span>
+        } else {
+<span class="fc bfc" id="L326" title="All 2 branches covered.">            if (searchCriteria.getRequestedFields().isEmpty()) {</span>
+<span class="fc" id="L327">                log.error(&quot;Please specify at least one field to include in the results.&quot;);</span>
+            }
+<span class="fc" id="L329">            searchRequestBuilder.source(SourceConfig.of(sc -&gt; sc.filter(filter -&gt; filter.includes(searchCriteria.getRequestedFields()))));</span>
+        }
+<span class="fc" id="L331">    }</span>
+
+    private void addQueryStringToFilter(String searchString, BoolQuery.Builder boolQueryBuilder) {
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        if (isNotBlank(searchString)) {</span>
+<span class="nc" id="L335">            Query wildcardQuery = Query.of(q -&gt; q.wildcard(</span>
+<span class="nc" id="L336">                    WildcardQuery.of(w -&gt; w</span>
+<span class="nc" id="L337">                            .field(&quot;contentSearchTags.keyword&quot;)</span>
+<span class="nc" id="L338">                            .value(&quot;*&quot; + searchString.toLowerCase() + &quot;*&quot;))</span>
+            ));
+<span class="nc" id="L340">            boolQueryBuilder.must(wildcardQuery);</span>
+        }
+<span class="nc" id="L342">    }</span>
+
+    private void addFacetsToSearchSourceBuilder(
+            List&lt;String&gt; facets, SearchRequest.Builder searchRequestBuilder) {
+<span class="pc bpc" id="L346" title="1 of 4 branches missed.">        if (facets != null &amp;&amp; !facets.isEmpty()) {</span>
+<span class="fc" id="L347">            Map&lt;String, Aggregation&gt; aggregationMap = facets.stream()</span>
+<span class="fc" id="L348">                    .collect(Collectors.toMap(</span>
+<span class="fc" id="L349">                            field -&gt; field + &quot;_agg&quot;,</span>
+<span class="fc" id="L350">                            field -&gt; Aggregation.of(a -&gt; a.terms(</span>
+<span class="fc" id="L351">                                    TermsAggregation.of(t -&gt; t.field(field + &quot;.keyword&quot;).size(250))))</span>
+                    ));
+<span class="fc" id="L353">            searchRequestBuilder.aggregations(aggregationMap);</span>
+        }
+<span class="fc" id="L355">    }</span>
+
+    private boolean isNotBlank(String value) {
+<span class="pc bpc" id="L358" title="1 of 4 branches missed.">        return value != null &amp;&amp; !value.trim().isEmpty();</span>
+    }
+
+    @Override
+    public void deleteDocumentsByCriteria(String esIndexName, Query Query) {
+        try {
+<span class="fc" id="L364">            HitsMetadata&lt;Object&gt; searchHits = executeSearch(esIndexName, Query);</span>
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">            assert searchHits.total() != null;</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">            if (searchHits.total().value() &gt; 0) {</span>
+<span class="fc" id="L367">                BulkResponse bulkResponse = deleteMatchingDocuments(esIndexName, searchHits);</span>
+<span class="pc bpc" id="L368" title="1 of 2 branches missed.">                if (!bulkResponse.errors()) {</span>
+<span class="fc" id="L369">                    log.info(&quot;Documents matching the criteria deleted successfully from Elasticsearch.&quot;);</span>
+                } else {
+<span class="nc" id="L371">                    log.error(&quot;Some documents failed to delete from Elasticsearch.&quot;);</span>
+                }
+<span class="fc" id="L373">            } else {</span>
+<span class="fc" id="L374">                log.info(&quot;No documents match the criteria.&quot;);</span>
+            }
+<span class="fc" id="L376">        } catch (Exception e) {</span>
+<span class="fc" id="L377">            log.error(&quot;Error occurred during deleting documents by criteria from Elasticsearch.&quot;, e);</span>
+<span class="fc" id="L378">        }</span>
+<span class="fc" id="L379">    }</span>
+
+    private HitsMetadata&lt;Object&gt; executeSearch(String esIndexName, Query query) throws IOException {
+<span class="fc" id="L382">        SearchRequest searchRequest = new SearchRequest.Builder()</span>
+<span class="fc" id="L383">                .index(esIndexName)</span>
+<span class="fc" id="L384">                .query(query)</span>
+<span class="fc" id="L385">                .build();</span>
+<span class="fc" id="L386">        SearchResponse&lt;Object&gt; searchResponse =</span>
+<span class="fc" id="L387">                elasticsearchClient.search(searchRequest, Object.class);</span>
+<span class="fc" id="L388">        return searchResponse.hits();</span>
+    }
+
+    private BulkResponse deleteMatchingDocuments(String esIndexName,  HitsMetadata&lt;Object&gt; searchHits)
+            throws IOException {
+<span class="fc" id="L393">        List&lt;BulkOperation&gt; operations = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">        for (Hit&lt;Object&gt; hit : searchHits.hits()) {</span>
+<span class="fc" id="L395">            new DeleteRequest.Builder()</span>
+<span class="fc" id="L396">                    .index(esIndexName)</span>
+<span class="fc" id="L397">                    .id(hit.id())</span>
+<span class="fc" id="L398">                    .build();</span>
+<span class="fc" id="L399">            operations.add(new BulkOperation.Builder().delete(d -&gt; d.index(esIndexName).id(hit.id())).build());</span>
+<span class="fc" id="L400">        }</span>
+<span class="fc" id="L401">        BulkRequest bulkRequest = new BulkRequest.Builder().operations(operations).build();</span>
+<span class="fc" id="L402">        return elasticsearchClient.bulk(bulkRequest);</span>
+    }
+
+    private boolean isRangeQuery(Map&lt;String, Object&gt; nestedMap) {
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">        return nestedMap.keySet().stream().anyMatch(key -&gt; key.equals(Constants.SEARCH_OPERATION_GREATER_THAN_EQUALS) ||</span>
+<span class="pc bpc" id="L407" title="2 of 4 branches missed.">                key.equals(Constants.SEARCH_OPERATION_LESS_THAN_EQUALS) || key.equals(Constants.SEARCH_OPERATION_GREATER_THAN) ||</span>
+<span class="pc bpc" id="L408" title="1 of 2 branches missed.">                key.equals(Constants.SEARCH_OPERATION_LESS_THAN));</span>
+    }
+    private Query buildQueryPart(Map&lt;String, Object&gt; queryMap) {
+<span class="fc" id="L411">        log.info(&quot;Search:: buildQueryPart&quot;);</span>
+<span class="pc bpc" id="L412" title="3 of 4 branches missed.">        if (queryMap == null || queryMap.isEmpty()) {</span>
+<span class="fc" id="L413">            return QueryBuilders.matchAll().build()._toQuery();</span>
+        }
+<span class="nc bnc" id="L415" title="All 2 branches missed.">        for (Entry&lt;String, Object&gt; entry : queryMap.entrySet()) {</span>
+<span class="nc" id="L416">            String key = entry.getKey();</span>
+<span class="nc" id="L417">            Object value = entry.getValue();</span>
+<span class="nc bnc" id="L418" title="All 7 branches missed.">            switch (key) {</span>
+                case Constants.BOOL:
+<span class="nc" id="L420">                    return buildBoolQuery((Map&lt;String, Object&gt;) value)._toQuery();</span>
+                case Constants.TERM:
+<span class="nc" id="L422">                    return buildTermQuery((Map&lt;String, Object&gt;) value);</span>
+                case Constants.TERMS:
+<span class="nc" id="L424">                    return buildTermsQuery((Map&lt;String, Object&gt;) value);</span>
+                case Constants.MATCH:
+<span class="nc" id="L426">                    return buildMatchQuery((Map&lt;String, Object&gt;) value);</span>
+                case Constants.RANGE:
+<span class="nc" id="L428">                    return buildRangeQuery((Map&lt;String, Object&gt;) value);</span>
+                case Constants.MUST_NOT:
+<span class="nc bnc" id="L430" title="All 2 branches missed.">                    if (value instanceof List) {</span>
+<span class="nc" id="L431">                        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                        for (Object item : (List&lt;?&gt;) value) {</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">                            if (item instanceof Map) {</span>
+<span class="nc" id="L434">                                boolQueryBuilder.mustNot(buildQueryPart((Map&lt;String, Object&gt;) item));</span>
+                            }
+<span class="nc" id="L436">                        }</span>
+<span class="nc" id="L437">                        return boolQueryBuilder.build()._toQuery();</span>
+                    } else {
+<span class="nc" id="L439">                        throw new IllegalArgumentException(&quot;must_not value should be a list of conditions&quot;);</span>
+                    }
+                default:
+<span class="nc" id="L442">                    throw new IllegalArgumentException(Constants.UNSUPPORTED_QUERY + key);</span>
+            }
+        }
+<span class="nc" id="L445">        return null;</span>
+    }
+    private BoolQuery buildBoolQuery(Map&lt;String, Object&gt; boolMap) {
+<span class="nc" id="L448">        log.info(&quot;Search:: builderBoolQuery&quot;);</span>
+<span class="nc" id="L449">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">        if (boolMap.containsKey(Constants.MUST)) {</span>
+<span class="nc" id="L451">            List&lt;Map&lt;String, Object&gt;&gt; mustList = (List&lt;Map&lt;String, Object&gt;&gt;) boolMap.get(&quot;must&quot;);</span>
+<span class="nc" id="L452">            mustList.forEach(must -&gt; boolQueryBuilder.must(buildQueryPart(must)));</span>
+        }
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        if (boolMap.containsKey(Constants.FILTER)) {</span>
+<span class="nc" id="L455">            List&lt;Map&lt;String, Object&gt;&gt; filterList = (List&lt;Map&lt;String, Object&gt;&gt;) boolMap.get(&quot;filter&quot;);</span>
+<span class="nc" id="L456">            filterList.forEach(filter -&gt; boolQueryBuilder.filter(buildQueryPart(filter)));</span>
+        }
+<span class="nc bnc" id="L458" title="All 2 branches missed.">        if (boolMap.containsKey(Constants.MUST_NOT)) {</span>
+<span class="nc" id="L459">            List&lt;Map&lt;String, Object&gt;&gt; mustNotList = (List&lt;Map&lt;String, Object&gt;&gt;) boolMap.get(&quot;must_not&quot;);</span>
+<span class="nc" id="L460">            mustNotList.forEach(mustNot -&gt; boolQueryBuilder.mustNot(buildQueryPart(mustNot)));</span>
+        }
+<span class="nc bnc" id="L462" title="All 2 branches missed.">        if (boolMap.containsKey(Constants.SHOULD)) {</span>
+<span class="nc" id="L463">            List&lt;Map&lt;String, Object&gt;&gt; shouldList = (List&lt;Map&lt;String, Object&gt;&gt;) boolMap.get(&quot;should&quot;);</span>
+<span class="nc" id="L464">            shouldList.forEach(should -&gt; boolQueryBuilder.should(buildQueryPart(should)));</span>
+        }
+<span class="nc" id="L466">        return boolQueryBuilder.build();</span>
+    }
+
+    private Query buildTermQuery(Map&lt;String, Object&gt; termMap) {
+<span class="nc" id="L470">        log.info(&quot;search::buildTermQuery&quot;);</span>
+<span class="nc" id="L471">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L472" title="All 2 branches missed.">        for (Entry&lt;String, Object&gt; entry : termMap.entrySet()) {</span>
+<span class="nc" id="L473">            boolQueryBuilder.must(QueryBuilders.term(t -&gt; t.field(entry.getKey()).value((FieldValue) entry.getValue())));</span>
+<span class="nc" id="L474">        }</span>
+<span class="nc" id="L475">        return boolQueryBuilder.build()._toQuery();</span>
+    }
+
+    private Query buildTermsQuery(Map&lt;String, Object&gt; termsMap) {
+<span class="nc" id="L479">        log.info(&quot;search:: buildTermsQuery&quot;);</span>
+<span class="nc" id="L480">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L481" title="All 2 branches missed.">        for (Entry&lt;String, Object&gt; entry : termsMap.entrySet()) {</span>
+<span class="nc" id="L482">            boolQueryBuilder.must(QueryBuilders.terms(t -&gt; t.field(entry.getKey()).terms((TermsQueryField) entry.getValue())));</span>
+<span class="nc" id="L483">        }</span>
+<span class="nc" id="L484">        return boolQueryBuilder.build()._toQuery();</span>
+    }
+
+    private Query buildMatchQuery(Map&lt;String, Object&gt; matchMap) {
+<span class="nc" id="L488">        log.info(&quot;search:: buildMatchQuery&quot;);</span>
+<span class="nc" id="L489">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        for (Entry&lt;String, Object&gt; entry : matchMap.entrySet()) {</span>
+<span class="nc" id="L491">            boolQueryBuilder.must(QueryBuilders.match(m -&gt; m.field(entry.getKey()).query((FieldValue) entry.getValue())));</span>
+<span class="nc" id="L492">        }</span>
+<span class="nc" id="L493">        return boolQueryBuilder.build()._toQuery();</span>
+    }
+
+    private Query buildRangeQuery(Map&lt;String, Object&gt; rangeMap) {
+<span class="nc" id="L497">        log.info(&quot;search:: buildRangeQuery&quot;);</span>
+<span class="nc" id="L498">        BoolQuery.Builder boolQueryBuilder = QueryBuilders.bool();</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">        for (Entry&lt;String, Object&gt; entry : rangeMap.entrySet()) {</span>
+<span class="nc" id="L500">            Map&lt;String, Object&gt; rangeConditions = (Map&lt;String, Object&gt;) entry.getValue();</span>
+<span class="nc" id="L501">            RangeQuery.Builder rangeQueryBuilder = new RangeQuery.Builder().field(entry.getKey());</span>
+<span class="nc" id="L502">            rangeConditions.forEach((condition, value) -&gt; {</span>
+<span class="nc bnc" id="L503" title="All 5 branches missed.">                switch (condition) {</span>
+                    case &quot;gt&quot;:
+<span class="nc" id="L505">                        rangeQueryBuilder.gt(JsonData.of(value));</span>
+<span class="nc" id="L506">                        break;</span>
+                    case &quot;gte&quot;:
+<span class="nc" id="L508">                        rangeQueryBuilder.gte(JsonData.of(value));</span>
+<span class="nc" id="L509">                        break;</span>
+                    case &quot;lt&quot;:
+<span class="nc" id="L511">                        rangeQueryBuilder.lt(JsonData.of(value));</span>
+<span class="nc" id="L512">                        break;</span>
+                    case &quot;lte&quot;:
+<span class="nc" id="L514">                        rangeQueryBuilder.lte(JsonData.of(value));</span>
+<span class="nc" id="L515">                        break;</span>
+                    default:
+<span class="nc" id="L517">                        throw new IllegalArgumentException(Constants.UNSUPPORTED_RANGE + condition);</span>
+                }
+<span class="nc" id="L519">            });</span>
+<span class="nc" id="L520">            boolQueryBuilder.must(rangeQueryBuilder.build()._toQuery());</span>
+<span class="nc" id="L521">        }</span>
+<span class="nc" id="L522">        return boolQueryBuilder.build()._toQuery();</span>
+    }
+
+    @Override
+    public boolean isIndexPresent(String indexName) {
+        try {
+<span class="fc" id="L528">            GetIndexRequest request = new GetIndexRequest.Builder().index(indexName).build();</span>
+<span class="fc" id="L529">            GetIndexResponse response = elasticsearchClient.indices().get(request);</span>
+<span class="pc bpc" id="L530" title="1 of 2 branches missed.">            return response != null;</span>
+<span class="fc" id="L531">        } catch (IOException e) {</span>
+<span class="fc" id="L532">            log.error(&quot;Error checking if index exists&quot;, e);</span>
+<span class="fc" id="L533">            return false;</span>
+        }
+    }
+
+    @Override
+    public BulkResponse saveAll(String esIndexName, List&lt;JsonNode&gt; entities) throws IOException {
+        try {
+<span class="fc" id="L540">            log.info(&quot;EsUtilServiceImpl :: saveAll&quot;);</span>
+<span class="fc" id="L541">            List&lt;BulkOperation&gt; operations = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L542">            entities.forEach(entity -&gt; {</span>
+<span class="fc" id="L543">                String formattedId = entity.get(Constants.ID).asText();</span>
+<span class="fc" id="L544">                Map&lt;String, Object&gt; entityMap = objectMapper.convertValue(entity, Map.class);</span>
+<span class="fc" id="L545">                BulkOperation operation = BulkOperation.of(b -&gt; b</span>
+<span class="fc" id="L546">                        .index(i -&gt; i</span>
+<span class="fc" id="L547">                                .index(esIndexName)</span>
+<span class="fc" id="L548">                                .id(formattedId)</span>
+<span class="fc" id="L549">                                .document(entityMap)</span>
+                        )
+                );
+<span class="fc" id="L552">                operations.add(operation);</span>
+<span class="fc" id="L553">            });</span>
+<span class="fc" id="L554">            BulkRequest bulkRequest = BulkRequest.of(b -&gt; b.operations(operations));</span>
+<span class="fc" id="L555">            return elasticsearchClient.bulk(bulkRequest);</span>
+<span class="fc" id="L556">        } catch (Exception e) {</span>
+<span class="fc" id="L557">            log.error(e.getMessage());</span>
+<span class="fc" id="L558">            throw new CustomException(&quot;error bulk uploading&quot;, e.getMessage(),</span>
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public static Map&lt;String, Object&gt; readJsonSchema(String jsonFilePath) {
+<span class="pc bpc" id="L564" title="1 of 2 branches missed.">        if (schemaCache.containsKey(jsonFilePath)) {</span>
+<span class="nc" id="L565">            return schemaCache.get(jsonFilePath);</span>
+        }
+
+<span class="fc" id="L568">        try (InputStream schemaStream = JsonSchemaFactory.getInstance().getClass().getResourceAsStream(jsonFilePath)) {</span>
+<span class="fc" id="L569">            ObjectMapper objectMapper = new ObjectMapper();</span>
+<span class="pc" id="L570">            Map&lt;String, Object&gt; schemaMap = objectMapper.readValue(schemaStream, new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {});</span>
+<span class="nc" id="L571">            schemaCache.put(jsonFilePath, schemaMap);</span>
+<span class="nc" id="L572">            return schemaMap;</span>
+<span class="fc" id="L573">        } catch (Exception e) {</span>
+<span class="fc" id="L574">            log.error(&quot;Error reading json schema&quot;, e);</span>
+<span class="fc" id="L575">            throw new CustomException(&quot;error reading json schema&quot;, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

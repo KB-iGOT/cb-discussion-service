@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CbDiscussionServiceApplication.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb</a> &gt; <span class="el_source">CbDiscussionServiceApplication.java</span></div><h1>CbDiscussionServiceApplication.java</h1><pre class="source lang-java linenums">package com.igot.cb;
+
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.util.Timeout;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
+
+
+/**
+ * @author Mahesh RV
+ * @author Ruksana
+ */
+@EnableJpaRepositories(basePackages = {&quot;com.igot.cb.*&quot;})
+@ComponentScan(basePackages = &quot;com.igot.cb&quot;)
+@EntityScan(&quot;com.igot.cb&quot;)
+@SpringBootApplication
+<span class="fc" id="L27">public class CbDiscussionServiceApplication {</span>
+
+	public static void main(String[] args) {
+<span class="fc" id="L30">		SpringApplication.run(CbDiscussionServiceApplication.class, args);</span>
+<span class="fc" id="L31">	}</span>
+
+    @Bean
+    public RestTemplate restTemplate() {
+<span class="fc" id="L35">        return new RestTemplate(getClientHttpRequestFactory());</span>
+    }
+
+    private ClientHttpRequestFactory getClientHttpRequestFactory() {
+<span class="fc" id="L39">        int timeout = 45000;</span>
+<span class="fc" id="L40">        RequestConfig config = RequestConfig.custom()</span>
+<span class="fc" id="L41">                .setResponseTimeout(Timeout.ofMilliseconds(timeout))</span>
+<span class="fc" id="L42">                .build();</span>
+<span class="fc" id="L43">        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();</span>
+<span class="fc" id="L44">        cm.setMaxTotal(2000);</span>
+<span class="fc" id="L45">        cm.setDefaultMaxPerRoute(500);</span>
+<span class="fc" id="L46">        CloseableHttpClient client = HttpClients.custom()</span>
+<span class="fc" id="L47">                .setDefaultRequestConfig(config)</span>
+<span class="fc" id="L48">                .setConnectionManager(cm)</span>
+<span class="fc" id="L49">                .build();</span>
+<span class="fc" id="L50">        return new HttpComponentsClientHttpRequestFactory(client);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

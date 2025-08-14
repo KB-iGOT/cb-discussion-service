@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnswerPostReplyServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.discussion.service.impl</a> &gt; <span class="el_source">AnswerPostReplyServiceImpl.java</span></div><h1>AnswerPostReplyServiceImpl.java</h1><pre class="source lang-java linenums">package com.igot.cb.discussion.service.impl;
+
+import com.datastax.oss.driver.api.core.uuid.Uuids;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.igot.cb.authentication.util.AccessTokenValidator;
+import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
+import com.igot.cb.discussion.entity.DiscussionEntity;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
+import com.igot.cb.discussion.service.AnswerPostReplyService;
+import com.igot.cb.discussion.service.DiscussionService;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.pores.cache.CacheService;
+import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.igot.cb.pores.elasticsearch.service.EsUtilService;
+import com.igot.cb.pores.util.*;
+import com.igot.cb.profanity.IProfanityCheckService;
+import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.igot.cb.pores.util.Constants.*;
+
+@Service
+<span class="fc" id="L45">@Slf4j</span>
+<span class="fc" id="L46">public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {</span>
+
+
+    @Autowired
+    private PayloadValidation payloadValidation;
+    @Autowired
+    private DiscussionRepository discussionRepository;
+    @Autowired
+    private CacheService cacheService;
+    @Autowired
+    private EsUtilService esUtilService;
+    @Autowired
+    private CbServerProperties cbServerProperties;
+    @Autowired
+    private AccessTokenValidator accessTokenValidator;
+    @Autowired
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+    @Autowired
+    private CassandraOperation cassandraOperation;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+    @Autowired
+    private HelperMethodService helperMethodService;
+    @Autowired
+    @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
+    private RedisTemplate&lt;String, SearchResult&gt; redisTemplate;
+
+    @Autowired
+    private IProfanityCheckService profanityCheckService;
+
+    @Override
+    public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {
+<span class="fc" id="L80">        log.info(&quot;DiscussionService::createAnswerPostReply:creating answerPostReply&quot;);</span>
+<span class="fc" id="L81">        ApiResponse response = ProjectUtil.createDefaultResponse(&quot;discussion.createAnswerPost&quot;);</span>
+<span class="fc" id="L82">        payloadValidation.validatePayload(Constants.ANSWER_POST_REPLY_VALIDATION_SCHEMA, answerPostDataReplyData);</span>
+<span class="fc" id="L83">        String userId = accessTokenValidator.verifyUserToken(token);</span>
+<span class="pc bpc" id="L84" title="1 of 4 branches missed.">        if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {</span>
+<span class="fc" id="L85">            response.getParams().setErrMsg(Constants.INVALID_AUTH_TOKEN);</span>
+<span class="fc" id="L86">            response.setResponseCode(HttpStatus.BAD_REQUEST);</span>
+<span class="fc" id="L87">            return response;</span>
+        }
+<span class="fc" id="L89">        DiscussionEntity discussionEntity = discussionRepository.findById(answerPostDataReplyData.get(Constants.PARENT_ANSWER_POST_ID).asText()).orElse(null);</span>
+<span class="pc bpc" id="L90" title="1 of 4 branches missed.">        if (discussionEntity == null || !discussionEntity.getIsActive()) {</span>
+<span class="fc" id="L91">            return ProjectUtil.returnErrorMsg(Constants.INVALID_PARENT_ANSWER_POST_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+<span class="fc" id="L93">        JsonNode data = discussionEntity.getData();</span>
+<span class="fc" id="L94">        String type = data.get(Constants.TYPE).asText();</span>
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (!type.equals(Constants.ANSWER_POST)) {</span>
+<span class="nc" id="L96">            return ProjectUtil.returnErrorMsg(&quot;parentAnswerPostReplyId must be of type answerPost&quot;, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED)) {</span>
+<span class="nc" id="L99">            return ProjectUtil.returnErrorMsg(Constants.PARENT_DISCUSSION_ID_ERROR, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (!answerPostDataReplyData.get(Constants.COMMUNITY_ID).asText().equals(data.get(Constants.COMMUNITY_ID).asText())) {</span>
+<span class="fc" id="L102">            response.getParams().setErrMsg(Constants.INVALID_COMMUNITY_ID);</span>
+<span class="fc" id="L103">            response.setResponseCode(HttpStatus.BAD_REQUEST);</span>
+<span class="fc" id="L104">            return response;</span>
+        }
+
+        try {
+<span class="fc" id="L108">            JsonNode mentionedUsersNode = answerPostDataReplyData.get(MENTIONED_USERS);</span>
+<span class="fc" id="L109">            List&lt;String&gt; userIdList = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L110" title="5 of 6 branches missed.">            if (mentionedUsersNode != null &amp;&amp; mentionedUsersNode.isArray() &amp;&amp; mentionedUsersNode.size() &gt; 0) {</span>
+<span class="nc" id="L111">                Map&lt;String, JsonNode&gt; uniqueUserMap = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L112">                mentionedUsersNode.forEach(node -&gt; {</span>
+<span class="nc" id="L113">                    String userid = node.path(USER_ID_RQST).asText(null);</span>
+<span class="nc bnc" id="L114" title="All 4 branches missed.">                    if (StringUtils.isNotBlank(userid) &amp;&amp; !uniqueUserMap.containsKey(userid)) {</span>
+<span class="nc" id="L115">                        uniqueUserMap.put(userid, node);</span>
+                    }
+<span class="nc" id="L117">                });</span>
+<span class="nc" id="L118">                ArrayNode cleanArray = objectMapper.createArrayNode();</span>
+<span class="nc" id="L119">                uniqueUserMap.values().forEach(cleanArray::add);</span>
+<span class="nc" id="L120">                ((ObjectNode) answerPostDataReplyData).set(MENTIONED_USERS, cleanArray);</span>
+<span class="nc" id="L121">                userIdList.addAll(uniqueUserMap.keySet());</span>
+            }
+<span class="fc" id="L123">            ObjectNode answerPostReplyDataNode = (ObjectNode) answerPostDataReplyData;</span>
+<span class="fc" id="L124">            Map&lt;String, Object&gt; propertyMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L125">            propertyMap.put(Constants.USERID, userId);</span>
+<span class="fc" id="L126">            propertyMap.put(Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText());</span>
+<span class="fc" id="L127">            List&lt;Map&lt;String, Object&gt;&gt; communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);</span>
+<span class="pc bpc" id="L128" title="2 of 4 branches missed.">            if (communityDetails.isEmpty() || !(boolean) communityDetails.get(0).get(Constants.STATUS)) {</span>
+<span class="nc" id="L129">                DiscussionServiceUtil.createErrorResponse(response, Constants.USER_NOT_PART_OF_COMMUNITY, HttpStatus.BAD_REQUEST, Constants.FAILED);</span>
+<span class="nc" id="L130">                return response;</span>
+            }
+<span class="fc" id="L132">            answerPostReplyDataNode.put(Constants.CREATED_BY, userId);</span>
+<span class="fc" id="L133">            answerPostReplyDataNode.put(Constants.VOTE_COUNT, 0);</span>
+<span class="fc" id="L134">            answerPostReplyDataNode.put(Constants.STATUS, Constants.ACTIVE);</span>
+<span class="fc" id="L135">            answerPostReplyDataNode.put(Constants.PARENT_ANSWER_POST_ID, answerPostDataReplyData.get(Constants.PARENT_ANSWER_POST_ID));</span>
+
+<span class="fc" id="L137">            DiscussionAnswerPostReplyEntity jsonNodeEntity = new DiscussionAnswerPostReplyEntity();</span>
+
+<span class="fc" id="L139">            Timestamp currentTime = new Timestamp(System.currentTimeMillis());</span>
+<span class="fc" id="L140">            UUID id = Uuids.timeBased();</span>
+<span class="fc" id="L141">            answerPostReplyDataNode.put(Constants.DISCUSSION_ID, String.valueOf(id));</span>
+<span class="fc" id="L142">            jsonNodeEntity.setDiscussionId(String.valueOf(id));</span>
+<span class="fc" id="L143">            jsonNodeEntity.setCreatedOn(currentTime);</span>
+<span class="fc" id="L144">            answerPostReplyDataNode.put(Constants.CREATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(currentTime));</span>
+<span class="fc" id="L145">            answerPostReplyDataNode.put(Constants.UPDATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(currentTime));</span>
+<span class="fc" id="L146">            jsonNodeEntity.setIsActive(true);</span>
+<span class="fc" id="L147">            answerPostReplyDataNode.put(Constants.IS_ACTIVE, true);</span>
+<span class="fc" id="L148">            jsonNodeEntity.setData(answerPostReplyDataNode);</span>
+<span class="fc" id="L149">            jsonNodeEntity.setCreatedOn(currentTime);</span>
+<span class="fc" id="L150">            jsonNodeEntity.setUpdatedOn(currentTime);</span>
+<span class="fc" id="L151">            jsonNodeEntity.setIsProfane(false);</span>
+<span class="fc" id="L152">            discussionAnswerPostReplyRepository.save(jsonNodeEntity);</span>
+
+<span class="fc" id="L154">            ObjectNode jsonNode = objectMapper.createObjectNode();</span>
+<span class="fc" id="L155">            jsonNode.setAll(answerPostReplyDataNode);</span>
+<span class="fc" id="L156">            Map&lt;String, Object&gt; discussionAnswerPostReplyDetailsMap = objectMapper.convertValue(jsonNode, Map.class);</span>
+<span class="fc" id="L157">            discussionAnswerPostReplyDetailsMap.put(Constants.IS_PROFANE, false);</span>
+<span class="fc" id="L158">            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), String.valueOf(id), discussionAnswerPostReplyDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());</span>
+<span class="fc" id="L159">            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + id, jsonNode);</span>
+<span class="fc" id="L160">            updateAnswerPostReplyToAnswerPost(discussionEntity, String.valueOf(id), Constants.INCREMENT);</span>
+<span class="fc" id="L161">            redisTemplate.opsForValue()</span>
+<span class="fc" id="L162">                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(</span>
+<span class="fc" id="L163">                            answerPostReplyDataNode.get(Constants.PARENT_ANSWER_POST_ID).asText(),</span>
+<span class="fc" id="L164">                            answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText())));</span>
+<span class="fc" id="L165">            redisTemplate.opsForValue()</span>
+<span class="fc" id="L166">                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(</span>
+<span class="fc" id="L167">                            answerPostReplyDataNode.get(Constants.PARENT_DISCUSSION_ID).asText(),</span>
+<span class="fc" id="L168">                            answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),</span>
+                            Constants.ANSWER_POST)));
+<span class="fc" id="L170">            log.info(&quot;AnswerPostReply post created successfully&quot;);</span>
+<span class="fc" id="L171">            discussionAnswerPostReplyDetailsMap.put(Constants.CREATED_ON, currentTime);</span>
+<span class="fc" id="L172">            response.setResponseCode(HttpStatus.CREATED);</span>
+<span class="fc" id="L173">            response.getParams().setStatus(Constants.SUCCESS);</span>
+<span class="fc" id="L174">            response.setResult(discussionAnswerPostReplyDetailsMap);</span>
+            try {
+<span class="fc" id="L176">                Map&lt;String, Object&gt; notificationData = Map.of(</span>
+<span class="fc" id="L177">                        Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),</span>
+<span class="fc" id="L178">                        Constants.DISCUSSION_ID, answerPostReplyDataNode.get(Constants.PARENT_DISCUSSION_ID).asText()</span>
+                );
+
+<span class="fc" id="L181">                String discussionOwner = discussionEntity.getData().get(Constants.CREATED_BY).asText();</span>
+<span class="fc" id="L182">                String createdBy = answerPostReplyDataNode.get(Constants.CREATED_BY).asText();</span>
+<span class="fc" id="L183">                String firstName = helperMethodService.fetchUserFirstName(createdBy);</span>
+<span class="fc" id="L184">                log.info(&quot;Notification trigger started for create answerPost&quot;);</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">                if (!userId.equals(discussionOwner)) {</span>
+<span class="nc" id="L186">                    notificationTriggerService.triggerNotification(REPLIED_COMMENT, ENGAGEMENT, List.of(discussionOwner), TITLE, firstName, notificationData);</span>
+                }
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">                if (CollectionUtils.isNotEmpty(userIdList)) {</span>
+<span class="nc" id="L189">                    List&lt;String&gt; filteredUserIdList = userIdList.stream()</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">                            .filter(uniqueId -&gt; !uniqueId.equals(discussionOwner)).toList();</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                    if (CollectionUtils.isNotEmpty(filteredUserIdList)) {</span>
+<span class="nc" id="L192">                        Map&lt;String, Object&gt; replyNotificationData = Map.of(</span>
+<span class="nc" id="L193">                                Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText(),</span>
+<span class="nc" id="L194">                                Constants.DISCUSSION_ID, jsonNodeEntity.getDiscussionId()</span>
+                        );
+
+<span class="nc" id="L197">                        notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, filteredUserIdList, TITLE, firstName, replyNotificationData);</span>
+                    }
+                }
+<span class="nc" id="L200">            } catch (Exception e) {</span>
+<span class="nc" id="L201">                log.error(&quot;Error while triggering notification&quot;, e);</span>
+<span class="fc" id="L202">            }</span>
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">            if (answerPostDataReplyData.hasNonNull(Constants.LANGUAGE)) {</span>
+<span class="nc" id="L204">                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostReplyDataNode);</span>
+            }
+<span class="fc" id="L206">        } catch (Exception e) {</span>
+<span class="fc" id="L207">            log.error(&quot;Failed to create AnswerPost: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L208">            DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_ANSWER_POST_REPLY, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L209">            return response;</span>
+<span class="fc" id="L210">        }</span>
+<span class="fc" id="L211">        return response;</span>
+    }
+
+    private SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
+                                                       String communityId) {
+<span class="fc" id="L216">        SearchCriteria criteria = new SearchCriteria();</span>
+<span class="fc" id="L217">        HashMap&lt;String, Object&gt; filterMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L218">        filterMap.put(Constants.COMMUNITY_ID, communityId);</span>
+<span class="fc" id="L219">        filterMap.put(Constants.TYPE, Constants.ANSWER_POST_REPLY);</span>
+<span class="fc" id="L220">        filterMap.put(Constants.PARENT_ANSWER_POST_ID, parentAnswerPostId);</span>
+<span class="fc" id="L221">        criteria.setFilterCriteriaMap(filterMap);</span>
+<span class="fc" id="L222">        criteria.setRequestedFields(Collections.emptyList());</span>
+<span class="fc" id="L223">        criteria.setPageNumber(0);</span>
+<span class="fc" id="L224">        criteria.setPageSize(10);</span>
+<span class="fc" id="L225">        criteria.setOrderBy(Constants.CREATED_ON);</span>
+<span class="fc" id="L226">        criteria.setOrderDirection(Constants.DESC);</span>
+<span class="fc" id="L227">        criteria.setFacets(Collections.emptyList());</span>
+<span class="fc" id="L228">        return criteria;</span>
+    }
+
+    private void updateAnswerPostReplyToAnswerPost(DiscussionEntity discussionEntity, String discussionId, String action) {
+<span class="fc" id="L232">        log.info(&quot;DiscussionService::updateAnswerPostReplyToAnswerPost:inside&quot;);</span>
+<span class="fc" id="L233">        JsonNode data = discussionEntity.getData();</span>
+<span class="fc" id="L234">        Set&lt;String&gt; answerPostReplies = new HashSet&lt;&gt;();</span>
+
+<span class="fc bfc" id="L236" title="All 2 branches covered.">        if (data.has(Constants.ANSWER_POST_REPLIES)) {</span>
+<span class="fc" id="L237">            ArrayNode existingAnswerPostReplies = (ArrayNode) data.get(Constants.ANSWER_POST_REPLIES);</span>
+<span class="fc" id="L238">            existingAnswerPostReplies.forEach(post -&gt; answerPostReplies.add(post.asText()));</span>
+        }
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if (Constants.INCREMENT.equals(action)) {</span>
+<span class="fc" id="L241">            answerPostReplies.add(discussionId);</span>
+        } else {
+<span class="fc" id="L243">            answerPostReplies.remove(discussionId);</span>
+        }
+
+<span class="fc" id="L246">        ArrayNode arrayNode = objectMapper.valueToTree(answerPostReplies);</span>
+<span class="fc" id="L247">        ((ObjectNode) data).put(Constants.ANSWER_POST_REPLIES, arrayNode);</span>
+<span class="fc" id="L248">        ((ObjectNode) data).put(Constants.ANSWER_POST_REPLIES_COUNT, answerPostReplies.size());</span>
+
+<span class="fc" id="L250">        discussionEntity.setData(data);</span>
+<span class="fc" id="L251">        DiscussionEntity savedEntity = discussionRepository.save(discussionEntity);</span>
+<span class="fc" id="L252">        log.info(&quot;DiscussionService::updateAnswerPostReplyToAnswerPost: DiscussionEntity updated successfully&quot;);</span>
+<span class="fc" id="L253">        ObjectNode jsonNode = objectMapper.createObjectNode();</span>
+<span class="fc" id="L254">        jsonNode.setAll((ObjectNode) savedEntity.getData());</span>
+<span class="fc" id="L255">        Map&lt;String, Object&gt; map = objectMapper.convertValue(jsonNode, Map.class);</span>
+<span class="fc" id="L256">        esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());</span>
+<span class="fc" id="L257">        cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionEntity.getDiscussionId(), jsonNode);</span>
+<span class="fc" id="L258">    }</span>
+
+    @Override
+    public ApiResponse readAnswerPostReply(String discussionId) {
+<span class="fc" id="L262">        log.info(&quot;reading readAnswerPostReply details&quot;);</span>
+<span class="fc" id="L263">        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ANSWER_POST_REPLY_READ_API);</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">        if (StringUtils.isBlank(discussionId)) {</span>
+<span class="fc" id="L265">            log.error(&quot;AnswerPostReply not found&quot;);</span>
+<span class="fc" id="L266">            DiscussionServiceUtil.createErrorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.BAD_REQUEST, Constants.FAILED);</span>
+<span class="fc" id="L267">            return response;</span>
+        }
+        try {
+<span class="fc" id="L270">            String cachedJson = cacheService.getCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId);</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">            if (!StringUtils.isBlank(cachedJson)) {</span>
+<span class="fc" id="L272">                log.info(&quot;AnswerPostReply Record coming from redis cache&quot;);</span>
+<span class="fc" id="L273">                response.setMessage(Constants.SUCCESS);</span>
+<span class="fc" id="L274">                response.setResponseCode(HttpStatus.OK);</span>
+<span class="fc" id="L275">                response.setResult((Map&lt;String, Object&gt;) objectMapper.readValue(cachedJson, new TypeReference&lt;Object&gt;() {</span>
+                }));
+            } else {
+<span class="fc" id="L278">                Optional&lt;DiscussionAnswerPostReplyEntity&gt; entityOptional = discussionAnswerPostReplyRepository.findById(discussionId);</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">                if (entityOptional.isPresent()) {</span>
+<span class="fc" id="L280">                    DiscussionAnswerPostReplyEntity discussionEntity = entityOptional.get();</span>
+<span class="fc" id="L281">                    cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, discussionEntity.getData());</span>
+<span class="fc" id="L282">                    log.info(&quot;AnswerPostReply Record coming from postgres db&quot;);</span>
+<span class="fc" id="L283">                    response.setMessage(Constants.SUCCESS);</span>
+<span class="fc" id="L284">                    response.setResponseCode(HttpStatus.OK);</span>
+<span class="fc" id="L285">                    response.setResult((Map&lt;String, Object&gt;) objectMapper.convertValue(discussionEntity.getData(), new TypeReference&lt;Object&gt;() {</span>
+                    }));
+<span class="fc" id="L287">                    response.getResult().put(Constants.IS_ACTIVE, discussionEntity.getIsActive());</span>
+<span class="fc" id="L288">                    response.getResult().put(Constants.CREATED_ON, discussionEntity.getCreatedOn());</span>
+<span class="fc" id="L289">                    response.getResult().put(Constants.UPDATED_ON, discussionEntity.getUpdatedOn());</span>
+<span class="fc" id="L290">                } else {</span>
+<span class="fc" id="L291">                    log.error(&quot;Invalid AnswerPostReply discussionId: {}&quot;, discussionId);</span>
+<span class="fc" id="L292">                    DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_ID, HttpStatus.NOT_FOUND, Constants.FAILED);</span>
+<span class="fc" id="L293">                    return response;</span>
+                }
+            }
+<span class="fc" id="L296">        } catch (Exception e) {</span>
+<span class="fc" id="L297">            log.error(&quot; JSON for AnswerPostReplyId {}: {}&quot;, discussionId, e.getMessage(), e);</span>
+<span class="fc" id="L298">            DiscussionServiceUtil.createErrorResponse(response, &quot;Failed to read the AnswerPostReply&quot;, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L299">            return response;</span>
+<span class="fc" id="L300">        }</span>
+<span class="fc" id="L301">        return response;</span>
+    }
+
+    @Override
+    public ApiResponse deleteAnswerPostReply(String discussionId, String type, String token) {
+<span class="fc" id="L306">        log.info(&quot;DiscussionServiceImpl::delete AnswerPostReply&quot;);</span>
+<span class="fc" id="L307">        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DELETE_ANSWER_POST_REPLY_API);</span>
+<span class="fc" id="L308">        String userId = accessTokenValidator.verifyUserToken(token);</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        if (StringUtils.isBlank(userId)) {</span>
+<span class="fc" id="L310">            DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_AUTH_TOKEN, HttpStatus.BAD_REQUEST, Constants.FAILED);</span>
+<span class="fc" id="L311">            return response;</span>
+        }
+
+<span class="fc bfc" id="L314" title="All 2 branches covered.">        if (StringUtils.isBlank(discussionId)) {</span>
+<span class="fc" id="L315">            DiscussionServiceUtil.createErrorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.BAD_REQUEST, Constants.NO_DATA_FOUND);</span>
+<span class="fc" id="L316">            return response;</span>
+        }
+
+        try {
+<span class="fc" id="L320">            Optional&lt;DiscussionAnswerPostReplyEntity&gt; entityOptional = discussionAnswerPostReplyRepository.findById(discussionId);</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">            if (!entityOptional.isPresent()) {</span>
+<span class="fc" id="L322">                DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST, Constants.NO_DATA_FOUND);</span>
+<span class="fc" id="L323">                return response;</span>
+            }
+<span class="fc" id="L325">            DiscussionAnswerPostReplyEntity jasonEntity = entityOptional.get();</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">            if (Boolean.FALSE.equals(jasonEntity.getIsActive())) {</span>
+<span class="fc" id="L327">                log.info(&quot;AnswerPostReply is already inactive.&quot;);</span>
+<span class="fc" id="L328">                DiscussionServiceUtil.createErrorResponse(response, Constants.DISCUSSION_IS_INACTIVE, HttpStatus.ALREADY_REPORTED, Constants.SUCCESS);</span>
+<span class="fc" id="L329">                return response;</span>
+            }
+<span class="fc" id="L331">            JsonNode data = jasonEntity.getData();</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">            if (!type.equals(data.get(Constants.TYPE).asText())) {</span>
+<span class="fc" id="L333">                DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_TYPE + type, HttpStatus.BAD_REQUEST, Constants.FAILED);</span>
+<span class="fc" id="L334">                return response;</span>
+            }
+
+<span class="fc" id="L337">            Timestamp currentTime = new Timestamp(System.currentTimeMillis());</span>
+<span class="fc" id="L338">            jasonEntity.setIsActive(false);</span>
+<span class="fc" id="L339">            jasonEntity.setUpdatedOn(currentTime);</span>
+<span class="fc" id="L340">            ((ObjectNode) data).put(Constants.IS_ACTIVE, false);</span>
+<span class="fc" id="L341">            ((ObjectNode) data).put(Constants.UPDATED_ON, String.valueOf(currentTime));</span>
+<span class="fc" id="L342">            jasonEntity.setData(data);</span>
+<span class="fc" id="L343">            jasonEntity.setDiscussionId(discussionId);</span>
+<span class="fc" id="L344">            jasonEntity.setUpdatedOn(currentTime);</span>
+<span class="fc" id="L345">            discussionAnswerPostReplyRepository.save(jasonEntity);</span>
+<span class="fc" id="L346">            Map&lt;String, Object&gt; map = objectMapper.convertValue(data, Map.class);</span>
+<span class="fc" id="L347">            map.put(Constants.IS_ACTIVE, false);</span>
+<span class="fc" id="L348">            DiscussionEntity discussionEntity = discussionRepository.findById(data.get(Constants.PARENT_ANSWER_POST_ID).asText()).orElse(null);</span>
+<span class="fc" id="L349">            updateAnswerPostReplyToAnswerPost(discussionEntity, discussionId, Constants.DECREMENT);</span>
+<span class="fc" id="L350">            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionId, map, cbServerProperties.getElasticDiscussionJsonPath());</span>
+<span class="fc" id="L351">            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, data);</span>
+<span class="fc" id="L352">            log.info(&quot;AnswerPostReply details deleted successfully&quot;);</span>
+<span class="fc" id="L353">            response.setResponseCode(HttpStatus.OK);</span>
+<span class="fc" id="L354">            response.setMessage(Constants.DELETED_SUCCESSFULLY);</span>
+<span class="fc" id="L355">            response.getParams().setStatus(Constants.SUCCESS);</span>
+<span class="fc" id="L356">            redisTemplate.opsForValue().getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(data.get(Constants.PARENT_ANSWER_POST_ID).asText(), data.get(Constants.COMMUNITY_ID).asText())));</span>
+<span class="fc" id="L357">            redisTemplate.opsForValue()</span>
+<span class="fc" id="L358">                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createSearchCriteriaWithDefaults(</span>
+<span class="fc" id="L359">                            data.get(Constants.PARENT_DISCUSSION_ID).asText(),</span>
+<span class="fc" id="L360">                            data.get(Constants.COMMUNITY_ID).asText(),</span>
+                            Constants.ANSWER_POST)));
+<span class="fc" id="L362">            return response;</span>
+<span class="fc" id="L363">        } catch (Exception e) {</span>
+<span class="fc" id="L364">            log.error(&quot;Error while deleting discussion with ID: {}. Exception: {}&quot;, discussionId, e.getMessage(), e);</span>
+<span class="fc" id="L365">            DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_DELETE_DISCUSSION, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L366">            return response;</span>
+        }
+    }
+
+    @Override
+    public ApiResponse updateAnswerPostReply(JsonNode answerPostReplyData, String token) {
+<span class="fc" id="L372">        log.info(&quot;DiscussionService::updateAnswerPostReply:updating answerPostReply&quot;);</span>
+<span class="fc" id="L373">        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ANSWER_POST_REPLY_UPDATE_API);</span>
+<span class="fc" id="L374">        payloadValidation.validatePayload(Constants.ANSWER_POST_REPLY_UPDATE_VALIDATION_SCHEMA, answerPostReplyData);</span>
+<span class="fc" id="L375">        String userId = accessTokenValidator.verifyUserToken(token);</span>
+<span class="pc bpc" id="L376" title="1 of 4 branches missed.">        if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {</span>
+<span class="fc" id="L377">            response.getParams().setErrMsg(Constants.INVALID_AUTH_TOKEN);</span>
+<span class="fc" id="L378">            response.setResponseCode(HttpStatus.BAD_REQUEST);</span>
+<span class="fc" id="L379">            return response;</span>
+        }
+
+<span class="fc" id="L382">        DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findById(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);</span>
+<span class="pc bpc" id="L383" title="2 of 4 branches missed.">        if (discussionAnswerPostReplyEntity == null || !discussionAnswerPostReplyEntity.getIsActive()) {</span>
+<span class="nc" id="L384">            return ProjectUtil.returnErrorMsg(Constants.INVALID_ANSWER_POST_REPLY_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+<span class="fc" id="L386">        ObjectNode data = (ObjectNode) discussionAnswerPostReplyEntity.getData();</span>
+<span class="fc" id="L387">        String type = data.get(Constants.TYPE).asText();</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">        if (!type.equals(Constants.ANSWER_POST_REPLY)) {</span>
+<span class="fc" id="L389">            return ProjectUtil.returnErrorMsg(Constants.INVALID_ANSWER_POST_REPLY_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+<span class="pc bpc" id="L391" title="1 of 2 branches missed.">        if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED)) {</span>
+<span class="nc" id="L392">            return ProjectUtil.returnErrorMsg(Constants.POST_ALREADY_SUSPENDED, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+
+        try {
+<span class="fc" id="L396">            ObjectNode answerPostReplyDataNode = (ObjectNode) answerPostReplyData;</span>
+
+<span class="fc" id="L398">            Set&lt;String&gt; existingMentionedUserIds = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L399">            data.withArray(MENTIONED_USERS).forEach(userNode -&gt; {</span>
+<span class="nc" id="L400">                String userid = userNode.path(USER_ID_RQST).asText(null);</span>
+<span class="nc bnc" id="L401" title="All 2 branches missed.">                if (StringUtils.isNotBlank(userid)) existingMentionedUserIds.add(userid);</span>
+<span class="nc" id="L402">            });</span>
+<span class="fc" id="L403">            Set&lt;String&gt; seenUserIdsInRequest = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L404">            List&lt;String&gt; newlyAddedUserIds = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L405">            ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();</span>
+<span class="fc" id="L406">            JsonNode incomingMentionedUsers = answerPostReplyData.path(MENTIONED_USERS);</span>
+<span class="pc bpc" id="L407" title="1 of 2 branches missed.">            if (incomingMentionedUsers.isArray()) {</span>
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                for (JsonNode userNode : incomingMentionedUsers) {</span>
+<span class="nc" id="L409">                    String userid = userNode.path(USER_ID_RQST).asText(null);</span>
+<span class="nc bnc" id="L410" title="All 4 branches missed.">                    if (StringUtils.isNotBlank(userid) &amp;&amp; seenUserIdsInRequest.add(userid)) {</span>
+<span class="nc" id="L411">                        uniqueMentionedUsers.add(userNode);</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">                        if (!existingMentionedUserIds.contains(userid)) {</span>
+<span class="nc" id="L413">                            newlyAddedUserIds.add(userid);</span>
+                        }
+                    }
+<span class="nc" id="L416">                }</span>
+            }
+
+<span class="fc" id="L419">            answerPostReplyDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);</span>
+
+<span class="fc" id="L421">            answerPostReplyDataNode.remove(Constants.ANSWER_POST_REPLY_ID);</span>
+<span class="pc bpc" id="L422" title="2 of 4 branches missed.">            if (!answerPostReplyDataNode.has(Constants.IS_INITIAL_UPLOAD) || !answerPostReplyDataNode.get(Constants.IS_INITIAL_UPLOAD).asBoolean()) {</span>
+<span class="fc" id="L423">                Timestamp currentTime = new Timestamp(System.currentTimeMillis());</span>
+<span class="fc" id="L424">                answerPostReplyDataNode.put(Constants.UPDATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(currentTime));</span>
+<span class="fc" id="L425">                discussionAnswerPostReplyEntity.setUpdatedOn(currentTime);</span>
+            }
+<span class="fc" id="L427">            data.setAll(answerPostReplyDataNode);</span>
+<span class="fc" id="L428">            discussionAnswerPostReplyEntity.setData(data);</span>
+<span class="fc" id="L429">            discussionAnswerPostReplyEntity.setIsProfane(false);</span>
+<span class="fc" id="L430">            discussionAnswerPostReplyRepository.save(discussionAnswerPostReplyEntity);</span>
+
+<span class="fc" id="L432">            ObjectNode jsonNode = objectMapper.createObjectNode();</span>
+<span class="fc" id="L433">            jsonNode.setAll(data);</span>
+<span class="fc" id="L434">            Map&lt;String, Object&gt; discussionAnswerPostReplyDetailsMap = objectMapper.convertValue(jsonNode, Map.class);</span>
+<span class="fc" id="L435">            discussionAnswerPostReplyDetailsMap.put(Constants.IS_PROFANE, false);</span>
+<span class="fc" id="L436">            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionAnswerPostReplyEntity.getDiscussionId(), discussionAnswerPostReplyDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());</span>
+<span class="fc" id="L437">            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionAnswerPostReplyEntity.getDiscussionId(), jsonNode);</span>
+<span class="fc" id="L438">            redisTemplate.opsForValue()</span>
+<span class="fc" id="L439">                    .getAndDelete(DiscussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(</span>
+<span class="fc" id="L440">                            data.get(Constants.PARENT_ANSWER_POST_ID).asText(),</span>
+<span class="fc" id="L441">                            data.get(Constants.COMMUNITY_ID).asText())));</span>
+<span class="fc" id="L442">            log.info(&quot;AnswerPostReply updated successfully&quot;);</span>
+            try {
+<span class="pc bpc" id="L444" title="1 of 2 branches missed.">                if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {</span>
+<span class="nc" id="L445">                    Map&lt;String, Object&gt; notificationData = Map.of(</span>
+<span class="nc" id="L446">                            Constants.COMMUNITY_ID, data.get(Constants.COMMUNITY_ID).asText(),</span>
+<span class="nc" id="L447">                            Constants.DISCUSSION_ID, discussionAnswerPostReplyEntity.getDiscussionId()</span>
+                    );
+<span class="nc" id="L449">                    String firstName = helperMethodService.fetchUserFirstName(userId);</span>
+<span class="nc" id="L450">                    notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, newlyAddedUserIds, TITLE, firstName, notificationData);</span>
+                }
+<span class="nc" id="L452">            } catch (Exception e) {</span>
+<span class="nc" id="L453">                log.error(&quot;Error while triggering notification for update answerPostReply&quot;, e);</span>
+<span class="fc" id="L454">            }</span>
+<span class="fc" id="L455">            discussionAnswerPostReplyDetailsMap.remove(IS_PROFANE);</span>
+<span class="fc" id="L456">            discussionAnswerPostReplyDetailsMap.remove(Constants.PROFANITY_RESPONSE);</span>
+<span class="fc" id="L457">            response.setResponseCode(HttpStatus.OK);</span>
+<span class="fc" id="L458">            response.getParams().setStatus(Constants.SUCCESS);</span>
+<span class="fc" id="L459">            response.setResult(discussionAnswerPostReplyDetailsMap);</span>
+<span class="pc bpc" id="L460" title="1 of 2 branches missed.">            if (answerPostReplyData.hasNonNull(Constants.LANGUAGE)) {</span>
+<span class="nc" id="L461">                answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());</span>
+<span class="nc" id="L462">                profanityCheckService.processProfanityCheck(discussionAnswerPostReplyEntity.getDiscussionId(), answerPostReplyDataNode);</span>
+            }
+<span class="fc" id="L464">        } catch (Exception e) {</span>
+<span class="fc" id="L465">            log.error(&quot;Failed to update AnswerPost: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L466">            DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L467">            return response;</span>
+<span class="fc" id="L468">        }</span>
+<span class="fc" id="L469">        return response;</span>
+    }
+
+    private SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
+                                                            String communityId,
+                                                            String type) {
+<span class="fc" id="L475">        SearchCriteria criteria = new SearchCriteria();</span>
+
+<span class="fc" id="L477">        HashMap&lt;String, Object&gt; filterMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L478">        filterMap.put(Constants.COMMUNITY_ID, communityId);</span>
+<span class="fc" id="L479">        filterMap.put(Constants.TYPE, type);</span>
+<span class="fc" id="L480">        filterMap.put(Constants.PARENT_DISCUSSION_ID, parentDiscussionId);</span>
+<span class="fc" id="L481">        criteria.setFilterCriteriaMap(filterMap);</span>
+<span class="fc" id="L482">        criteria.setRequestedFields(Collections.emptyList());</span>
+<span class="fc" id="L483">        criteria.setPageNumber(0);</span>
+<span class="fc" id="L484">        criteria.setPageSize(10);</span>
+<span class="fc" id="L485">        criteria.setOrderBy(Constants.CREATED_ON);</span>
+<span class="fc" id="L486">        criteria.setOrderDirection(Constants.DESC);</span>
+<span class="fc" id="L487">        criteria.setFacets(Collections.emptyList());</span>
+<span class="fc" id="L488">        return criteria;</span>
+    }
+
+    @Override
+    public ApiResponse managePost(Map&lt;String, Object&gt; reportData, String token, String action) {
+<span class="fc" id="L493">        log.info(&quot;DiscussionServiceImpl::managePost&quot;);</span>
+<span class="fc" id="L494">        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ADMIN_MANAGE_POST_API);</span>
+
+<span class="fc" id="L496">        String userId = accessTokenValidator.verifyUserToken(token);</span>
+<span class="pc bpc" id="L497" title="2 of 4 branches missed.">        if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {</span>
+<span class="nc" id="L498">            return ProjectUtil.returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+
+<span class="fc" id="L501">        String errorMsg = validateSuspendPostPayload(reportData);</span>
+<span class="fc bfc" id="L502" title="All 2 branches covered.">        if (StringUtils.isNotEmpty(errorMsg)) {</span>
+<span class="fc" id="L503">            return ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+
+<span class="fc" id="L506">        String discussionId = (String) reportData.get(Constants.DISCUSSION_ID);</span>
+<span class="fc" id="L507">        String type = (String) reportData.get(Constants.TYPE);</span>
+
+        try {
+<span class="fc bfc" id="L510" title="All 2 branches covered.">            Object entity = Constants.ANSWER_POST_REPLY.equals(type)</span>
+<span class="fc" id="L511">                    ? discussionAnswerPostReplyRepository.findById(discussionId).orElse(null)</span>
+<span class="fc" id="L512">                    : discussionRepository.findById(discussionId).orElse(null);</span>
+<span class="fc bfc" id="L513" title="All 2 branches covered.">            if (entity == null) {</span>
+<span class="fc" id="L514">                return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_NOT_FOUND, HttpStatus.NOT_FOUND, response, Constants.FAILED);</span>
+            }
+
+            JsonNode dataNode;
+            Boolean isActive;
+<span class="fc bfc" id="L519" title="All 2 branches covered.">            if (Constants.ANSWER_POST_REPLY.equals(type)) {</span>
+<span class="fc" id="L520">                DiscussionAnswerPostReplyEntity reply = (DiscussionAnswerPostReplyEntity) entity;</span>
+<span class="fc" id="L521">                dataNode = reply.getData();</span>
+<span class="fc" id="L522">                isActive = reply.getIsActive();</span>
+<span class="fc" id="L523">            } else {</span>
+<span class="fc" id="L524">                DiscussionEntity discussion = (DiscussionEntity) entity;</span>
+<span class="fc" id="L525">                dataNode = discussion.getData();</span>
+<span class="fc" id="L526">                isActive = discussion.getIsActive();</span>
+            }
+
+<span class="fc" id="L529">            ObjectNode data = (ObjectNode) dataNode;</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">            if (!isActive) {</span>
+<span class="fc" id="L531">                return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_IS_INACTIVE, HttpStatus.CONFLICT, response, Constants.FAILED);</span>
+            }
+<span class="pc bpc" id="L533" title="1 of 4 branches missed.">            if (data.get(Constants.STATUS).asText().equals(Constants.ACTIVE) &amp;&amp; action.equals(Constants.SUSPEND)) {</span>
+<span class="fc" id="L534">                return ProjectUtil.returnErrorMsg(Constants.POST_IS_ACTIVE_MSG, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+            }
+
+<span class="pc bpc" id="L537" title="1 of 4 branches missed.">            if (data.get(Constants.STATUS).asText().equals(Constants.SUSPENDED) &amp;&amp; action.equals(Constants.SUSPEND) ||</span>
+<span class="pc bpc" id="L538" title="3 of 4 branches missed.">                    data.get(Constants.STATUS).asText().equals(Constants.ACTIVE) &amp;&amp; action.equals(Constants.ACTIVE)) {</span>
+<span class="fc" id="L539">                return ProjectUtil.returnErrorMsg(Constants.POST_ERROR_MSG + data.get(Constants.STATUS).asText() + &quot;.&quot;, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+            }
+<span class="fc" id="L541">            String status = data.get(Constants.STATUS).asText();</span>
+<span class="pc bpc" id="L542" title="1 of 2 branches missed.">            if (Constants.SUSPEND.equals(action)) {</span>
+<span class="nc" id="L543">                data.put(Constants.STATUS, Constants.SUSPENDED);</span>
+<span class="pc bpc" id="L544" title="1 of 2 branches missed.">            } else if (Constants.ACTIVE.equals(action)) {</span>
+<span class="fc" id="L545">                data.put(Constants.STATUS, Constants.ACTIVE);</span>
+            }
+
+<span class="fc" id="L548">            data.put(Constants.UPDATED_ON, DiscussionServiceUtil.getFormattedCurrentTime(new Timestamp(System.currentTimeMillis())));</span>
+<span class="fc" id="L549">            data.put(Constants.UPDATED_BY, userId);</span>
+
+<span class="pc bpc" id="L551" title="1 of 2 branches missed.">            if (Constants.ACTIVE.equals(action)) {</span>
+<span class="fc" id="L552">                Map&lt;String, Object&gt; propertyMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L553">                propertyMap.put(Constants.DISCUSSION_ID, discussionId);</span>
+<span class="fc" id="L554">                List&lt;Map&lt;String, Object&gt;&gt; reportUsers = cassandraOperation.getRecordsByPropertiesWithoutFiltering(</span>
+                        Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST,
+<span class="fc" id="L556">                        propertyMap, Arrays.asList(Constants.USERID), null</span>
+                );
+
+<span class="pc bpc" id="L559" title="1 of 2 branches missed.">                for (Map&lt;String, Object&gt; map : reportUsers) {</span>
+<span class="nc" id="L560">                    Map&lt;String, Object&gt; keyMap = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L561">                    keyMap.put(Constants.DISCUSSION_ID, discussionId);</span>
+<span class="nc" id="L562">                    keyMap.put(Constants.USERID, map.get(Constants.USERID));</span>
+<span class="nc" id="L563">                    cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER, keyMap);</span>
+<span class="nc" id="L564">                    log.info(&quot;Deleted report record for user: {}, by admin: {}&quot;, map.get(Constants.USERID), userId);</span>
+<span class="nc" id="L565">                }</span>
+
+<span class="fc" id="L567">                cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, propertyMap);</span>
+            }
+
+<span class="pc bpc" id="L570" title="1 of 2 branches missed.">            if (Constants.ANSWER_POST_REPLY.equals(type)) {</span>
+<span class="fc" id="L571">                ((DiscussionAnswerPostReplyEntity) entity).setData(dataNode);</span>
+<span class="fc" id="L572">                discussionAnswerPostReplyRepository.save((DiscussionAnswerPostReplyEntity) entity);</span>
+            } else {
+<span class="nc" id="L574">                ((DiscussionEntity) entity).setData(dataNode);</span>
+<span class="nc" id="L575">                discussionRepository.save((DiscussionEntity) entity);</span>
+            }
+
+<span class="fc" id="L578">            ObjectNode jsonNode = objectMapper.createObjectNode().setAll(data);</span>
+<span class="fc" id="L579">            Map&lt;String, Object&gt; esMap = objectMapper.convertValue(jsonNode, Map.class);</span>
+<span class="fc" id="L580">            esUtilService.updateDocument(</span>
+<span class="fc" id="L581">                    cbServerProperties.getDiscussionEntity(), discussionId,</span>
+<span class="fc" id="L582">                    esMap, cbServerProperties.getElasticDiscussionJsonPath()</span>
+            );
+
+<span class="fc" id="L585">            Map&lt;String, String&gt; cachePrefixes = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L586">            cachePrefixes.put(Constants.SUSPEND, Constants.SUSPENDED_POSTS_CACHE_PREFIX);</span>
+<span class="fc" id="L587">            cachePrefixes.put(Constants.ANSWER_POST, Constants.REPORTED_ANSWER_POST_POSTS_CACHE_PREFIX);</span>
+<span class="fc" id="L588">            cachePrefixes.put(Constants.QUESTION, Constants.REPORTED_QUESTION_POSTS_CACHE_PREFIX);</span>
+<span class="fc" id="L589">            cachePrefixes.put(Constants.ANSWER_POST_REPLY, Constants.REPORTED_ANSWER_POST_REPLY_POSTS_CACHE_PREFIX);</span>
+
+<span class="fc" id="L591">            String communityId = data.get(Constants.COMMUNITY_ID).asText();</span>
+<span class="fc" id="L592">            deleteCacheByPrefix(Constants.ALL_REPORTED_POSTS_CACHE_PREFIX + communityId);</span>
+
+<span class="pc bpc" id="L594" title="1 of 2 branches missed.">            if (cachePrefixes.containsKey(action)) {</span>
+<span class="nc" id="L595">                deleteCacheByPrefix(cachePrefixes.get(action) + communityId);</span>
+            }
+<span class="pc bpc" id="L597" title="1 of 2 branches missed.">            if (cachePrefixes.containsKey(type)) {</span>
+<span class="fc" id="L598">                deleteCacheByPrefix(cachePrefixes.get(type) + communityId);</span>
+            }
+<span class="pc bpc" id="L600" title="2 of 4 branches missed.">            if (Constants.ACTIVE.equals(action) &amp;&amp; Constants.SUSPENDED.equals(status)) {</span>
+<span class="fc" id="L601">                deleteCacheByPrefix(cachePrefixes.get(Constants.SUSPEND) + communityId);</span>
+            }
+<span class="fc" id="L603">            cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, jsonNode);</span>
+<span class="fc" id="L604">        } catch (Exception e) {</span>
+<span class="fc" id="L605">            log.error(&quot;Failed to suspend post: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L606">            DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L607">            return response;</span>
+<span class="fc" id="L608">        }</span>
+<span class="fc" id="L609">        return response;</span>
+    }
+
+    private String validateSuspendPostPayload(Map&lt;String, Object&gt; reportData) {
+<span class="fc" id="L613">        StringBuilder errorMsg = new StringBuilder();</span>
+<span class="fc" id="L614">        List&lt;String&gt; errList = new ArrayList&lt;&gt;();</span>
+
+<span class="pc bpc" id="L616" title="1 of 2 branches missed.">        if (reportData == null) {</span>
+<span class="nc" id="L617">            errorMsg.append(&quot;Failed Due To Missing Params - &quot;).append(Constants.DISCUSSION_ID).append(&quot;,&quot;).append(Constants.TYPE).append(&quot;.&quot;);</span>
+<span class="nc" id="L618">            return errorMsg.toString();</span>
+        }
+
+<span class="fc bfc" id="L621" title="All 2 branches covered.">        if (StringUtils.isBlank((String) reportData.get(Constants.DISCUSSION_ID))) {</span>
+<span class="fc" id="L622">            errList.add(Constants.DISCUSSION_ID);</span>
+        }
+<span class="fc bfc" id="L624" title="All 2 branches covered.">        if (StringUtils.isBlank((String) reportData.get(Constants.TYPE))) {</span>
+<span class="fc" id="L625">            errList.add(Constants.TYPE);</span>
+<span class="pc bpc" id="L626" title="1 of 2 branches missed.">        } else if (!Constants.ANSWER_POST.equalsIgnoreCase((String) reportData.get(Constants.TYPE)) &amp;&amp;</span>
+<span class="fc bfc" id="L627" title="All 2 branches covered.">                !Constants.QUESTION.equalsIgnoreCase((String) reportData.get(Constants.TYPE)) &amp;&amp;</span>
+<span class="pc bpc" id="L628" title="1 of 2 branches missed.">                !Constants.ANSWER_POST_REPLY.equalsIgnoreCase((String) reportData.get(Constants.TYPE))) {</span>
+<span class="nc" id="L629">            errList.add(&quot;type must be either 'question' or 'AnswerPost' or 'AnswerPostReply'&quot;);</span>
+        }
+
+<span class="fc bfc" id="L632" title="All 2 branches covered.">        if (!errList.isEmpty()) {</span>
+<span class="fc" id="L633">            errorMsg.append(&quot;Failed Due To Missing Params - &quot;).append(errList).append(&quot;.&quot;);</span>
+        }
+<span class="fc" id="L635">        return errorMsg.toString();</span>
+    }
+
+    @Override
+    public ApiResponse getReportStatistics(Map&lt;String, Object&gt; getReportData) {
+<span class="fc" id="L640">        log.info(&quot;DiscussionServiceImpl::getReportStatistics&quot;);</span>
+<span class="fc" id="L641">        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.GET_REPORT_STATISTICS_API);</span>
+
+<span class="fc" id="L643">        String errorMsg = validateSuspendPostPayload(getReportData);</span>
+<span class="fc bfc" id="L644" title="All 2 branches covered.">        if (StringUtils.isNotEmpty(errorMsg)) {</span>
+<span class="fc" id="L645">            return ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);</span>
+        }
+
+        try {
+<span class="fc" id="L649">            String discussionId = (String) getReportData.get(Constants.DISCUSSION_ID);</span>
+<span class="fc" id="L650">            String redisKey = Constants.REPORT_STATISTICS_CACHE_PREFIX + discussionId;</span>
+<span class="fc" id="L651">            String cachedStatistics = cacheService.getCache(redisKey);</span>
+<span class="pc bpc" id="L652" title="1 of 2 branches missed.">            if (StringUtils.isNotBlank(cachedStatistics)) {</span>
+<span class="nc" id="L653">                log.info(&quot;Returning cached report statistics for discussionId: {}&quot;, discussionId);</span>
+<span class="nc" id="L654">                response.setResult(objectMapper.readValue(cachedStatistics, new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {</span>
+                }));
+<span class="nc" id="L656">                return response;</span>
+            }
+
+<span class="fc" id="L659">            String validReasonsKey = Constants.VALID_REASONS_CACHE_KEY;</span>
+<span class="fc" id="L660">            Set&lt;String&gt; validReasons = null;</span>
+<span class="fc" id="L661">            String cachedValidReasons = cacheService.getCache(validReasonsKey);</span>
+<span class="pc bpc" id="L662" title="1 of 2 branches missed.">            if (StringUtils.isNotBlank(cachedValidReasons)) {</span>
+<span class="nc" id="L663">                validReasons = objectMapper.readValue(cachedValidReasons, new TypeReference&lt;Set&lt;String&gt;&gt;() {</span>
+                });
+            } else {
+<span class="fc" id="L666">                Map&lt;String, Object&gt; configKey = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L667">                configKey.put(Constants.ID, Constants.DISCUSSION_REPORT_REASON_CONFIG);</span>
+<span class="fc" id="L668">                List&lt;Map&lt;String, Object&gt;&gt; configData = cassandraOperation.getRecordsByPropertiesWithoutFiltering(</span>
+<span class="fc" id="L669">                        Constants.KEYSPACE_SUNBIRD, Constants.SYSTEM_SETTINGS, configKey, Arrays.asList(Constants.VALUE), null);</span>
+
+<span class="pc bpc" id="L671" title="1 of 2 branches missed.">                if (CollectionUtils.isEmpty(configData)) {</span>
+<span class="nc" id="L672">                    return ProjectUtil.returnErrorMsg(Constants.REPORT_REASON_CONFIG_ERROR_MSG, HttpStatus.NOT_FOUND, response, Constants.FAILED);</span>
+                }
+
+<span class="fc" id="L675">                validReasons = new ObjectMapper().readValue(</span>
+<span class="fc" id="L676">                        (String) configData.get(0).get(Constants.VALUE), new TypeReference&lt;Set&lt;String&gt;&gt;() {</span>
+                        });
+<span class="pc bpc" id="L678" title="1 of 2 branches missed.">                if (validReasons.isEmpty()) validReasons = Collections.emptySet();</span>
+<span class="fc" id="L679">                cacheService.putCache(validReasonsKey, validReasons);</span>
+            }
+
+<span class="fc" id="L682">            Map&lt;String, Object&gt; propertyMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L683">            propertyMap.put(Constants.DISCUSSION_ID, discussionId);</span>
+<span class="fc" id="L684">            List&lt;Map&lt;String, Object&gt;&gt; reportReasons = cassandraOperation.getRecordsByPropertiesWithoutFiltering(</span>
+<span class="fc" id="L685">                    Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, propertyMap, Arrays.asList(Constants.REASON), null);</span>
+
+<span class="pc bpc" id="L687" title="1 of 2 branches missed.">            if (CollectionUtils.isEmpty(reportReasons)) {</span>
+<span class="nc" id="L688">                return ProjectUtil.returnErrorMsg(Constants.NO_REPORT_REASON_FOUND_ERROR_MSG, HttpStatus.OK, response, Constants.FAILED);</span>
+            }
+
+<span class="fc" id="L691">            Map&lt;String, Integer&gt; reasonCountMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L692">            int totalCount = 0;</span>
+
+<span class="fc bfc" id="L694" title="All 2 branches covered.">            for (Map&lt;String, Object&gt; report : reportReasons) {</span>
+<span class="fc" id="L695">                String reasons = (String) report.get(Constants.REASON);</span>
+<span class="pc bpc" id="L696" title="1 of 2 branches missed.">                if (StringUtils.isNotBlank(reasons)) {</span>
+<span class="fc bfc" id="L697" title="All 2 branches covered.">                    for (String reason : reasons.split(Constants.COMMA)) {</span>
+<span class="fc" id="L698">                        reason = reason.trim();</span>
+<span class="pc bpc" id="L699" title="1 of 2 branches missed.">                        if (validReasons.contains(reason)) {</span>
+<span class="fc" id="L700">                            reasonCountMap.put(reason, reasonCountMap.getOrDefault(reason, 0) + 1);</span>
+<span class="fc" id="L701">                            totalCount++;</span>
+                        }
+                    }
+                }
+<span class="fc" id="L705">            }</span>
+
+<span class="fc" id="L707">            Map&lt;String, Map&lt;String, Object&gt;&gt; statsMap = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L708" title="All 2 branches covered.">            for (String reason : validReasons) {</span>
+<span class="fc" id="L709">                int count = reasonCountMap.getOrDefault(reason, 0);</span>
+<span class="pc bpc" id="L710" title="1 of 2 branches missed.">                double percentage = totalCount &gt; 0 ? (count * 100.0) / totalCount : 0.0;</span>
+<span class="fc" id="L711">                Map&lt;String, Object&gt; reasonStats = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L712">                reasonStats.put(Constants.COUNT, count);</span>
+<span class="fc" id="L713">                reasonStats.put(Constants.PERCENTAGE, percentage);</span>
+<span class="fc" id="L714">                statsMap.put(reason, reasonStats);</span>
+<span class="fc" id="L715">            }</span>
+
+<span class="fc" id="L717">            Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L718">            result.put(Constants.TOTAL_COUNT, totalCount);</span>
+<span class="fc" id="L719">            result.put(Constants.REPORT_REASONS, statsMap);</span>
+
+<span class="fc" id="L721">            cacheService.putCache(redisKey, result);</span>
+<span class="fc" id="L722">            response.getResult().putAll(result);</span>
+<span class="fc" id="L723">            return response;</span>
+<span class="nc" id="L724">        } catch (Exception e) {</span>
+<span class="nc" id="L725">            log.error(&quot;Failed to get report statistics&quot;, e);</span>
+<span class="nc" id="L726">            DiscussionServiceUtil.createErrorResponse(response, Constants.GET_REPORT_STATISTICS_ERROR_MSG, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="nc" id="L727">            return response;</span>
+        }
+    }
+
+    public ApiResponse migrateRecentReportedTime() {
+<span class="fc" id="L732">        log.info(&quot;DiscussionServiceImpl::migrateRecentReportedTime&quot;);</span>
+<span class="fc" id="L733">        ApiResponse response = ProjectUtil.createDefaultResponse(&quot;api.discussion.migrateRecentReportedTime&quot;);</span>
+        try {
+<span class="fc" id="L735">            Map&lt;String, Object&gt; propertyMap = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L736">            List&lt;Map&lt;String, Object&gt;&gt; reportedDiscussionIds = cassandraOperation.getRecordsByPropertiesByKey(</span>
+                    Constants.KEYSPACE_SUNBIRD,
+                    Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST,
+                    propertyMap,
+<span class="fc" id="L740">                    Arrays.asList(Constants.DISCUSSION_ID, Constants.CREATED_ON_KEY), &quot;&quot;</span>
+            );
+
+<span class="fc" id="L743">            Map&lt;String, Date&gt; latestReportedTimeMap = new HashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L745" title="All 2 branches covered.">            for (Map&lt;String, Object&gt; record : reportedDiscussionIds) {</span>
+<span class="fc" id="L746">                String discussionId = (String) record.get(Constants.DISCUSSION_ID_KEY);</span>
+<span class="fc" id="L747">                Timestamp createdOn = Timestamp.from(((Instant) record.get(Constants.CREATED_ON_KEY)));</span>
+<span class="pc bpc" id="L748" title="1 of 2 branches missed.">                if (latestReportedTimeMap.containsKey(discussionId)) {</span>
+<span class="nc" id="L749">                    Date existingTime = latestReportedTimeMap.get(discussionId);</span>
+<span class="nc bnc" id="L750" title="All 2 branches missed.">                    if (createdOn.after(existingTime)) {</span>
+<span class="nc" id="L751">                        latestReportedTimeMap.put(discussionId, createdOn);</span>
+                    }
+<span class="nc" id="L753">                } else {</span>
+<span class="fc" id="L754">                    latestReportedTimeMap.put(discussionId, createdOn);</span>
+                }
+<span class="fc" id="L756">            }</span>
+<span class="fc" id="L757">            log.info(&quot;Latest reported times: {}&quot;, latestReportedTimeMap);</span>
+
+<span class="fc bfc" id="L759" title="All 2 branches covered.">            for (String discussionId : latestReportedTimeMap.keySet()) {</span>
+<span class="fc" id="L760">                Optional&lt;DiscussionEntity&gt; discussionEntityOptional = discussionRepository.findById(discussionId);</span>
+<span class="fc bfc" id="L761" title="All 2 branches covered.">                if (discussionEntityOptional.isPresent()) {</span>
+<span class="fc" id="L762">                    DiscussionEntity discussionEntity = discussionEntityOptional.get();</span>
+<span class="fc" id="L763">                    ObjectNode data = (ObjectNode) discussionEntity.getData();</span>
+
+<span class="fc" id="L765">                    data.put(Constants.RECENT_REPORTED_ON, getFormattedCurrentTime(latestReportedTimeMap.get(discussionId)));</span>
+<span class="fc" id="L766">                    discussionEntity.setData(data);</span>
+<span class="fc" id="L767">                    discussionRepository.save(discussionEntity);</span>
+<span class="fc" id="L768">                    Map&lt;String, Object&gt; map = objectMapper.convertValue(data, Map.class);</span>
+<span class="fc" id="L769">                    esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionId, map, cbServerProperties.getElasticDiscussionJsonPath());</span>
+                }
+<span class="fc" id="L771">            }</span>
+<span class="fc" id="L772">            response.setResponseCode(HttpStatus.OK);</span>
+<span class="fc" id="L773">            response.getParams().setStatus(Constants.SUCCESS);</span>
+<span class="fc" id="L774">            response.getResult().putAll(latestReportedTimeMap);</span>
+<span class="fc" id="L775">        } catch (Exception e) {</span>
+<span class="fc" id="L776">            log.error(&quot;Failed to migrate recent reported time&quot;, e);</span>
+<span class="fc" id="L777">            DiscussionServiceUtil.createErrorResponse(response, &quot;migrate data failed&quot;, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);</span>
+<span class="fc" id="L778">        }</span>
+<span class="fc" id="L779">        return response;</span>
+    }
+
+    private String getFormattedCurrentTime(Date currentTime) {
+<span class="fc" id="L783">        ZonedDateTime zonedDateTime = currentTime.toInstant().atZone(ZoneId.systemDefault());</span>
+<span class="fc" id="L784">        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Constants.TIME_FORMAT);</span>
+<span class="fc" id="L785">        return zonedDateTime.format(formatter);</span>
+    }
+
+    private void deleteCacheByPrefix(String prefix) {
+<span class="fc" id="L789">        String pattern = prefix + &quot;_*&quot;;</span>
+<span class="fc" id="L790">        Set&lt;String&gt; keys = redisTemplate.keys(pattern);</span>
+<span class="pc bpc" id="L791" title="1 of 2 branches missed.">        if (!keys.isEmpty()) {</span>
+<span class="nc" id="L792">            redisTemplate.delete(keys);</span>
+<span class="nc" id="L793">            log.info(&quot;Deleted cache keys: {}&quot;, keys);</span>
+        } else {
+<span class="fc" id="L795">            log.info(&quot;No cache keys found for pattern: {}&quot;, pattern);</span>
+        }
+<span class="fc" id="L797">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

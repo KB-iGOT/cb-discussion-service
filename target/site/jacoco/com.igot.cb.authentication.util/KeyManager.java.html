@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KeyManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">cb-discussion-service</a> &gt; <a href="index.source.html" class="el_package">com.igot.cb.authentication.util</a> &gt; <span class="el_source">KeyManager.java</span></div><h1>KeyManager.java</h1><pre class="source lang-java linenums">package com.igot.cb.authentication.util;
+
+import com.igot.cb.authentication.model.KeyData;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.PropertiesCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * @author Mahesh RV
+ */
+@Component
+<span class="fc" id="L28">public class KeyManager {</span>
+
+<span class="fc" id="L30">  private static final Logger logger = LoggerFactory.getLogger(KeyManager.class.getName());</span>
+<span class="fc" id="L31">  private static final PropertiesCache propertiesCache = PropertiesCache.getInstance();</span>
+
+<span class="fc" id="L33">  private static final Map&lt;String, KeyData&gt; keyMap = new HashMap&lt;&gt;();</span>
+
+  @PostConstruct
+  public void init() {
+    // Read the content of the file and load it as a PublicKey
+<span class="fc" id="L38">    String basePath = propertiesCache.getProperty(Constants.ACCESS_TOKEN_PUBLICKEY_BASEPATH);</span>
+<span class="fc" id="L39">    try (Stream&lt;Path&gt; walk = Files.walk(Paths.get(basePath))) {</span>
+<span class="fc" id="L40">      List&lt;String&gt; result =</span>
+<span class="pc" id="L41">              walk.filter(Files::isRegularFile).map(Path::toString).collect(Collectors.toList());</span>
+<span class="fc" id="L42">      result.forEach(file -&gt; {</span>
+        try {
+<span class="nc" id="L44">          Path path = Paths.get(file);</span>
+<span class="nc" id="L45">          List&lt;String&gt; lines = Files.readAllLines(path, StandardCharsets.UTF_8);</span>
+<span class="nc" id="L46">          String content = String.join(&quot;&quot;, lines);</span>
+<span class="nc" id="L47">          KeyData keyData = new KeyData(path.getFileName().toString(), loadPublicKey(content));</span>
+          // Store the KeyData object in the keyMap
+<span class="nc" id="L49">          keyMap.put(path.getFileName().toString(), keyData);</span>
+<span class="nc" id="L50">        } catch (Exception e) {</span>
+<span class="nc" id="L51">          logger.error(&quot;KeyManager:init: exception in reading public keys &quot;, e);</span>
+<span class="nc" id="L52">        }</span>
+<span class="nc" id="L53">      });</span>
+<span class="fc" id="L54">    } catch (Exception e) {</span>
+<span class="fc" id="L55">      logger.error(&quot;KeyManager:init: exception in loading publickeys &quot;, e);</span>
+<span class="fc" id="L56">    }</span>
+<span class="fc" id="L57">  }</span>
+
+  public KeyData getPublicKey(String keyId) {
+<span class="fc" id="L60">    return keyMap.get(keyId);</span>
+  }
+
+
+  /**
+   * Loads a public key from a string representation.
+   *
+   * @param key The string representation of the public key
+   * @return The loaded public key
+   * @throws Exception If there's an error during the loading process
+   */
+  public static PublicKey loadPublicKey(String key) throws Exception {
+<span class="fc" id="L72">    String publicKey = new String(key.getBytes(), StandardCharsets.UTF_8);</span>
+    // Remove header and footer from the key string
+<span class="fc" id="L74">    publicKey = publicKey.replaceAll(&quot;(-+BEGIN PUBLIC KEY-+)&quot;, &quot;&quot;);</span>
+<span class="fc" id="L75">    publicKey = publicKey.replaceAll(&quot;(-+END PUBLIC KEY-+)&quot;, &quot;&quot;);</span>
+<span class="fc" id="L76">    publicKey = publicKey.replaceAll(&quot;[\\r\\n]+&quot;, &quot;&quot;);</span>
+    // Decode the key string from Base64
+<span class="fc" id="L78">    byte[] keyBytes = Base64Util.decode(publicKey.getBytes(&quot;UTF-8&quot;), Base64Util.DEFAULT);</span>
+    // Convert the key bytes to a PublicKey object
+<span class="fc" id="L80">    X509EncodedKeySpec x509publicKey = new X509EncodedKeySpec(keyBytes);</span>
+<span class="fc" id="L81">    KeyFactory kf = KeyFactory.getInstance(&quot;RSA&quot;);</span>
+<span class="fc" id="L82">    return kf.generatePublic(x509publicKey);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>
