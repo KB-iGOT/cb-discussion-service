@@ -178,12 +178,12 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.INSERT, postgresTime);
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(discussionDetailsNode);
-            Map<String, Object> map = objectMapper.convertValue(discussionDetailsNode, Map.class);
-
+            Map<String, Object> discussionPostDetailsMap = objectMapper.convertValue(discussionDetailsNode, Map.class);
+            discussionPostDetailsMap.put(IS_PROFANE,false);
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
-            response.setResult(map);
-            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), saveJsonEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
+            response.setResult(discussionPostDetailsMap);
+            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), saveJsonEntity.getDiscussionId(), discussionPostDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + saveJsonEntity.getDiscussionId(), jsonNode);
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + discussionDetails.get(Constants.COMMUNITY_ID).asText());
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
@@ -369,14 +369,16 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
 
             discussionDbData.setData(data);
+            discussionDbData.setIsProfane(false);
             long postgresInsertTime = System.currentTimeMillis();
             discussionRepository.save(discussionDbData);
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.UPDATE_KEY, postgresInsertTime);
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);
 
-            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionDbData.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
+            Map<String, Object> discussionPostDetailsMap = objectMapper.convertValue(jsonNode, Map.class);
+            discussionPostDetailsMap.put(IS_PROFANE,false);
+            esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionDbData.getDiscussionId(), discussionPostDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionDbData.getDiscussionId(), jsonNode);
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + data.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             if (data.has(Constants.CATEGORY_TYPE)
@@ -932,8 +934,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(answerPostDataNode);
-            Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), String.valueOf(id), map, cbServerProperties.getElasticDiscussionJsonPath());
+            Map<String, Object> discussionAnswerPostDetailsMap = objectMapper.convertValue(jsonNode, Map.class);
+            discussionAnswerPostDetailsMap.put(IS_PROFANE,false);
+            esUtilService.addDocument(cbServerProperties.getDiscussionEntity(), String.valueOf(id), discussionAnswerPostDetailsMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + String.valueOf(id), jsonNode);
 
             updateAnswerPostToDiscussion(discussionEntity, String.valueOf(id), Constants.INCREMENT);
@@ -981,10 +984,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            map.put(Constants.CREATED_ON, currentTime);
+            discussionAnswerPostDetailsMap.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
-            response.setResult(map);
+            response.setResult(discussionAnswerPostDetailsMap);
             if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
                 profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostDataNode);
             }
@@ -1397,6 +1400,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             data.setAll(answerPostDataNode);
             discussionEntity.setData(data);
+            discussionEntity.setIsProfane(false);
             long timer = System.currentTimeMillis();
             discussionRepository.save(discussionEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.UPDATE, timer);
@@ -1404,6 +1408,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);
             Map<String, Object> discussionAnswerPostDetailMap = objectMapper.convertValue(jsonNode, Map.class);
+            if(MapUtils.isNotEmpty(discussionAnswerPostDetailMap)) {
+                discussionAnswerPostDetailMap.put(IS_PROFANE, false);
+            }
             esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionEntity.getDiscussionId(), discussionAnswerPostDetailMap, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + String.valueOf(discussionEntity.getDiscussionId()), jsonNode);
             redisTemplate.opsForValue()
