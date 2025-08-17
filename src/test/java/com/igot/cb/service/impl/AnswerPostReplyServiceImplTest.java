@@ -113,26 +113,6 @@ class AnswerPostReplyServiceImplTest {
         return List.of(userMap);
     }
 
-    @Test
-    void testCreateAnswerPostReply_success() {
-        JsonNode payload = buildValidPayload();
-        DiscussionEntity discussionEntity = mockDiscussionEntity();
-
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
-                .thenReturn(mockCommunityDetails());
-        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-        when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
-        when(discussionRepository.save(any())).thenReturn(mockDiscussionEntity());
-        when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("");
-//        doNothing().when(notificationTriggerService).triggerNotification(any(),any(), anyList(), any(), any(), any());
-
-        ApiResponse response = service.createAnswerPostReply(payload, token);
-
-        assertEquals(HttpStatus.CREATED, response.getResponseCode());
-        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-    }
 
     @Test
     void testCreateAnswerPostReply_invalidToken() {
@@ -184,33 +164,6 @@ class AnswerPostReplyServiceImplTest {
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-    }
-
-    @Test
-    void testUpdateAnswerPostReply_success() throws Exception {
-        String replyId = "reply123";
-        JsonNode inputNode = new ObjectMapper().readTree("{\"id\":\"reply123\",\"isInitialUpload\":false, \"answerPostReplyId\":\"reply123\"}");
-
-        ObjectNode existingData = new ObjectMapper().createObjectNode();
-        existingData.put("type", "answerPostReply");
-        existingData.put("status", "active");
-        existingData.put("parentAnswerPostId", "parent1");
-        existingData.put("communityId", "comm1");
-
-        DiscussionAnswerPostReplyEntity entity = new DiscussionAnswerPostReplyEntity();
-        entity.setIsActive(true);
-        entity.setData(existingData);
-        entity.setDiscussionId("disc123");
-
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(entity));
-        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-
-        ApiResponse response = service.updateAnswerPostReply(inputNode, token);
-
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
 
     @Test

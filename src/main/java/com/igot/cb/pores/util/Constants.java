@@ -287,6 +287,7 @@ public class Constants {
     public static final String RESPONSE_DATA_PATH = "responseData";
     public static final String IS_PROFANE = "isProfane";
     public static final String PROFANITY_RESPONSE = "profanityresponse";
+    public static final String DETECTED_LANGUAGE = "detected_language";
 
     private Constants() {
     }

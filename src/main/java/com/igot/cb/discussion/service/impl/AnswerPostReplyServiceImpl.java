@@ -12,7 +12,6 @@ import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
-import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
@@ -20,6 +19,7 @@ import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
+import com.igot.cb.producer.Producer;
 import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +37,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.igot.cb.pores.util.Constants.*;
 
@@ -74,6 +73,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
     @Autowired
     private IProfanityCheckService profanityCheckService;
+
+    @Autowired
+    private Producer producer;
 
     @Override
     public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {
@@ -200,9 +202,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            if (answerPostDataReplyData.hasNonNull(Constants.LANGUAGE)) {
-                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostReplyDataNode);
-            }
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostReplyDataNode);
         } catch (Exception e) {
             log.error("Failed to create AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_ANSWER_POST_REPLY, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -457,10 +457,8 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(discussionAnswerPostReplyDetailsMap);
-            if (answerPostReplyData.hasNonNull(Constants.LANGUAGE)) {
-                answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());
-                profanityCheckService.processProfanityCheck(discussionAnswerPostReplyEntity.getDiscussionId(), answerPostReplyDataNode);
-            }
+            answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostReplyDataNode);
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
