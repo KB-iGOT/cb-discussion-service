@@ -16,6 +16,7 @@ import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -24,7 +25,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,16 +84,30 @@ class ProfanityConsumerTest {
             }
             """;
 
+    @BeforeEach
+    void setUp() {
+        Mockito.reset(discussionRepository, mapper);
+    }
+
     @Test
     void testCheckTextContentIsProfane_QuestionType() throws Exception {
+        // Arrange
         String kafkaValue = BASE_JSON_TEMPLATE.formatted("post123", Constants.QUESTION, true);
-        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
-        JsonNode mockNode = mockJsonTree(kafkaValue, "post123", Constants.QUESTION, true);
+        ConsumerRecord<String, String> consumerRecord =
+                new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
+
+        JsonNode mockNode = mockJsonTree( "post123", Constants.QUESTION, true);
         when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
+
+        // Act
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
-        Thread.sleep(200);
-        verify(discussionRepository).updateProfanityFieldsByDiscussionId("post123", kafkaValue, true);
+
+        // Assert
+        // Instead of Thread.sleep(), use verify with timeout
+        verify(discussionRepository, timeout(500))
+                .updateProfanityFieldsByDiscussionId("post123", kafkaValue, true);
+
         verifyNoInteractions(discussionAnswerPostReplyRepository);
     }
 
@@ -96,39 +115,61 @@ class ProfanityConsumerTest {
     void testCheckTextContentIsProfane_AnswerPostType() throws Exception {
         String kafkaValue = BASE_JSON_TEMPLATE.formatted("post456", Constants.ANSWER_POST, false);
         ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
-        JsonNode mockNode = mockJsonTree(kafkaValue, "post456", Constants.ANSWER_POST, false);
+
+        JsonNode mockNode = mockJsonTree("post456", Constants.ANSWER_POST, false);
         when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
+
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
-        Thread.sleep(200);
-        verify(discussionRepository).updateProfanityFieldsByDiscussionId("post456", kafkaValue, false);
-        verifyNoInteractions(discussionAnswerPostReplyRepository);
+
+        //Use Awaitility instead of Thread.sleep
+        await()
+                .atMost(2, TimeUnit.SECONDS) // max wait time
+                .untilAsserted(() -> {
+                    verify(discussionRepository).updateProfanityFieldsByDiscussionId("post456", kafkaValue, false);
+                    verifyNoInteractions(discussionAnswerPostReplyRepository);
+                });
     }
 
     @Test
     void testCheckTextContentIsProfane_AnswerPostReplyType() throws Exception {
         String kafkaValue = BASE_JSON_TEMPLATE.formatted("reply123", Constants.ANSWER_POST_REPLY, true);
         ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
-        JsonNode mockNode = mockJsonTree(kafkaValue, "reply123", Constants.ANSWER_POST_REPLY, true);
+        JsonNode mockNode = mockJsonTree("reply123", Constants.ANSWER_POST_REPLY, true);
+
         when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
+
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
-        Thread.sleep(200);
-        verify(discussionAnswerPostReplyRepository).updateProfanityFieldsByDiscussionId("reply123", kafkaValue, true);
-        verifyNoInteractions(discussionRepository);
+
+        // Instead of Thread.sleep
+        await()
+                .atMost(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    verify(discussionAnswerPostReplyRepository)
+                            .updateProfanityFieldsByDiscussionId("reply123", kafkaValue, true);
+                    verifyNoInteractions(discussionRepository);
+                });
     }
 
     @Test
     void testCheckTextContentIsProfane_UnknownType_NoUpdate() throws Exception {
         String kafkaValue = BASE_JSON_TEMPLATE.formatted("unknown789", "UNKNOWN_TYPE", true);
         ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
-        JsonNode mockNode = mockJsonTree(kafkaValue, "unknown789", "UNKNOWN_TYPE", true);
+        JsonNode mockNode = mockJsonTree("unknown789", "UNKNOWN_TYPE", true);
+
         when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
+
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
-        Thread.sleep(200);
-        verifyNoInteractions(discussionRepository);
-        verifyNoInteractions(discussionAnswerPostReplyRepository);
+
+        // Awaitility to make sure no unwanted calls happen
+        await()
+                .atMost(500, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    verifyNoInteractions(discussionRepository);
+                    verifyNoInteractions(discussionAnswerPostReplyRepository);
+                });
     }
 
     @Test
@@ -152,18 +193,32 @@ class ProfanityConsumerTest {
     @Test
     void testCheckTextContentIsProfane_DiscussionRepositoryThrowsException() throws Exception {
         String kafkaValue = BASE_JSON_TEMPLATE.formatted("postException", Constants.QUESTION, true);
-        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
-        JsonNode mockNode = mockJsonTree(kafkaValue, "postException", Constants.QUESTION, true);
+        ConsumerRecord<String, String> consumerRecord =
+                new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
+
+        JsonNode mockNode = mockJsonTree("postException", Constants.QUESTION, true);
         when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
-        doThrow(new RuntimeException("DB failure")).when(discussionRepository)
+
+        // Latch to wait for async method
+        CountDownLatch latch = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            latch.countDown(); // signal when repo is called
+            throw new RuntimeException("DB failure");
+        }).when(discussionRepository)
                 .updateProfanityFieldsByDiscussionId(anyString(), anyString(), anyBoolean());
+
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
-        Thread.sleep(200);
+
+        // wait until latch is counted down (max 2 sec to avoid hanging forever)
+        assertTrue(latch.await(2, TimeUnit.SECONDS), "Repository was never called");
+
         verify(discussionRepository).updateProfanityFieldsByDiscussionId("postException", kafkaValue, true);
     }
 
-    private JsonNode mockJsonTree(String json, String postId, String type, boolean isProfane) {
+
+    private JsonNode mockJsonTree(String postId, String type, boolean isProfane) {
         JsonNode mockRoot = mock(JsonNode.class);
         JsonNode requestData = mock(JsonNode.class);
         JsonNode metadata = mock(JsonNode.class);

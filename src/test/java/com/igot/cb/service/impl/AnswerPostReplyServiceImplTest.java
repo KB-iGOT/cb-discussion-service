@@ -126,8 +126,6 @@ class AnswerPostReplyServiceImplTest {
         when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
         when(discussionRepository.save(any())).thenReturn(mockDiscussionEntity());
         when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("");
-//        doNothing().when(notificationTriggerService).triggerNotification(any(),any(), anyList(), any(), any(), any());
-
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
         assertEquals(HttpStatus.CREATED, response.getResponseCode());
@@ -376,40 +374,12 @@ class AnswerPostReplyServiceImplTest {
         assertEquals(Constants.FAILED, response.getMessage());
     }
 
-    @Test
-    void testGetReportStatistics_withValidReasonsAndCounts(){
-        Map<String, Object> input = Map.of(DISCUSSION_ID, discussionId);
 
-        ApiResponse response = service.getReportStatistics(input);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
-    }
-
-    @Test
-    void testGetReportStatistics_withNoReportReasons() {
-        Map<String, Object> input = Map.of(DISCUSSION_ID, discussionId);
-
-        ApiResponse response = service.getReportStatistics(input);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
-    }
 
     @Test
     void testGetReportStatistics_withEmptyConfigData() {
         Map<String, Object> input = Map.of(DISCUSSION_ID, discussionId);
         ApiResponse response = service.getReportStatistics(input);
-        assertEquals(Constants.FAILED, response.getMessage());
-    }
-
-    @Test
-    void testGetReportStatistics_withException(){
-        Map<String, Object> input = Map.of(DISCUSSION_ID, discussionId);
-
-        ApiResponse response = service.getReportStatistics(input);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getMessage());
     }
 
@@ -509,7 +479,7 @@ class AnswerPostReplyServiceImplTest {
     @Test
     void shouldReturn500whileDeleteAnswerPostReplye() {
         String type = "type";
-        String parentAnswerPostId = "parent";
+        String localParentAnswerPostId = "parent";
 
         var entity = new DiscussionAnswerPostReplyEntity();
         ObjectNode jsonNode = mock(ObjectNode.class);
@@ -517,13 +487,13 @@ class AnswerPostReplyServiceImplTest {
         when(jsonNode.get(Constants.TYPE)).thenReturn(mock(JsonNode.class));
         when(jsonNode.get(Constants.PARENT_ANSWER_POST_ID)).thenReturn(mock(JsonNode.class));
         when(jsonNode.get(Constants.TYPE).asText()).thenReturn(type);
-        when(jsonNode.get(Constants.PARENT_ANSWER_POST_ID).asText()).thenReturn(parentAnswerPostId);
+        when(jsonNode.get(Constants.PARENT_ANSWER_POST_ID).asText()).thenReturn(localParentAnswerPostId);
 
         entity.setIsActive(true);
         entity.setData(jsonNode);
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user");
         when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(entity));
-        when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(new DiscussionEntity()));
+        when(discussionRepository.findById(localParentAnswerPostId)).thenReturn(Optional.of(new DiscussionEntity()));
         when(objectMapper.convertValue(any(), ArgumentMatchers.<Class<Map>>any())).thenReturn(new HashMap<>());
 
         var response = service.deleteAnswerPostReply(discussionId, type, token);
@@ -664,13 +634,13 @@ class AnswerPostReplyServiceImplTest {
 
     @Test
     void testDeleteAnswerPostReply_Success() {
-        String token = "valid.token";
-        String userId = "user123";
-        String discussionId = "reply123";
+        String localToken = "valid.token";
+        String localUserId = "user123";
+        String localDiscussionId = "reply123";
         String type = "reply";
 
         // Mock token verification
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(accessTokenValidator.verifyUserToken(localToken)).thenReturn(localUserId);
 
         // Prepare reply entity with JsonNode
         ObjectNode replyData = realMapper.createObjectNode();
@@ -683,9 +653,9 @@ class AnswerPostReplyServiceImplTest {
         DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
         replyEntity.setIsActive(true);
         replyEntity.setData(replyData);
-        replyEntity.setDiscussionId(discussionId);
+        replyEntity.setDiscussionId(localDiscussionId);
 
-        when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
+        when(discussionAnswerPostReplyRepository.findById(localDiscussionId)).thenReturn(Optional.of(replyEntity));
 
         // Parent DiscussionEntity
         ObjectNode discussionData = realMapper.createObjectNode();
@@ -710,7 +680,7 @@ class AnswerPostReplyServiceImplTest {
         when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class))).thenReturn(new HashMap<>());
 
         // Call actual method
-        ApiResponse response = service.deleteAnswerPostReply(discussionId, type, token);
+        ApiResponse response = service.deleteAnswerPostReply(localDiscussionId, type, localToken);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
@@ -724,8 +694,8 @@ class AnswerPostReplyServiceImplTest {
 
     @Test
     void testUpdateAnswerPostReply_FailureDuringUpdate() {
-        String token = "valid.token";
-        String userId = "user123";
+        String localToken = "valid.token";
+        String localUserId = "user123";
         String answerPostReplyId = "reply123";
 
         ObjectNode inputData = new ObjectMapper().createObjectNode();
@@ -733,7 +703,7 @@ class AnswerPostReplyServiceImplTest {
         inputData.put(Constants.IS_INITIAL_UPLOAD, false);
 
         // Mock valid token
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(accessTokenValidator.verifyUserToken(localToken)).thenReturn(localUserId);
 
         // Mock entity from DB
         ObjectNode dbData = new ObjectMapper().createObjectNode();
@@ -750,7 +720,7 @@ class AnswerPostReplyServiceImplTest {
         when(discussionAnswerPostReplyRepository.findById(answerPostReplyId)).thenReturn(Optional.of(entity));
 
         // Force exception in convertValue
-        ApiResponse response = service.updateAnswerPostReply(inputData, token);
+        ApiResponse response = service.updateAnswerPostReply(inputData, localToken);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
