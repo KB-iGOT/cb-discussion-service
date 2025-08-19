@@ -51,7 +51,7 @@ public class LanguageDetectionConsumer {
                         cbServerProperties.getContentModerationServiceUrl() + "/" + cbServerProperties.getContentModerationLanguageDetectApiPath(), langDetectBody,
                         langDetectHeaders
                 );
-                String detectedLanguage = "";
+                 String detectedLanguage = "";
                 if (langDetectResponse != null && langDetectResponse.containsKey(Constants.DETECTED_LANGUAGE)) {
                     Object lang = langDetectResponse.get(Constants.DETECTED_LANGUAGE);
                     if (lang != null) {

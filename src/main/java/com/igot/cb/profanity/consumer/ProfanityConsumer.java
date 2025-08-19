@@ -133,6 +133,9 @@ public class ProfanityConsumer {
                             IS_PROFANE, true
                     );
                     notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, ALERT, Collections.singletonList(userId), TITLE, firstName, notificationData);
+                    discussionService.deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
+                    discussionService.deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + data.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
+                    discussionService.updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
                 }
             }
         } else {
