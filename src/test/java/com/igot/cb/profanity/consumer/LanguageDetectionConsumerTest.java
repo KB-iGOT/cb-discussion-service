@@ -50,7 +50,7 @@ class LanguageDetectionConsumerTest {
         when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
         JsonNode textNode = mock(JsonNode.class);
         when(textNode.asText()).thenReturn(text);
-        when(node.get(Constants.TEXT)).thenReturn(textNode);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
         when(mapper.readTree(json)).thenReturn(node);
 
         Map<String, Object> langDetectResponse = new HashMap<>();
@@ -82,7 +82,7 @@ class LanguageDetectionConsumerTest {
         when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
         JsonNode textNode = mock(JsonNode.class);
         when(textNode.asText()).thenReturn(text);
-        when(node.get(Constants.TEXT)).thenReturn(textNode);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
         when(mapper.readTree(json)).thenReturn(node);
 
         Map<String, Object> langDetectResponse = new HashMap<>();
@@ -114,7 +114,7 @@ class LanguageDetectionConsumerTest {
         when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
         JsonNode textNode = mock(JsonNode.class);
         when(textNode.asText()).thenReturn(text);
-        when(node.get(Constants.TEXT)).thenReturn(textNode);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
         when(mapper.readTree(json)).thenReturn(node);
 
         Map<String, Object> langDetectResponse = new HashMap<>();

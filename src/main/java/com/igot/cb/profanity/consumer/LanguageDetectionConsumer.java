@@ -40,7 +40,7 @@ public class LanguageDetectionConsumer {
             try {
                 ObjectNode discussionDetailsNode = (ObjectNode) mapper.readTree(textData.value());
                 String id = discussionDetailsNode.get(Constants.DISCUSSION_ID).asText();
-                String text = discussionDetailsNode.get(Constants.TEXT).asText();
+                String text = discussionDetailsNode.get(Constants.DESCRIPTION).asText();
                 Map<String, Object> langDetectBody = new HashMap<>();
                 langDetectBody.put(Constants.TEXT, text);
                 Map<String, String> langDetectHeaders = new HashMap<>();
