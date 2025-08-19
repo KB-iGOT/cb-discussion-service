@@ -101,14 +101,17 @@ class CassandraConnectionManagerImplTest {
 
     @Test
     void test_getSession_connectionException() {
-        try (MockedStatic<PropertiesCache> staticMock = mockStatic(PropertiesCache.class)) {
+        try (
+                MockedStatic<PropertiesCache> staticMock = mockStatic(PropertiesCache.class);
+                MockedStatic<CqlSession> sessionMock = mockStatic(CqlSession.class)
+        ) {
             staticMock.when(PropertiesCache::getInstance).thenReturn(propertiesCache);
             when(propertiesCache.getProperty(Constants.CASSANDRA_CONFIG_HOST)).thenReturn("localhost");
             when(propertiesCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_LOCAL)).thenReturn("1");
             when(propertiesCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_REMOTE)).thenReturn("1");
             when(propertiesCache.getProperty(Constants.HEARTBEAT_INTERVAL)).thenReturn("30");
             when(propertiesCache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL)).thenReturn("LOCAL_QUORUM");
-
+            sessionMock.when(CqlSession::builder).thenThrow(new RuntimeException("Connection failed"));
             assertThrows(CustomException.class, CassandraConnectionManagerImpl::new);
         }
     }

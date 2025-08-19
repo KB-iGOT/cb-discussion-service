@@ -10,6 +10,7 @@ import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
+import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -67,6 +68,9 @@ class ProfanityConsumerTest {
 
     @Mock
     private NotificationTriggerService notificationTriggerService;
+
+    @Mock
+    private DiscussionService discussionService;
 
     private static final String BASE_JSON_TEMPLATE = """
             {
@@ -338,6 +342,9 @@ class ProfanityConsumerTest {
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
         when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
         when(helperMethodService.fetchUserFirstName("user123")).thenReturn("TestUser");
+        var discussionServiceField = ProfanityConsumer.class.getDeclaredField("discussionService");
+        discussionServiceField.setAccessible(true);
+        discussionServiceField.set(profanityConsumer, discussionService);
         var method = ProfanityConsumer.class.getDeclaredMethod("syncProfaneDetailsToESForDiscussion", String.class, boolean.class, String.class);
         method.setAccessible(true);
         var objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
