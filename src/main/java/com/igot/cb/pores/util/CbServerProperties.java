@@ -103,4 +103,16 @@ public class CbServerProperties {
   @Value("${cb.discussion.api.key}")
   private String cbDiscussionApiKey;
 
+  @Value("${content.moderation.language.detect.api.path}")
+  private String contentModerationLanguageDetectApiPath;
+
+  @Value("${kafka.topic.process.detect.language}")
+  private String kafkaProcessDetectLanguageTopic;
+
+  @Value("${kafka.group.process.detect.language}")
+  private String kafkaGroupProcessDetectLanguageGroup;
+
+  @Value("${content.moderation.service.url}")
+  private String contentModerationServiceUrl;
+
 }

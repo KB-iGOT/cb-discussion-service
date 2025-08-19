@@ -217,9 +217,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            if (discussionDetailsNode.hasNonNull(Constants.LANGUAGE)) {
-                profanityCheckService.processProfanityCheck(String.valueOf(id), discussionDetailsNode);
-            }
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), discussionDetailsNode);
         } catch (Exception e) {
             log.error("Failed to create discussion: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_DISCUSSION, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -419,10 +417,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            if (updateData.hasNonNull(Constants.LANGUAGE)) {
-                ((ObjectNode) updateData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
-                profanityCheckService.processProfanityCheck(discussionId, (ObjectNode) updateData);
-            }
+            ((ObjectNode) updateData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), updateData);
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
             DiscussionServiceUtil.createErrorResponse(response, "Failed to update the discussion", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -988,9 +984,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.CREATED);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(discussionAnswerPostDetailsMap);
-            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
-                profanityCheckService.processProfanityCheck(String.valueOf(id), answerPostDataNode);
-            }
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostDataNode);
         } catch (Exception e) {
             log.error("Failed to create AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_CREATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -1438,10 +1432,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(discussionAnswerPostDetailMap);
-            if (answerPostData.hasNonNull(Constants.LANGUAGE)) {
-                ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
-                profanityCheckService.processProfanityCheck(discussionEntity.getDiscussionId(), (ObjectNode) answerPostData);
-            }
+            ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostDataNode);
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
