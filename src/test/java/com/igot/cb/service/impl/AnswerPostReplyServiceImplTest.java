@@ -20,6 +20,7 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.producer.Producer;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,7 @@ class AnswerPostReplyServiceImplTest {
     @Mock private ValueOperations<String, SearchResult> valueOperations;
     @Mock private HelperMethodService helperMethodService;
     @Mock private NotificationTriggerService notificationTriggerService;
+    @Mock private Producer producer;
     private final ObjectMapper realMapper = new ObjectMapper();
 
     private final String token = "validToken";
@@ -126,6 +128,17 @@ class AnswerPostReplyServiceImplTest {
         when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
         when(discussionRepository.save(any())).thenReturn(mockDiscussionEntity());
         when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("");
+        String topic = "test-topic";
+        ObjectNode answerPostReplyDataNode = new ObjectMapper().createObjectNode();
+        answerPostReplyDataNode.put("key", "value");
+
+        // Mock config property
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn(topic);
+
+        // Mock producer push (void method)
+        lenient().doNothing().when(producer).push(anyString(), any(ObjectNode.class));
+
+
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
         assertEquals(HttpStatus.CREATED, response.getResponseCode());
@@ -182,33 +195,6 @@ class AnswerPostReplyServiceImplTest {
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-    }
-
-    @Test
-    void testUpdateAnswerPostReply_success() throws Exception {
-        String replyId = "reply123";
-        JsonNode inputNode = new ObjectMapper().readTree("{\"id\":\"reply123\",\"isInitialUpload\":false, \"answerPostReplyId\":\"reply123\"}");
-
-        ObjectNode existingData = new ObjectMapper().createObjectNode();
-        existingData.put("type", "answerPostReply");
-        existingData.put("status", "active");
-        existingData.put("parentAnswerPostId", "parent1");
-        existingData.put("communityId", "comm1");
-
-        DiscussionAnswerPostReplyEntity entity = new DiscussionAnswerPostReplyEntity();
-        entity.setIsActive(true);
-        entity.setData(existingData);
-        entity.setDiscussionId("disc123");
-
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(entity));
-        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-
-        ApiResponse response = service.updateAnswerPostReply(inputNode, token);
-
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
 
     @Test

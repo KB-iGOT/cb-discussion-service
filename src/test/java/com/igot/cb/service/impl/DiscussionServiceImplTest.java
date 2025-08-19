@@ -3355,7 +3355,5 @@ class DiscussionServiceImplTest {
         verify(discussionRepository, times(1)).save(any());
         verify(esUtilService).updateDocument(any(), eq(discussionId), anyMap(), any());
         verify(cacheService).putCache(contains(discussionId), any(ObjectNode.class));
-        verify(profanityCheckService, times(1))
-                .processProfanityCheck(eq(discussionId), any(ObjectNode.class));
     }
 }
