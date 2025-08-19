@@ -4,32 +4,30 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["question", "feedback","blog","story","poll"]
-    },
-    "title": {
-      "type": "string"
+      "enum": ["question"]
     },
     "description": {
       "type": "string"
     },
-    "tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "targetTopic": {
+    "communityId": {
       "type": "string"
     },
-    "mediaUrls": {
+    "mentionedUsers": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "userName": { "type": "string" }
+        },
+        "required": ["userId", "userName"]
       }
     }
   },
   "required": [
     "type",
-    "title"
-  ]
+    "description",
+    "communityId"
+  ],
+    "additionalProperties": false
 }

@@ -1,0 +1,2 @@
+Testing the sonarqube analysis on merge
+first merge didnt happen with analysis. trying #2 merge

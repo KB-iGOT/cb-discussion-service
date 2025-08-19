@@ -5,9 +5,6 @@ import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.List;
-
 @Component
 @Getter
 @Setter
@@ -39,5 +36,62 @@ public class CbServerProperties {
 
   @Value("${cloud.storage.endpoint}")
   private String cloudStorageEndpoint;
+
+  @Value("${report.post.user.limit}")
+  private int reportPostUserLimit;
+
+  @Value("${discussion.es.defaultPageSize}")
+  private int discussionEsDefaultPageSize;
+
+  @Value("${discussion.feed.redis.ttl}")
+  private long discussionFeedRedisTtl;
+
+  @Value("${discussion.report.hide.post}")
+  private boolean discussionReportHidePost;
+
+  @Value("${filter.criteria.trending.feed}")
+  private String filterCriteriaTrendingFeed;
+
+  @Value("${elastic.required.field.community.json.path}")
+  private String elasticCommunityJsonPath;
+
+  @Value("${community.entity}")
+  private String communityEntity;
+
+  @Value("${kafka.topic.community.discusion.post.count}")
+  private String communityPostCount;
+
+  @Value("${kafka.topic.community.discusion.like.count}")
+  private String communityLikeCount;
+
+  @Value("${filter.criteria.global.feed}")
+  private String filterCriteriaForGlobalFeed;
+
+  @Value("${filter.criteria.mdo.all.report.feed}")
+  private String mdoAllReportFeed;
+
+  @Value("${filter.criteria.mdo.report.question.feed}")
+  private String mdoQuestionReportFeed;
+
+  @Value("${filter.criteria.mdo.report.answerPost.feed}")
+  private String mdoAnswerPostReportFeed;
+
+  @Value("${filter.criteria.mdo.report.answerPostReply.feed}")
+  private String mdoAnswerPostReplyReportFeed;
+
+  @Value("${filter.criteria.mdo.all.suspended.feed}")
+  private String mdoAllSuspendedFeed;
+
+  @Value("${filter.criteria.question.document.feed}")
+  private String filterCriteriaQuestionDocumentFeed;
+
+  @Value("${filter.criteria.question.user.feed}")
+  private String filterCriteriaQuestionUserFeed;
+
+  @Value("${user.feed.filter.criteriaMapSize}")
+  private int userFeedFilterCriteriaMapSize;
+
+  @Value("${kafka.topic.user.post.count}")
+  private String kafkaUserPostCount;
 
 }
