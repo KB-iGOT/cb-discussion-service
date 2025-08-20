@@ -211,7 +211,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         return response;
     }
 
-    private SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
+    public SearchCriteria createDefaultSearchCriteria(String parentAnswerPostId,
                                                        String communityId) {
         SearchCriteria criteria = new SearchCriteria();
         HashMap<String, Object> filterMap = new HashMap<>();
@@ -458,8 +458,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(discussionAnswerPostReplyDetailsMap);
-            answerPostReplyDataNode.put(Constants.TYPE, data.get(Constants.TYPE).asText());
-            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostReplyDataNode);
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), jsonNode);
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -468,7 +467,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         return response;
     }
 
-    private SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
+    public SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
                                                             String communityId,
                                                             String type) {
         SearchCriteria criteria = new SearchCriteria();

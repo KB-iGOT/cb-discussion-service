@@ -88,3 +88,14 @@ target/classes/payloadValidation/discussionValidation.json
 target/maven-archiver/pom.properties
 target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
 target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+*.class
+*.html
+*.gif
+*.js
+*.css
+*.txt
+*.xml
+*.lst
+*.json
+*.exec
+*.csv
