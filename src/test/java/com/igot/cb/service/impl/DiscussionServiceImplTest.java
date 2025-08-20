@@ -3356,4 +3356,265 @@ class DiscussionServiceImplTest {
         verify(esUtilService).updateDocument(any(), eq(discussionId), anyMap(), any());
         verify(cacheService).putCache(contains(discussionId), any(ObjectNode.class));
     }
+
+    @Test
+    void testCreateDiscussion_success_basic() {
+        ObjectNode discussionDetails = realObjectMapper.createObjectNode();
+        discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
+        discussionDetails.put("title", "Test Discussion");
+        discussionDetails.put(Constants.TYPE, Constants.QUESTION);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
+                .thenReturn(Optional.of(new CommunityEntity()));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(List.of(Map.of(Constants.STATUS, true)));
+        
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("discussion-123");
+        when(discussionRepository.save(any())).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
+
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateDiscussion_withMentionedUsers() {
+        ObjectNode discussionDetails = realObjectMapper.createObjectNode();
+        discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
+        discussionDetails.put("title", "Test Discussion");
+        discussionDetails.put(Constants.TYPE, Constants.QUESTION);
+
+        ArrayNode mentionedUsers = realObjectMapper.createArrayNode();
+        ObjectNode user1 = realObjectMapper.createObjectNode();
+        user1.put(Constants.USER_ID_RQST, "user-1");
+        mentionedUsers.add(user1);
+        discussionDetails.set(Constants.MENTIONED_USERS, mentionedUsers);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
+                .thenReturn(Optional.of(new CommunityEntity()));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(List.of(Map.of(Constants.STATUS, true)));
+        
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("discussion-123");
+        when(discussionRepository.save(any())).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
+
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateDiscussion_withDuplicateUsers() {
+        ObjectNode discussionDetails = realObjectMapper.createObjectNode();
+        discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
+        discussionDetails.put("title", "Test Discussion");
+        discussionDetails.put(Constants.TYPE, Constants.QUESTION);
+
+        ArrayNode mentionedUsers = realObjectMapper.createArrayNode();
+        ObjectNode user1 = realObjectMapper.createObjectNode();
+        user1.put(Constants.USER_ID_RQST, "user-1");
+        ObjectNode user1Duplicate = realObjectMapper.createObjectNode();
+        user1Duplicate.put(Constants.USER_ID_RQST, "user-1");
+        mentionedUsers.add(user1);
+        mentionedUsers.add(user1Duplicate);
+        discussionDetails.set(Constants.MENTIONED_USERS, mentionedUsers);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
+                .thenReturn(Optional.of(new CommunityEntity()));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(List.of(Map.of(Constants.STATUS, true)));
+        
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("discussion-123");
+        when(discussionRepository.save(any())).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
+
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateDiscussion_withGlobalFeed() {
+        ObjectNode discussionDetails = realObjectMapper.createObjectNode();
+        discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
+        discussionDetails.put("title", "Test Discussion");
+        discussionDetails.put(Constants.TYPE, Constants.QUESTION);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
+                .thenReturn(Optional.of(new CommunityEntity()));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(List.of(Map.of(Constants.STATUS, true)));
+        
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("discussion-123");
+        when(discussionRepository.save(any())).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
+
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateDiscussion_withAllFields() {
+        ObjectNode discussionDetails = realObjectMapper.createObjectNode();
+        discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
+        discussionDetails.put("title", "Complete Test Discussion");
+        discussionDetails.put("description", "Complete test description");
+        discussionDetails.put(Constants.TYPE, Constants.QUESTION);
+        discussionDetails.put("tags", "test,discussion");
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
+                .thenReturn(Optional.of(new CommunityEntity()));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(List.of(Map.of(Constants.STATUS, true)));
+        
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("discussion-123");
+        when(discussionRepository.save(any())).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
+
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult());
+        
+        Map<String, Object> result = response.getResult();
+        assertEquals("community-1", result.get(Constants.COMMUNITY_ID));
+        assertEquals("Complete Test Discussion", result.get("title"));
+        assertEquals(userId, result.get(Constants.CREATED_BY));
+        assertEquals(0L, result.get(Constants.UP_VOTE_COUNT));
+        assertEquals(Constants.ACTIVE, result.get(Constants.STATUS));
+        assertEquals(true, result.get(Constants.IS_ACTIVE));
+        assertNotNull(result.get(Constants.DISCUSSION_ID));
+        assertNotNull(result.get(Constants.CREATED_ON));
+        assertNotNull(result.get(Constants.UPDATED_ON));
+    }
+
+    @Test
+    void testUpdateDiscussion_success_withDocumentType() throws JsonProcessingException {
+        ObjectNode updateData = realObjectMapper.createObjectNode();
+        updateData.put(Constants.DISCUSSION_ID, "discussion-123");
+        updateData.put(Constants.COMMUNITY_ID, "community-1");
+        updateData.put("title", "Updated Title");
+
+        ArrayNode categoryType = realObjectMapper.createArrayNode();
+        categoryType.add(Constants.DOCUMENT);
+        updateData.set(Constants.CATEGORY_TYPE, categoryType);
+
+        // Update discussion entity data to include category type
+        ObjectNode entityData = (ObjectNode) discussionEntity.getData();
+        entityData.set(Constants.CATEGORY_TYPE, categoryType);
+        discussionEntity.setData(entityData);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(discussionRepository.findById("discussion-123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.save(any())).thenReturn(discussionEntity);
+
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class))).thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+
+        // ✅ make mutable map to avoid UnsupportedOperationException
+        when(objectMapper.convertValue(any(DiscussionEntity.class), any(TypeReference.class))).thenReturn(new HashMap<>(Map.of("discussionId", "discussion-123", "title", "Updated Title")));
+
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+        when(cbServerProperties.getDiscussionFeedRedisTtl()).thenReturn(3600L);
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(new SearchCriteria());
+
+        // ✅ Return SearchResult with non-null documents
+        SearchResult fakeResult = new SearchResult();
+        fakeResult.setData(new ArrayList<>()); // empty list, avoids NPE
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(fakeResult);
+
+        ApiResponse response = discussionService.updateDiscussion(updateData, token);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testUpdateDiscussion_success_withNewlyAddedUsers() throws JsonProcessingException {
+        ObjectNode updateData = realObjectMapper.createObjectNode();
+        updateData.put(Constants.DISCUSSION_ID, "discussion-123");
+        updateData.put(Constants.COMMUNITY_ID, "community-1");
+        updateData.put("title", "Updated Title");
+
+        ArrayNode mentionedUsers = realObjectMapper.createArrayNode();
+        ObjectNode user1 = realObjectMapper.createObjectNode();
+        user1.put(Constants.USER_ID_RQST, "new-user-1");
+        mentionedUsers.add(user1);
+        updateData.set(Constants.MENTIONED_USERS, mentionedUsers);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(discussionRepository.findById("discussion-123")).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.save(any())).thenReturn(discussionEntity);
+
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class))).thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
+
+        // ✅ Return mutable map instead of Map.of()
+        when(objectMapper.convertValue(any(DiscussionEntity.class), any(TypeReference.class))).thenReturn(new HashMap<>(Map.of("discussionId", "discussion-123", "title", "Updated Title")));
+
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
+        when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(new SearchCriteria());
+
+        ApiResponse response = discussionService.updateDiscussion(updateData, token);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
 }
