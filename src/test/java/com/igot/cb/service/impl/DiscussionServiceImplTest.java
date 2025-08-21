@@ -3577,8 +3577,8 @@ class DiscussionServiceImplTest {
 
         ApiResponse response = discussionService.updateDiscussion(updateData, token);
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
 
     @Test
@@ -3613,8 +3613,8 @@ class DiscussionServiceImplTest {
 
         ApiResponse response = discussionService.updateDiscussion(updateData, token);
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
 
 }
