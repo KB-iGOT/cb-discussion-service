@@ -1,7 +1,6 @@
 package com.igot.cb.profanity.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
@@ -11,6 +10,7 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -49,18 +49,9 @@ public class LanguageDetectionConsumer {
                 ObjectNode discussionDetailsNode = (ObjectNode) mapper.readTree(textData.value());
                 String id = discussionDetailsNode.get(Constants.DISCUSSION_ID).asText();
                 String text = discussionDetailsNode.get(Constants.DESCRIPTION).asText();
-                Map<String, Object> langDetectBody = new HashMap<>();
-                langDetectBody.put(Constants.TEXT, text);
-                Map<String, String> langDetectHeaders = new HashMap<>();
-                langDetectHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
-                langDetectHeaders.put(Constants.AUTHORIZATION, cbServerProperties.getCbDiscussionApiKey());
-
-                Map<String, Object> langDetectResponse = requestHandlerService.fetchResultUsingPost(
-                        cbServerProperties.getContentModerationServiceUrl() + "/" + cbServerProperties.getContentModerationLanguageDetectApiPath(), langDetectBody,
-                        langDetectHeaders
-                );
+                Map<String, Object> langDetectResponse = callLanguageDetectionService(discussionDetailsNode,id,text);
                 String detectedLanguage = "";
-                if (langDetectResponse != null && langDetectResponse.containsKey(Constants.DETECTED_LANGUAGE)) {
+                if (MapUtils.isNotEmpty(langDetectResponse)) {
                     Object lang = langDetectResponse.get(Constants.DETECTED_LANGUAGE);
                     if (lang != null) {
                         detectedLanguage = lang.toString();
@@ -68,7 +59,7 @@ public class LanguageDetectionConsumer {
                 }
                 if (!StringUtils.hasText(detectedLanguage)) {
                     log.warn("Detected language is empty for discussion ID: {}", id);
-                    handleLanguageDetectionFailure(discussionDetailsNode, id);
+                    handleLanguageDetectionFailure(discussionDetailsNode, id, Constants.LANGUAGE_NOT_DETECTED);
                     return;
                 }
                 discussionDetailsNode.put(Constants.LANGUAGE, detectedLanguage);
@@ -86,11 +77,39 @@ public class LanguageDetectionConsumer {
      * @param discussionDetailsNode the details of the discussion as an ObjectNode
      * @param id the ID of the discussion
      */
-    private void handleLanguageDetectionFailure(ObjectNode discussionDetailsNode, String id) {
+    private void handleLanguageDetectionFailure(ObjectNode discussionDetailsNode, String id, String updateStatus) {
         if (Constants.QUESTION.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText()) || Constants.ANSWER_POST.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
-            discussionRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
+            discussionRepository.updateProfanityCheckStatusByDiscussionId(id, updateStatus, false);
         } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
-            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
+            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(id, updateStatus, false);
         }
+    }
+
+    /**
+     * Calls the language detection service to detect the language of the given text.
+     *
+     * @param discussionDetailsNode the details of the discussion as an ObjectNode
+     * @param id the ID of the discussion
+     * @param text the text for which language detection is to be performed
+     * @return a map containing the response from the language detection service
+     */
+    private Map<String, Object> callLanguageDetectionService(ObjectNode discussionDetailsNode, String id, String text) {
+        Map<String, Object> langDetectBody = new HashMap<>();
+        langDetectBody.put(Constants.TEXT, text);
+        Map<String, String> langDetectHeaders = new HashMap<>();
+        langDetectHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        langDetectHeaders.put(Constants.AUTHORIZATION, cbServerProperties.getCbDiscussionApiKey());
+        Map<String, Object> langDetectResponse = new HashMap<>();
+        try {
+            langDetectResponse = requestHandlerService.fetchResultUsingPost(
+                    cbServerProperties.getContentModerationServiceUrl() + "/" + cbServerProperties.getContentModerationLanguageDetectApiPath(), langDetectBody,
+                    langDetectHeaders
+            );
+        } catch (Exception e) {
+            log.error("Exception while calling language detection service for text: {}", text, e);
+            handleLanguageDetectionFailure(discussionDetailsNode, id, Constants.LANGUAGE_DETECTION_CALL_FAILED);
+            return new HashMap<>();
+        }
+        return langDetectResponse;
     }
 }
