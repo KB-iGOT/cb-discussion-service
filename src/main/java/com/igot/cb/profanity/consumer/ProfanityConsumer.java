@@ -159,7 +159,12 @@ public class ProfanityConsumer {
                 });
                 map.put(Constants.IS_PROFANE, isProfane);
                 esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionAnswerPostReply.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
-                if (isProfane) handleProfanityForAnswerPostReplyCreation(parentDiscussionId, parentAnswerPostId, discussionAnswerPostReply, data);
+                if (isProfane) {
+                    log.info("Profanity detected in answer post reply: {}", discussionId);
+                    handleProfanityForAnswerPostReplyCreation(parentDiscussionId, parentAnswerPostId, discussionAnswerPostReply, data);
+                    Optional<DiscussionEntity> discussionEntity = discussionRepository.findById(discussionId);
+                    discussionEntity.ifPresent(discussionDbData -> answerPostReplyService.updateAnswerPostReplyToAnswerPost(discussionDbData, discussionId, DECREMENT));
+                }
             }
         } else {
             log.warn("Discussion Answer Post Reply not found for Discussion Id: {}", discussionId);
@@ -214,6 +219,7 @@ public class ProfanityConsumer {
      * @param data               the data from the discussion
      */
     private void handleProfanityForDiscussionAnswerPostCreation(String type, String parentDiscussionId, DiscussionEntity discussionDbData, ObjectNode data) {
+       log.info("Handling profanity for type: {}, discussionId: {}, parentDiscussionId: {}", type, data.get(Constants.DISCUSSION_ID).asText(), parentDiscussionId);
         String userId = discussionDbData.getData().get("createdBy").asText();
         String firstName = helperMethodService.fetchUserFirstName(userId);
         Map<String, Object> notificationData = Map.of(
@@ -222,11 +228,13 @@ public class ProfanityConsumer {
                 IS_PROFANE, true
         );
         if (Constants.QUESTION.equalsIgnoreCase(type)) {
+            log.info("Profanity detected in question post: {}", data.get(Constants.DISCUSSION_ID).asText());
             notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, ALERT, Collections.singletonList(userId), TITLE, firstName, notificationData);
             discussionService.deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
             discussionService.deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + data.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             discussionService.updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
         } else if (Constants.ANSWER_POST.equalsIgnoreCase(type) && org.apache.commons.lang3.StringUtils.isNotEmpty(parentDiscussionId)) {
+            log.info("Profanity detected in answer post: {}", data.get(Constants.DISCUSSION_ID).asText());
             discussionService.deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
             discussionService.updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
             redisTemplate.opsForValue()
@@ -234,6 +242,7 @@ public class ProfanityConsumer {
                             parentDiscussionId,
                             data.get(Constants.COMMUNITY_ID).asText(),
                             Constants.ANSWER_POST)));
+            discussionService.updateAnswerPostToDiscussion(discussionDbData, data.get(Constants.DISCUSSION_ID).asText(), DECREMENT);
         }
     }
 
@@ -246,6 +255,8 @@ public class ProfanityConsumer {
      * @param data                      the data from the discussion answer post reply
      */
     private void handleProfanityForAnswerPostReplyCreation(String parentDiscussionId, String parentAnswerPostId, DiscussionAnswerPostReplyEntity discussionAnswerPostReply, ObjectNode data) {
+        log.info("Handling profanity for answer post reply: {}, parentDiscussionId: {}, parentAnswerPostId: {}",
+                data.get(Constants.DISCUSSION_ID).asText(), parentDiscussionId, parentAnswerPostId);
         String userId = discussionAnswerPostReply.getData().get("createdBy").asText();
         String firstName = helperMethodService.fetchUserFirstName(userId);
         Map<String, Object> notificationData = Map.of(
