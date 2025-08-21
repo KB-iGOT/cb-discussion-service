@@ -118,7 +118,7 @@ class ProfanityConsumerTest {
         when(mockNode.toString()).thenReturn(kafkaValue);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            verify(discussionRepository).updateProfanityFieldsByDiscussionId("post123", kafkaValue, true);
+            verify(discussionRepository).updateProfanityFieldsByDiscussionId("post123", kafkaValue, true,Constants.PROFANITY_CHECK_PASSED);
         });
     }
 
@@ -132,7 +132,7 @@ class ProfanityConsumerTest {
         when(mockNode.toString()).thenReturn(kafkaValue);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            verify(discussionRepository).updateProfanityFieldsByDiscussionId("post456", kafkaValue, false);
+            verify(discussionRepository).updateProfanityFieldsByDiscussionId("post456", kafkaValue, false,Constants.PROFANITY_CHECK_PASSED);
         });
     }
 
@@ -147,7 +147,7 @@ class ProfanityConsumerTest {
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(discussionAnswerPostReplyRepository)
-                    .updateProfanityFieldsByDiscussionId("reply123", kafkaValue, true);
+                    .updateProfanityFieldsByDiscussionId("reply123", kafkaValue, true,Constants.PROFANITY_CHECK_PASSED);
         });
     }
 
