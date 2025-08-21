@@ -47,4 +47,6 @@ public interface DiscussionService {
     void deleteCacheByCommunity(String communityId);
 
     void updateCacheForFirstFivePages(String communityId, boolean b);
+
+    SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId, String communityId, String type);
 }

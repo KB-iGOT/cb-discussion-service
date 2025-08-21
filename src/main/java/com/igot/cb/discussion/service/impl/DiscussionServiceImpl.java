@@ -417,8 +417,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             } catch (Exception e) {
                 log.error("Error while triggering notification", e);
             }
-            ((ObjectNode) updateData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
-            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), updateData);
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), jsonNode);
         } catch (Exception e) {
             log.error("Failed to update the discussion: ", e);
             DiscussionServiceUtil.createErrorResponse(response, "Failed to update the discussion", HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
@@ -993,7 +992,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return response;
     }
 
-    private SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
+    public SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId,
                                                             String communityId,
                                                             String type) {
         SearchCriteria criteria = new SearchCriteria();
@@ -1432,8 +1431,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.OK);
             response.getParams().setStatus(Constants.SUCCESS);
             response.setResult(discussionAnswerPostDetailMap);
-            ((ObjectNode) answerPostData).put(Constants.TYPE, data.get(Constants.TYPE).asText());
-            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), answerPostDataNode);
+            producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), jsonNode);
         } catch (Exception e) {
             log.error("Failed to update AnswerPost: {}", e.getMessage(), e);
             DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_UPDATE_ANSWER_POST, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);

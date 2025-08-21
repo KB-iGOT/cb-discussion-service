@@ -38,6 +38,12 @@ public class ProfanityCheckServiceImpl implements IProfanityCheckService {
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Constants.POST_ID, id);
         metadata.put(Constants.TYPE, discussionDetailsNode.get(Constants.TYPE).asText());
+        if (Constants.ANSWER_POST.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
+            metadata.put(Constants.PARENT_DISCUSSION_ID, discussionDetailsNode.get(Constants.PARENT_DISCUSSION_ID).asText());
+        } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())){
+            metadata.put(Constants.PARENT_DISCUSSION_ID, discussionDetailsNode.get(Constants.PARENT_DISCUSSION_ID).asText());
+            metadata.put(Constants.PARENT_ANSWER_POST_ID, discussionDetailsNode.get(Constants.PARENT_ANSWER_POST_ID).asText());
+        }
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put(Constants.TEXT, discussionDetailsNode.get(Constants.DESCRIPTION).asText());
         requestBody.put(Constants.LANGUAGE, discussionDetailsNode.get(Constants.LANGUAGE).asText());
