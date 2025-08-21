@@ -288,6 +288,10 @@ public class Constants {
     public static final String IS_PROFANE = "isProfane";
     public static final String PROFANITY_RESPONSE = "profanityresponse";
     public static final String DETECTED_LANGUAGE = "detected_language";
+    public static final String LANGUAGE_NOT_DETECTED = "languageNotDetected";
+    public static final String PROFANITY_CHECK_CALL_FAILED = "profanityCheckCallFailed";
+    public static final String PROFANITY_CHECK_UPDATE_FAILED = "profanityCheckUpdateFailed";
+    public static final String PROFANITY_CHECK_PASSED = "profanityCheckPassed";
 
     private Constants() {
     }

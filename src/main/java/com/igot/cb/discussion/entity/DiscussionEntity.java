@@ -41,6 +41,9 @@ public class DiscussionEntity {
     @Column(name = "isprofane")
     private Boolean isProfane;
 
+    @Column(name = "profanitycheckstatus")
+    private String profanityCheckStatus;
+
     public DiscussionEntity(String discussionId, JsonNode data, Boolean isActive, Timestamp createdOn, Timestamp updatedOn) {
         this.discussionId = discussionId;
         this.data = data;

@@ -56,7 +56,8 @@ class DiscussionEntityTest {
                 createdOn,
                 updatedOn,
                 profanityResponse,
-                true
+                true,
+                "profanity_check_status"
         );
 
         assertEquals("d456", entity.getDiscussionId());

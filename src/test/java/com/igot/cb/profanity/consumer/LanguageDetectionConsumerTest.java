@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
@@ -31,6 +33,12 @@ class LanguageDetectionConsumerTest {
     private RequestHandlerServiceImpl requestHandlerService;
     @Mock
     private IProfanityCheckService profanityCheckService;
+
+    @Mock
+    private DiscussionRepository discussionRepository;
+
+    @Mock
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
 
     @BeforeEach
     void setUp() {
@@ -83,6 +91,11 @@ class LanguageDetectionConsumerTest {
         JsonNode textNode = mock(JsonNode.class);
         when(textNode.asText()).thenReturn(text);
         when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
+
+        JsonNode typeNode = mock(JsonNode.class);
+        when(typeNode.asText()).thenReturn("QUESTION");
+        when(node.get(Constants.TYPE)).thenReturn(typeNode);
+
         when(mapper.readTree(json)).thenReturn(node);
 
         Map<String, Object> langDetectResponse = new HashMap<>();
@@ -115,6 +128,11 @@ class LanguageDetectionConsumerTest {
         JsonNode textNode = mock(JsonNode.class);
         when(textNode.asText()).thenReturn(text);
         when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
+
+        JsonNode typeNode = mock(JsonNode.class);
+        when(typeNode.asText()).thenReturn("QUESTION"); // or "ANSWER_POST" or "ANSWER_POST_REPLY"
+        when(node.get(Constants.TYPE)).thenReturn(typeNode);
+
         when(mapper.readTree(json)).thenReturn(node);
 
         Map<String, Object> langDetectResponse = new HashMap<>();
@@ -150,5 +168,120 @@ class LanguageDetectionConsumerTest {
         consumer.checkTextLanguage(record);
         verify(mapper).readTree(invalidJson);
         verifyNoInteractions(profanityCheckService, requestHandlerService);
+    }
+
+    @Test
+    void testCheckTextLanguage_languageDetectionFailure_questionType() throws Exception {
+        String id = "discussion123";
+        String text = "Hello world";
+        String json = "{\"discussionId\":\"" + id + "\",\"text\":\"" + text + "\"}";
+
+        ObjectNode node = mock(ObjectNode.class);
+        JsonNode idNode = mock(JsonNode.class);
+        when(idNode.asText()).thenReturn(id);
+        when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
+        JsonNode textNode = mock(JsonNode.class);
+        when(textNode.asText()).thenReturn(text);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
+
+        JsonNode typeNode = mock(JsonNode.class);
+        when(typeNode.asText()).thenReturn("QUESTION");
+        when(node.get(Constants.TYPE)).thenReturn(typeNode);
+
+        when(mapper.readTree(json)).thenReturn(node);
+
+        Map<String, Object> langDetectResponse = new HashMap<>();
+        langDetectResponse.put(Constants.DETECTED_LANGUAGE, "");
+
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getContentModerationServiceUrl()).thenReturn("http://service");
+        when(cbServerProperties.getContentModerationLanguageDetectApiPath()).thenReturn("detect");
+        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(langDetectResponse);
+
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+
+        consumer.checkTextLanguage(record);
+
+        verify(discussionRepository).updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
+        verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
+        verifyNoInteractions(profanityCheckService);
+    }
+
+
+
+    @Test
+    void testCheckTextLanguage_languageDetectionFailure_answerPostReplyType() throws Exception {
+        String id = "discussion123";
+        String text = "Hello world";
+        String json = "{\"discussionId\":\"" + id + "\",\"text\":\"" + text + "\"}";
+
+        ObjectNode node = mock(ObjectNode.class);
+        JsonNode idNode = mock(JsonNode.class);
+        when(idNode.asText()).thenReturn(id);
+        when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
+        JsonNode textNode = mock(JsonNode.class);
+        when(textNode.asText()).thenReturn(text);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
+
+        JsonNode typeNode = mock(JsonNode.class);
+        when(typeNode.asText()).thenReturn("ANSWER_POST_REPLY");
+        when(node.get(Constants.TYPE)).thenReturn(typeNode);
+
+        when(mapper.readTree(json)).thenReturn(node);
+
+        Map<String, Object> langDetectResponse = new HashMap<>();
+        langDetectResponse.put(Constants.DETECTED_LANGUAGE, null);
+
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getContentModerationServiceUrl()).thenReturn("http://service");
+        when(cbServerProperties.getContentModerationLanguageDetectApiPath()).thenReturn("detect");
+        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(langDetectResponse);
+
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+
+        consumer.checkTextLanguage(record);
+
+        verify(node, never()).put(eq(Constants.LANGUAGE), anyString());
+        verifyNoInteractions(profanityCheckService);
+    }
+
+    @Test
+    void testCheckTextLanguage_languageDetectionFailure_unknownType() throws Exception {
+        String id = "discussion123";
+        String text = "Hello world";
+        String json = "{\"discussionId\":\"" + id + "\",\"text\":\"" + text + "\"}";
+
+        ObjectNode node = mock(ObjectNode.class);
+        JsonNode idNode = mock(JsonNode.class);
+        when(idNode.asText()).thenReturn(id);
+        when(node.get(Constants.DISCUSSION_ID)).thenReturn(idNode);
+        JsonNode textNode = mock(JsonNode.class);
+        when(textNode.asText()).thenReturn(text);
+        when(node.get(Constants.DESCRIPTION)).thenReturn(textNode);
+
+        JsonNode typeNode = mock(JsonNode.class);
+        when(typeNode.asText()).thenReturn("UNKNOWN_TYPE");
+        when(node.get(Constants.TYPE)).thenReturn(typeNode);
+
+        when(mapper.readTree(json)).thenReturn(node);
+
+        Map<String, Object> langDetectResponse = new HashMap<>();
+        langDetectResponse.put(Constants.DETECTED_LANGUAGE, "");
+
+        when(cbServerProperties.getCbDiscussionApiKey()).thenReturn("api-key");
+        when(cbServerProperties.getContentModerationServiceUrl()).thenReturn("http://service");
+        when(cbServerProperties.getContentModerationLanguageDetectApiPath()).thenReturn("detect");
+        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(langDetectResponse);
+
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+
+        consumer.checkTextLanguage(record);
+
+        verify(discussionRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
+        verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
+        verifyNoInteractions(profanityCheckService);
     }
 }

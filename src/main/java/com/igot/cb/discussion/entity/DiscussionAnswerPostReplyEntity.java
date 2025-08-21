@@ -40,4 +40,7 @@ public class DiscussionAnswerPostReplyEntity {
 
     @Column(name = "isprofane")
     private Boolean isProfane;
+
+    @Column(name = "profanitycheckstatus")
+    private String profanityCheckStatus;
 }

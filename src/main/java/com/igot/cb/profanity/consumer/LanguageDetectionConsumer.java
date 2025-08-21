@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
@@ -34,6 +36,12 @@ public class LanguageDetectionConsumer {
     @Autowired
     private IProfanityCheckService profanityCheckService;
 
+    @Autowired
+    private DiscussionRepository discussionRepository;
+
+    @Autowired
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+
     @KafkaListener(topics = "${kafka.topic.process.detect.language}", groupId = "${kafka.group.process.detect.language}")
     public void checkTextLanguage(ConsumerRecord<String, String> textData) {
         if (StringUtils.hasText(textData.value())) {
@@ -58,8 +66,9 @@ public class LanguageDetectionConsumer {
                         detectedLanguage = lang.toString();
                     }
                 }
-                if( !StringUtils.hasText(detectedLanguage)) {
+                if (!StringUtils.hasText(detectedLanguage)) {
                     log.warn("Detected language is empty for discussion ID: {}", id);
+                    handleLanguageDetectionFailure(discussionDetailsNode, id);
                     return;
                 }
                 discussionDetailsNode.put(Constants.LANGUAGE, detectedLanguage);
@@ -67,6 +76,21 @@ public class LanguageDetectionConsumer {
             } catch (JsonProcessingException e) {
                 log.error("Failed to parse JSON from Kafka message: {}", textData.value(), e);
             }
+        }
+    }
+
+    /**
+     * Handles the case where language detection fails for a discussion.
+     * Updates the discussion status to indicate that language detection was not successful.
+     *
+     * @param discussionDetailsNode the details of the discussion as an ObjectNode
+     * @param id the ID of the discussion
+     */
+    private void handleLanguageDetectionFailure(ObjectNode discussionDetailsNode, String id) {
+        if (Constants.QUESTION.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText()) || Constants.ANSWER_POST.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
+            discussionRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
+        } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
+            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
         }
     }
 }

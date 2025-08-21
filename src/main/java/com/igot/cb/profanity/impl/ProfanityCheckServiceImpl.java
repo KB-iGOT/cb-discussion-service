@@ -1,10 +1,13 @@
 package com.igot.cb.profanity.impl;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +18,7 @@ import java.util.Map;
  * Implementation of the IProfanityCheckService interface that processes profanity checks
  * for discussion details by sending a request to a text moderation API.
  */
+@Slf4j
 @Service
 public class ProfanityCheckServiceImpl implements IProfanityCheckService {
     @Autowired
@@ -22,6 +26,12 @@ public class ProfanityCheckServiceImpl implements IProfanityCheckService {
 
     @Autowired
     private RequestHandlerServiceImpl requestHandlerService;
+
+    @Autowired
+    private DiscussionRepository discussionRepository;
+
+    @Autowired
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
 
     /**
      * Processes a profanity check for a discussion by sending the discussion details
@@ -52,6 +62,15 @@ public class ProfanityCheckServiceImpl implements IProfanityCheckService {
         mainRequest.put(Constants.HEADER_MAP, headerMap);
         mainRequest.put(Constants.REQUEST_BODY, requestBody);
         mainRequest.put(Constants.SERVICE_CODE, Constants.PROFANITY_CHECK);
-        requestHandlerService.fetchResultUsingPost(cbServerProperties.getCbServiceRegistryBaseUrl() + "/" + cbServerProperties.getCbRegistryTextModerationApiPath(), mainRequest, headerMap);
+        try {
+            requestHandlerService.fetchResultUsingPost(cbServerProperties.getCbServiceRegistryBaseUrl() + "/" + cbServerProperties.getCbRegistryTextModerationApiPath(), mainRequest, headerMap);
+        } catch (Exception e) {
+            log.error("Exception while processing profanity check for discussion ID: {}", id, e);
+            if (Constants.QUESTION.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText()) || Constants.ANSWER_POST.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
+                discussionRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.PROFANITY_CHECK_CALL_FAILED, false);
+            } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(discussionDetailsNode.get(Constants.TYPE).asText())) {
+                discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(id, Constants.PROFANITY_CHECK_CALL_FAILED, false);
+            }
+        }
     }
 }

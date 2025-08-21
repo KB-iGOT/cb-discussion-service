@@ -99,6 +99,11 @@ public class ProfanityConsumer {
                         updateProfanityFieldsAndSync(type, discussionId, profanityResponseJson, isProfane, parentDiscussionId, parentAnswerPostId);
                     } catch (Exception ex) {
                         log.error("Failed to update profanity fields for Discussion: {}", discussionId, ex);
+                        if (Constants.QUESTION.equalsIgnoreCase(type) || Constants.ANSWER_POST.equalsIgnoreCase(type)) {
+                            discussionRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
+                        } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(type)) {
+                            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
+                        }
                     }
                 });
             } catch (JsonProcessingException e) {
@@ -190,11 +195,11 @@ public class ProfanityConsumer {
      */
     private void updateProfanityFieldsAndSync(String type, String discussionId, String profanityResponseJson, boolean isProfane, String parentDiscussionId, String parentAnswerPostId) {
         if (Constants.QUESTION.equalsIgnoreCase(type) || Constants.ANSWER_POST.equalsIgnoreCase(type)) {
-            discussionRepository.updateProfanityFieldsByDiscussionId(discussionId, profanityResponseJson, isProfane);
+            discussionRepository.updateProfanityFieldsByDiscussionId(discussionId, profanityResponseJson, isProfane, Constants.PROFANITY_CHECK_PASSED);
             log.info("Successfully updated profanity fields for Discussion: {}", discussionId);
             syncProfaneDetailsToESForDiscussion(discussionId, isProfane, type, parentDiscussionId);
         } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(type)) {
-            discussionAnswerPostReplyRepository.updateProfanityFieldsByDiscussionId(discussionId, profanityResponseJson, isProfane);
+            discussionAnswerPostReplyRepository.updateProfanityFieldsByDiscussionId(discussionId, profanityResponseJson, isProfane, Constants.PROFANITY_CHECK_PASSED);
             log.info("Successfully updated profanity fields for Answer Post Reply: {}", discussionId);
             syncProfaneDetailsToESForAnswerPost(discussionId, isProfane, parentDiscussionId, parentAnswerPostId);
         }

@@ -12,7 +12,11 @@ public interface DiscussionRepository extends JpaRepository<DiscussionEntity, St
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE discussion SET profanityresponse = cast(?2 as jsonb), isprofane = ?3 WHERE discussion_id = ?1", nativeQuery = true)
-    void updateProfanityFieldsByDiscussionId(String discussionId, String profanityResponseJson, Boolean isProfane);
+    @Query(value = "UPDATE discussion SET profanityresponse = cast(?2 as jsonb), isprofane = ?3, profanitycheckstatus = ?4 WHERE discussion_id = ?1", nativeQuery = true)
+    void updateProfanityFieldsByDiscussionId(String discussionId, String profanityResponseJson, Boolean isProfane, String profanityCheckStatus);
 
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE discussion SET profanitycheckstatus = ?2, isprofane = ?3 WHERE discussion_id = ?1", nativeQuery = true)
+    void updateProfanityCheckStatusByDiscussionId(String discussionId, String profanityCheckStatus, Boolean isProfane);
 }
