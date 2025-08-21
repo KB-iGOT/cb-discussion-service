@@ -1,15 +1,86 @@
-name: SonarQube PR
+name: SonarQube PR Scan (Maven)
 
 on:
   pull_request:
-    branches: [cbrelease-4.8.28]
+    branches: cbrelease-4.8.27
 
 jobs:
-  sonar-pr:
-    uses: KB-iGOT/sunbird-devops/.github/workflows/pr-merge.yml@cbrelease-4.8.27.3
-    with:
-      language: java
-      build_command: mvn clean verify  # or 'mvn clean install'
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK and Maven
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+          maven-version: 3.8.8
+
+#      - name: Cache Maven packages
+#        uses: actions/cache@v3
+#        with:
+#          path: ~/.m2
+#          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+#          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build with Maven
+        run: mvn clean verify
+
+      - name: Run SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=Notification-Service \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.working.directory=.scannerwork
+
+      - name: Wait for and Check Quality Gate Status
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          echo "Waiting for SonarQube Quality Gate result..."
+
+          ceTaskId=$(grep -oP '(?<=ceTaskId=).*' .scannerwork/report-task.txt)
+          echo "Got ceTaskId: $ceTaskId"
+
+          for i in {1..10}; do
+            response=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/ce/task?id=$ceTaskId")
+            status=$(echo "$response" | jq -r '.task.status')
+
+            if [[ "$status" == "SUCCESS" ]]; then
+              analysisId=$(echo "$response" | jq -r '.task.analysisId')
+              break
+            fi
+
+            echo "Waiting for analysis... ($i/10)"
+            sleep 5
+          done
+
+          if [[ "$status" != "SUCCESS" ]]; then
+            echo "❌ Analysis did not complete in time."
+            exit 1
+          fi
+
+          gateStatus=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/qualitygates/project_status?analysisId=$analysisId" | jq -r '.projectStatus.status')
+
+          echo "Quality Gate Status: $gateStatus"
+
+          if [[ "$gateStatus" != "OK" ]]; then
+            echo "❌ Quality Gate failed."
+            exit 1
+          else
+            echo "✅ Quality Gate passed."
+          fi
+            
