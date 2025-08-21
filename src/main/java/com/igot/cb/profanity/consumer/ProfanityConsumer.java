@@ -235,6 +235,7 @@ public class ProfanityConsumer {
             discussionService.updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
         } else if (Constants.ANSWER_POST.equalsIgnoreCase(type) && org.apache.commons.lang3.StringUtils.isNotEmpty(parentDiscussionId)) {
             log.info("Profanity detected in answer post: {}", data.get(Constants.DISCUSSION_ID).asText());
+            notificationTriggerService.triggerNotification(Constants.PROFANITY_CHECK, ALERT, Collections.singletonList(userId), TITLE, firstName, notificationData);
             discussionService.deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + data.get(Constants.COMMUNITY_ID).asText());
             discussionService.updateCacheForFirstFivePages(data.get(Constants.COMMUNITY_ID).asText(), false);
             redisTemplate.opsForValue()
