@@ -1020,7 +1020,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     }
 
-    private void updateAnswerPostToDiscussion(DiscussionEntity discussionEntity, String discussionId, String action) {
+    public void updateAnswerPostToDiscussion(DiscussionEntity discussionEntity, String discussionId, String action) {
         log.info("DiscussionService::updateAnswerPostToDiscussion:inside");
         JsonNode data = discussionEntity.getData();
         Set<String> answerPostSet = new HashSet<>();

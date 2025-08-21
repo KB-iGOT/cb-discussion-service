@@ -493,4 +493,95 @@ class ProfanityConsumerTest {
         String value = (String) invokePrivate("extractFieldAsText", new Class[]{JsonNode.class, String[].class}, root, new String[]{"missing"});
         assertNull(value);
     }
+
+    @Test
+    void testCheckTextContentIsProfane_UpdateProfanityFieldsThrowsExceptionForQuestion() throws Exception {
+        String kafkaValue = BASE_JSON_TEMPLATE.formatted("q123", Constants.QUESTION, true);
+        ConsumerRecord<String, String> consumerRecord =
+                new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
+        JsonNode mockNode = mockJsonTree("q123", Constants.QUESTION, true);
+        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(mockNode.toString()).thenReturn(kafkaValue);
+
+        doThrow(new RuntimeException("DB error"))
+                .when(discussionRepository).updateProfanityFieldsByDiscussionId(anyString(), anyString(), anyBoolean(), anyString());
+
+        profanityConsumer.checkTextContentIsProfane(consumerRecord);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(discussionRepository).updateProfanityCheckStatusByDiscussionId("q123",
+                    Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
+        });
+    }
+
+    @Test
+    void testCheckTextContentIsProfane_UpdateProfanityFieldsThrowsExceptionForReply() throws Exception {
+        String kafkaValue = BASE_JSON_TEMPLATE.formatted("r123", Constants.ANSWER_POST_REPLY, false);
+        ConsumerRecord<String, String> consumerRecord =
+                new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
+        JsonNode mockNode = mockJsonTree("r123", Constants.ANSWER_POST_REPLY, false);
+        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(mockNode.toString()).thenReturn(kafkaValue);
+
+        doThrow(new RuntimeException("DB error"))
+                .when(discussionAnswerPostReplyRepository).updateProfanityFieldsByDiscussionId(anyString(), anyString(), anyBoolean(), anyString());
+
+        profanityConsumer.checkTextContentIsProfane(consumerRecord);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(discussionAnswerPostReplyRepository).updateProfanityCheckStatusByDiscussionId("r123",
+                    Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
+        });
+    }
+
+    @Test
+    void testSyncProfaneDetailsToESForAnswerPost_Active_Profane() throws Exception {
+        String discussionId = "replyProfane";
+        ObjectNode data = JsonNodeFactory.instance.objectNode();
+        data.put("createdBy", "u123");
+        data.put(Constants.COMMUNITY_ID, "commX");
+        data.put(Constants.DISCUSSION_ID, discussionId);
+
+        DiscussionAnswerPostReplyEntity replyEntity = mock(DiscussionAnswerPostReplyEntity.class);
+        when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
+        when(replyEntity.getIsActive()).thenReturn(true);
+        when(replyEntity.getData()).thenReturn(data);
+        when(replyEntity.getDiscussionId()).thenReturn(discussionId);
+
+        // Also mock a DiscussionEntity so updateAnswerPostReplyToAnswerPost is called
+        DiscussionEntity discussionEntity = mock(DiscussionEntity.class);
+        when(discussionRepository.findById(discussionId)).thenReturn(Optional.of(discussionEntity));
+
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("answerIndex");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
+        when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
+
+        // Inject objectMapper mock
+        Field objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
+        objectMapperField.setAccessible(true);
+        objectMapperField.set(profanityConsumer, mapper);
+
+        // Inject redisTemplate mock
+        Field redisTemplateField = ProfanityConsumer.class.getDeclaredField("redisTemplate");
+        redisTemplateField.setAccessible(true);
+        redisTemplateField.set(profanityConsumer, redisTemplate);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.getAndDelete(anyString())).thenReturn("deleted");
+
+        invokePrivate("syncProfaneDetailsToESForAnswerPost",
+                new Class[]{String.class, boolean.class, String.class, String.class},
+                discussionId, true, "parentDiscX", "parentAnsX");
+
+        verify(esUtilService).updateDocument(eq("answerIndex"), eq(discussionId), anyMap(), eq("jsonPath"));
+        verify(answerPostReplyService).updateAnswerPostReplyToAnswerPost(eq(discussionEntity), eq(discussionId), eq(Constants.DECREMENT));
+    }
+
+    @Test
+    void testExtractFieldAsText_WithNullNode() throws Exception {
+        String result = (String) invokePrivate("extractFieldAsText",
+                new Class[]{JsonNode.class, String[].class},
+                (JsonNode) null, new String[]{"any"});
+        assertNull(result);
+    }
+
 }

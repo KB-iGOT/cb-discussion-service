@@ -2,6 +2,7 @@ package com.igot.cb.discussion.service;
 
 import java.util.Map;
 
+import com.igot.cb.discussion.entity.DiscussionEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -49,4 +50,6 @@ public interface DiscussionService {
     void updateCacheForFirstFivePages(String communityId, boolean b);
 
     SearchCriteria createSearchCriteriaWithDefaults(String parentDiscussionId, String communityId, String type);
+
+    void updateAnswerPostToDiscussion(DiscussionEntity discussionEntity, String discussionId, String action);
 }
