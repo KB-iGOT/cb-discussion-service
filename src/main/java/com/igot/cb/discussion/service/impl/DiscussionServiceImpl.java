@@ -1045,7 +1045,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         ObjectNode jsonNode = objectMapper.createObjectNode();
         jsonNode.setAll((ObjectNode) savedEntity.getData());
         Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
-        map.put(IS_PROFANE,false);
+        map.put(IS_PROFANE, Boolean.TRUE.equals(discussionEntity.getIsProfane()));
         esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionEntity.getDiscussionId(), map, cbServerProperties.getElasticDiscussionJsonPath());
         cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionEntity.getDiscussionId(), jsonNode);
     }
