@@ -548,9 +548,9 @@ class ProfanityConsumerTest {
         when(replyEntity.getData()).thenReturn(data);
         when(replyEntity.getDiscussionId()).thenReturn(discussionId);
 
-        // Also mock a DiscussionEntity so updateAnswerPostReplyToAnswerPost is called
+        // Mock DiscussionEntity for the parentAnswerPostId parameter
         DiscussionEntity discussionEntity = mock(DiscussionEntity.class);
-        when(discussionRepository.findById(discussionId)).thenReturn(Optional.of(discussionEntity));
+        when(discussionRepository.findById("parentAnsX")).thenReturn(Optional.of(discussionEntity));
 
         when(cbServerProperties.getDiscussionEntity()).thenReturn("answerIndex");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
