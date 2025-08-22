@@ -15,11 +15,16 @@ import com.igot.cb.discussion.repository.CommunityEngagementRepository;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
-import com.igot.cb.pores.util.*;
+import com.igot.cb.pores.util.ApiResponse;
+import com.igot.cb.pores.util.CbServerProperties;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.PayloadValidation;
 import com.igot.cb.producer.Producer;
 import com.igot.cb.profanity.IProfanityCheckService;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
@@ -49,6 +54,7 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.*;
 
+import static com.igot.cb.pores.util.Constants.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -93,6 +99,11 @@ class DiscussionServiceImplTest {
     @Mock
     private RequestHandlerServiceImpl requestHandlerService;
     @Mock private IProfanityCheckService profanityCheckService;
+
+    @Mock
+    private NotificationTriggerService notificationTriggerService;
+    @Mock
+    private HelperMethodService helperMethodService;
 
     @Mock
     private ObjectMapper objectMapper; // mock
@@ -3615,6 +3626,110 @@ class DiscussionServiceImplTest {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateAnswerPost_withMentionedUsers_andNotifications() throws Exception {
+        // ---------- Arrange ----------
+        String discussionOwner = "owner-456";
+
+        ObjectMapper realMapper = new ObjectMapper();
+        ObjectNode answerPostData = realMapper.createObjectNode();
+        answerPostData.put(Constants.PARENT_DISCUSSION_ID, "parent-discussion-id");
+        answerPostData.put(Constants.COMMUNITY_ID, "community-1");
+        answerPostData.put(CREATED_BY, userId);
+
+        // MENTIONED_USERS array
+        ArrayNode mentionedUsersArray = realMapper.createArrayNode();
+        mentionedUsersArray.add(realMapper.createObjectNode().put(USER_ID_RQST, "user-999"));
+        mentionedUsersArray.add(realMapper.createObjectNode().put(USER_ID_RQST, "user-888"));
+        answerPostData.set(MENTIONED_USERS, mentionedUsersArray);
+
+        // Mock token validation
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock DiscussionEntity
+        ObjectNode discussionData = realMapper.createObjectNode();
+        discussionData.put(Constants.TYPE, Constants.QUESTION); // not ANSWER_POST
+        discussionData.put(Constants.STATUS, Constants.ACTIVE);
+        discussionData.put(Constants.COMMUNITY_ID, "community-1");
+        discussionData.put(Constants.CREATED_BY, discussionOwner);
+
+        discussionEntity = new DiscussionEntity();
+        discussionEntity.setData(discussionData);
+        discussionEntity.setIsActive(true);
+        when(discussionRepository.findById(anyString())).thenReturn(Optional.of(discussionEntity));
+
+        // Mock Cassandra community check
+        Map<String, Object> mockCommunityMap = new HashMap<>();
+        mockCommunityMap.put(Constants.STATUS, true);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                any(), any(), any(), any(), any()))
+                .thenReturn(List.of(mockCommunityMap));
+
+        // Mock repository save - CRITICAL MISSING MOCK
+        DiscussionEntity savedEntity = new DiscussionEntity();
+        savedEntity.setDiscussionId("saved-answer-post-id");
+        savedEntity.setIsActive(true);
+        savedEntity.setData(answerPostData);
+        when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(savedEntity);
+
+        // Mock ObjectMapper operations - CRITICAL MISSING MOCKS
+        when(objectMapper.createArrayNode()).thenAnswer(invocation -> realMapper.createArrayNode());
+        when(objectMapper.createObjectNode()).thenAnswer(invocation -> realMapper.createObjectNode());
+        when(objectMapper.convertValue(any(ObjectNode.class), eq(Map.class)))
+                .thenAnswer(invocation -> realMapper.convertValue(invocation.getArgument(0), Map.class));
+
+        // Mock cbServerProperties - CRITICAL MISSING MOCKS
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion_entity");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("/discussion/path");
+        when(cbServerProperties.getCommunityPostCount()).thenReturn("community_post_count");
+        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("detect_language_topic");
+
+        // Mock helperMethodService
+        when(helperMethodService.fetchUserFirstName(anyString())).thenReturn("John");
+
+        String mockCriteriaJson = "{\"filterCriteriaMap\":{\"communityId\":[\"comm-1\"]}}";
+
+        // Mock cbServerProperties to return JSON string
+        Mockito.when(cbServerProperties.getFilterCriteriaForGlobalFeed())
+                .thenReturn(mockCriteriaJson);
+
+        // Mock ObjectMapper to return SearchCriteria object
+        SearchCriteria mockSearchCriteria = new SearchCriteria();
+        Map<String, Object> filterCriteriaMap = new HashMap<>();
+        filterCriteriaMap.put(Constants.COMMUNITY_ID, new HashSet<>(Set.of("comm-1")));
+        mockSearchCriteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteriaMap);
+
+        Mockito.when(objectMapper.readValue(Mockito.anyString(), Mockito.eq(SearchCriteria.class)))
+                .thenReturn(mockSearchCriteria);
+
+
+        // ---------- Act ----------
+        ApiResponse response = discussionService.createAnswerPost(answerPostData, token);
+
+        // ---------- Assert ----------
+        assertEquals(HttpStatus.CREATED, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult());
+
+        // Verify notifications were triggered
+        verify(notificationTriggerService).triggerNotification(
+                eq(LIKED_COMMENT),
+                eq(ENGAGEMENT),
+                eq(List.of(discussionOwner)),
+                eq(TITLE),
+                eq("John"),
+                anyMap()
+        );
+        verify(notificationTriggerService).triggerNotification(
+                eq(TAGGED_COMMENT),
+                eq(ENGAGEMENT),
+                argThat(list -> list.contains("user-999") && list.contains("user-888")),
+                eq(TITLE),
+                eq("John"),
+                anyMap()
+        );
     }
 
 }
