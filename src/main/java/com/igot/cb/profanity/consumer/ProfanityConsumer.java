@@ -94,21 +94,36 @@ public class ProfanityConsumer {
                 String type = textDataNode.path(Constants.REQUEST_DATA).path(Constants.METADATA).path(Constants.TYPE).asText();
                 boolean isProfane = textDataNode.path(Constants.RESPONSE_DATA).path(Constants.RESPONSE_DATA_PATH).path(Constants.IS_PROFANE).asBoolean(false);
                 String profanityResponseJson = textDataNode.toString();
+                String responseStatus = extractFieldAsText(textDataNode, Constants.RESPONSE_DATA, Constants.STATUS);
                 CompletableFuture.runAsync(() -> {
                     try {
+                        if (Constants.FAILED_LOWERCASE.equalsIgnoreCase(responseStatus)) {
+                            updateProfanityCheckStatusToFailed(type, discussionId);
+                            return;
+                        }
                         updateProfanityFieldsAndSync(type, discussionId, profanityResponseJson, isProfane, parentDiscussionId, parentAnswerPostId);
                     } catch (Exception ex) {
                         log.error("Failed to update profanity fields for Discussion: {}", discussionId, ex);
-                        if (Constants.QUESTION.equalsIgnoreCase(type) || Constants.ANSWER_POST.equalsIgnoreCase(type)) {
-                            discussionRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
-                        } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(type)) {
-                            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
-                        }
+                        updateProfanityCheckStatusToFailed(type, discussionId);
                     }
                 });
             } catch (JsonProcessingException e) {
                 log.error("Failed to parse JSON from Kafka message: {}", textData.value(), e);
             }
+        }
+    }
+
+    /**
+     * Updates the profanity check status to failed in the database for the given discussion type and ID.
+     *
+     * @param type          the type of the discussion (e.g., QUESTION, ANSWER_POST, ANSWER_POST_REPLY)
+     * @param discussionId  the ID of the discussion
+     */
+    private void updateProfanityCheckStatusToFailed(String type, String discussionId) {
+        if (Constants.QUESTION.equalsIgnoreCase(type) || Constants.ANSWER_POST.equalsIgnoreCase(type)) {
+            discussionRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
+        } else if (Constants.ANSWER_POST_REPLY.equalsIgnoreCase(type)) {
+            discussionAnswerPostReplyRepository.updateProfanityCheckStatusByDiscussionId(discussionId, Constants.PROFANITY_CHECK_UPDATE_FAILED, false);
         }
     }
 

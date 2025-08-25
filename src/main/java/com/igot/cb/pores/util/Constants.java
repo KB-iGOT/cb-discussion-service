@@ -293,6 +293,7 @@ public class Constants {
     public static final String PROFANITY_CHECK_UPDATE_FAILED = "profanityCheckUpdateFailed";
     public static final String PROFANITY_CHECK_PASSED = "profanityCheckPassed";
     public static final String LANGUAGE_DETECTION_CALL_FAILED = "languageDetectionCallFailed";
+    public static final String FAILED_LOWERCASE = "failed";
 
     private Constants() {
     }
