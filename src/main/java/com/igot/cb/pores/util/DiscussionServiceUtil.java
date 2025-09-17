@@ -37,7 +37,7 @@ public class DiscussionServiceUtil {
         if (requestPayload != null) {
             try {
                 String reqJsonString = mapper.writeValueAsString(requestPayload);
-                return JWT.create().withClaim(Constants.REQUEST_PAYLOAD, reqJsonString).sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
+                return JWT.create().withClaim(Constants.REQUEST_PAYLOAD, reqJsonString).sign(Algorithm.HMAC256(Constants.DEMAND_SEARCH_NAME));
             } catch (JsonProcessingException e) {
                 log.error("Error occurred while converting json object to json string", e);
             }
