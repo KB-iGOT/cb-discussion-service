@@ -16,10 +16,7 @@ import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
-import com.igot.cb.pores.util.ApiResponse;
-import com.igot.cb.pores.util.CbServerProperties;
-import com.igot.cb.pores.util.Constants;
-import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +76,10 @@ class AnswerPostReplyServiceImplTest {
     private final String discussionId = "disc123";
 
     @BeforeEach
-    void setUp() throws NoSuchFieldException, IllegalAccessException {
+    void setUp() throws Exception {
+        CbServerProperties mockProps = mock(CbServerProperties.class);
+        when(mockProps.getJwtDemandSearchKeyName()).thenReturn("dummy-secret");
+        ReflectionTestUtils.setField(DiscussionServiceUtil.class, "cbServerProperties", mockProps);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionIndex");
         lenient().when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");

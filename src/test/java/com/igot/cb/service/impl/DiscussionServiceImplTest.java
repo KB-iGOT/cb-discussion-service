@@ -177,6 +177,7 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getKafkaUserPostCount()).thenReturn("user-post-count");
         when(cbServerProperties.getDiscussionCloudFolderName()).thenReturn("discussions");
         when(cbServerProperties.getDiscussionContainerName()).thenReturn("container");
+        when(cbServerProperties.getJwtDemandSearchKeyName()).thenReturn("dummy-secret");
     }
 
     @Test
