@@ -4,10 +4,10 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
 import java.time.ZoneId;
@@ -15,14 +15,15 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Slf4j
+@Component
 public class DiscussionServiceUtil {
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private static CbServerProperties cbServerProperties;
+    private final CbServerProperties cbServerProperties;
 
     @Autowired
-    public void setCbServerProperties(CbServerProperties cbServerProperties) {
-        DiscussionServiceUtil.cbServerProperties = cbServerProperties;
+    public DiscussionServiceUtil(CbServerProperties cbServerProperties) {
+        this.cbServerProperties = cbServerProperties;
     }
 
     public static void createSuccessResponse(ApiResponse response) {
@@ -42,7 +43,7 @@ public class DiscussionServiceUtil {
         return zonedDateTime.format(formatter);
     }
 
-    public static String generateRedisJwtTokenKey(Object requestPayload) {
+    public String generateRedisJwtTokenKey(Object requestPayload) {
         if (requestPayload != null) {
             try {
                 String reqJsonString = mapper.writeValueAsString(requestPayload);

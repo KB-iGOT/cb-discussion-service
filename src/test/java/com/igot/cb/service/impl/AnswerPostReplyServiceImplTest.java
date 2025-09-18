@@ -64,6 +64,7 @@ class AnswerPostReplyServiceImplTest {
     @Mock private HelperMethodService helperMethodService;
     @Mock private NotificationTriggerService notificationTriggerService;
     @Mock private Producer producer;
+    @Mock private DiscussionServiceUtil discussionServiceUtil;
 
     @Mock
     private ObjectNode mockObjectNode;
@@ -79,7 +80,6 @@ class AnswerPostReplyServiceImplTest {
     void setUp() throws Exception {
         CbServerProperties mockProps = mock(CbServerProperties.class);
         when(mockProps.getJwtDemandSearchKeyName()).thenReturn("dummy-secret");
-        ReflectionTestUtils.setField(DiscussionServiceUtil.class, "cbServerProperties", mockProps);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionIndex");
         lenient().when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
@@ -87,6 +87,7 @@ class AnswerPostReplyServiceImplTest {
         objectMapperField.setAccessible(true);
         objectMapperField.set(service, objectMapper);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
+        discussionServiceUtil = new DiscussionServiceUtil(cbServerProperties);
     }
 
     private JsonNode buildValidPayload() {
