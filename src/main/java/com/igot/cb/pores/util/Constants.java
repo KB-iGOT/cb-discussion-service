@@ -293,6 +293,7 @@ public class Constants {
     public static final String LANGUAGE_DETECTION_CALL_FAILED = "languageDetectionCallFailed";
     public static final String FAILED_LOWERCASE = "failed";
     public static final String ENGLISH_LANGUAGE_CODE = "en";
+    public static final String FAILED_TO_CREATE_FILE = "Failed to create file on server";
     private Constants() {
     }
 }

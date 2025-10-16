@@ -1287,7 +1287,12 @@ public class DiscussionServiceImpl implements DiscussionService {
         try {
             file = new File(System.currentTimeMillis() + Constants.UNDER_SCORE + mFile.getOriginalFilename());
 
-            file.createNewFile();
+            boolean isCreated = file.createNewFile();
+
+            if (!isCreated) {
+                log.error(Constants.FAILED_TO_CREATE_FILE);
+                return ProjectUtil.returnErrorMsg(Constants.FAILED_TO_CREATE_FILE, HttpStatus.INTERNAL_SERVER_ERROR, response, Constants.FAILED);
+            }
             // Use try-with-resources to ensure FileOutputStream is closed
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(mFile.getBytes());
@@ -1303,7 +1308,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         } finally {
             if (file != null && file.exists()) {
-                file.delete();
+                boolean isDeleted = file.delete();
+                if (!isDeleted) {
+                    log.error("Temporary file {} could not be deleted", file.getAbsolutePath());
+                }
             }
         }
     }
