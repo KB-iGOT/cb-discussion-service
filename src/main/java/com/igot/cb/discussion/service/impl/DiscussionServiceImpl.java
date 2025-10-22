@@ -193,7 +193,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             updateCacheForFirstFivePages(discussionDetails.get(Constants.COMMUNITY_ID).asText(), false);
             updateCacheForGlobalFeed(userId);
-            log.info("Updated cache for global feed");
+            log.info(Constants.CACHE_UPDATE_GLOBAL_FEED);
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
@@ -219,7 +219,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), discussionDetailsNode);
         } catch (Exception e) {
@@ -402,7 +402,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + communityId);
             updateCacheForFirstFivePages(communityId, false);
             updateCacheForGlobalFeed(userId);
-            log.info("Updated cache for global feed");
+            log.info(Constants.CACHE_UPDATE_GLOBAL_FEED);
             try {
                 String discussionOwner = discussionDbData.getData().get(Constants.CREATED_BY).asText();
                 if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
@@ -419,7 +419,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), jsonNode);
         } catch (Exception e) {
@@ -570,7 +570,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                         deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + map.get(Constants.COMMUNITY_ID));
                         updateCacheForFirstFivePages((String) map.get(Constants.COMMUNITY_ID), false);
                         updateCacheForGlobalFeed(userId);
-                        log.info("Updated cache for global feed");
+                        log.info(Constants.CACHE_UPDATE_GLOBAL_FEED);
                         producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
                         if (Constants.QUESTION.equalsIgnoreCase(data.get(Constants.TYPE).asText())) {
                             Map<String, String> userPostCount = new HashMap<>();
@@ -745,7 +745,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
 
             if (Constants.ANSWER_POST.equals(type)) {
@@ -988,7 +988,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             discussionAnswerPostDetailsMap.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
@@ -1227,7 +1227,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             String redisKey = Constants.REPORT_STATISTICS_CACHE_PREFIX + discussionId;
             cacheService.deleteCache(redisKey);
-            log.info("Updated cache for global feed");
+            log.info(Constants.CACHE_UPDATE_GLOBAL_FEED);
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
             return response;
@@ -1264,7 +1264,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAMS_PREFIX).append(errList).append(".");
         }
         return errorMsg.toString();
     }
@@ -1301,9 +1301,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             String uploadFolderPath = cbServerProperties.getDiscussionCloudFolderName() + "/" + communityId + "/" + discussionId;
             return uploadFile(file, uploadFolderPath, cbServerProperties.getDiscussionContainerName());
         } catch (Exception e) {
-            log.error("Failed to upload file. Exception: ", e);
+            log.error(Constants.FILE_UPLOAD_ERROR , e);
             response.getParams().setStatus(Constants.FAILED);
-            response.getParams().setErrMsg("Failed to upload file. Exception: " + e.getMessage());
+            response.getParams().setErrMsg(Constants.FILE_UPLOAD_ERROR  + e.getMessage());
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
         } finally {
@@ -1328,9 +1328,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.getResult().putAll(uploadedFile);
             return response;
         } catch (Exception e) {
-            log.error("Failed to upload file. Exception: ", e);
+            log.error(Constants.FILE_UPLOAD_ERROR , e);
             response.getParams().setStatus(Constants.FAILED);
-            response.getParams().setErrMsg("Failed to upload file. Exception: " + e.getMessage());
+            response.getParams().setErrMsg(Constants.FILE_UPLOAD_ERROR + e.getMessage());
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
         }
@@ -1445,7 +1445,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, newlyAddedUserIds, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             if(MapUtils.isNotEmpty(discussionAnswerPostDetailMap)) {
                 discussionAnswerPostDetailMap.remove(IS_PROFANE);
@@ -1648,7 +1648,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             errList.add(Constants.PAGE_SIZE);
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAMS_PREFIX).append(errList).append(".");
         }
         return errorMsg.toString();
     }
@@ -1802,7 +1802,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             errList.add(Constants.PAGE_NUMBER);
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAMS_PREFIX).append(errList).append(".");
         }
         return errorMsg.toString();
     }

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @Getter
@@ -13,7 +14,9 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class FacetDTO implements Serializable {
 
-  private String value;
+    @Serial
+    private static final long serialVersionUID = 7219275241914582851L;
+    private String value;
 
-  private Long count;
+    private Long count;
 }

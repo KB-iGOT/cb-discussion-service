@@ -293,6 +293,12 @@ public class Constants {
     public static final String LANGUAGE_DETECTION_CALL_FAILED = "languageDetectionCallFailed";
     public static final String FAILED_LOWERCASE = "failed";
     public static final String ENGLISH_LANGUAGE_CODE = "en";
+    public static final String LOCAL_DATACENTER = "datacenter1";
+    public static final String UNSUPPORTED_RANGE_OPERATOR = "Unsupported range operator: {}";
+    public static final String FILE_UPLOAD_ERROR = "Failed to upload file. Exception: ";
+    public static final String MISSING_PARAMS_PREFIX = "Failed Due To Missing Params - ";
+    public static final String NOTIFICATION_ERROR = "Error while triggering notification";
+    public static final String CACHE_UPDATE_GLOBAL_FEED = "Updated cache for global feed";
     public static final String FAILED_TO_CREATE_FILE = "Failed to create file on server";
     private Constants() {
     }
