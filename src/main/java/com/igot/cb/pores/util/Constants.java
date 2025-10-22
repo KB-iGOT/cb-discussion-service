@@ -299,7 +299,7 @@ public class Constants {
     public static final String MISSING_PARAMS_PREFIX = "Failed Due To Missing Params - ";
     public static final String NOTIFICATION_ERROR = "Error while triggering notification";
     public static final String CACHE_UPDATE_GLOBAL_FEED = "Updated cache for global feed";
-
+    public static final String FAILED_TO_CREATE_FILE = "Failed to create file on server";
     private Constants() {
     }
 }
