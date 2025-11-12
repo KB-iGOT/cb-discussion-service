@@ -69,7 +69,7 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
     /**
      * Creates a Cassandra connection based on properties
      */
-    private CqlSession createCassandraConnectionWithKeySpaces(String keySpaceName) {
+    private static CqlSession createCassandraConnectionWithKeySpaces(String keySpaceName) {
         try {
             // Load the properties required for connection
             PropertiesCache cache = PropertiesCache.getInstance();
@@ -90,7 +90,7 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
             DriverConfigLoader loader = DriverConfigLoader.programmaticBuilder()
                     .withStringList(DefaultDriverOption.CONTACT_POINTS, contactPointsString)
                     .withString(DefaultDriverOption.REQUEST_CONSISTENCY, getConsistencyLevel().name())
-                    .withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+                    .withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, Constants.LOCAL_DATACENTER)
                     .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE,
                             Integer.parseInt(cache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_LOCAL)))
                     .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE,
@@ -107,14 +107,14 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
             if (StringUtils.isNotBlank(keySpaceName)) {
                 sessionWithKeyspaces = CqlSession.builder()
                         .addContactPoints(contactPoints)
-                        .withLocalDatacenter("datacenter1")
+                        .withLocalDatacenter(Constants.LOCAL_DATACENTER)
                         .withKeyspace(keySpaceName)
                         .withConfigLoader(loader)
                         .build();
             } else {
                 sessionWithKeyspaces = CqlSession.builder()
                         .addContactPoints(contactPoints)
-                        .withLocalDatacenter("datacenter1")
+                        .withLocalDatacenter(Constants.LOCAL_DATACENTER)
                         .withConfigLoader(loader)
                         .build();
             }
@@ -136,7 +136,7 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
         }
     }
 
-    private void createCassandraConnection() {
+    private static void createCassandraConnection() {
         try {
             session = createCassandraConnectionWithKeySpaces(null);
         } catch (Exception e) {
@@ -155,16 +155,18 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
      */
     private static ConsistencyLevel getConsistencyLevel() {
         String consistency = PropertiesCache.getInstance().readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL);
+        ConsistencyLevel consistencyLevel = DefaultConsistencyLevel.ONE;
         logger.info("CassandraConnectionManagerImpl:getConsistencyLevel: level = " + consistency);
-        if (StringUtils.isBlank(consistency)) return null;
-
-        try {
-            return DefaultConsistencyLevel.valueOf(consistency.toUpperCase());
-        } catch (IllegalArgumentException exception) {
-            logger.info("CassandraConnectionManagerImpl:getConsistencyLevel: Exception occurred with error message = "
-                    + exception.getMessage());
+        if (!StringUtils.isBlank(consistency)) {
+            consistency = consistency.trim();
+            try {
+                consistencyLevel = DefaultConsistencyLevel.valueOf(consistency.toUpperCase());
+            } catch (IllegalArgumentException exception) {
+                logger.error("CassandraConnectionManagerImpl:getConsistencyLevel: Exception occurred with error message: " + exception.getMessage(), exception);
+            }
         }
-        return null;
+
+        return consistencyLevel;
     }
 
 

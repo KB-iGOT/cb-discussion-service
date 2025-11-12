@@ -269,6 +269,9 @@ public class EsUtilServiceImpl implements EsUtilService {
                                         case Constants.SEARCH_OPERATION_LESS_THAN:
                                             rangeQuery.lt((JsonData) rangeValue);
                                             break;
+                                        default:
+                                            log.warn(Constants.UNSUPPORTED_RANGE_OPERATOR, rangeOperator);
+                                            break;
                                     }
                                 });
                                 rangeOrNullQuery.should(rangeQuery.build()._toQuery());
