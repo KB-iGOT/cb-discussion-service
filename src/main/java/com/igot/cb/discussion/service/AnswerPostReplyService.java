@@ -3,7 +3,8 @@ package com.igot.cb.discussion.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
-import com.igot.cb.pores.util.ApiResponse;
+
+import org.igot.common.ApiResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;

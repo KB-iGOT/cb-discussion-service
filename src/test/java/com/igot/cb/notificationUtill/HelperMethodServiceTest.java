@@ -5,7 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.metrics.service.ApiMetricsTracker;
 import com.igot.cb.pores.cache.CacheService;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -101,7 +102,7 @@ class HelperMethodServiceTest {
         userInfo.put("firstname", "John");
         userInfo.put("profiledetails", "{\"profileImageUrl\":\"img.jpg\",\"designation\":\"dev\",\"employmentDetails\":{\"departmentName\":\"IT\"}}");
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenReturn(Map.of("profileImageUrl", "img.jpg", "designation", "dev",
@@ -128,7 +129,7 @@ class HelperMethodServiceTest {
         userInfo.put("firstname", "John");
         userInfo.put("profiledetails", "");
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
 
         List<Object> result = service.fetchUserFromPrimary(userIds);
@@ -146,7 +147,7 @@ class HelperMethodServiceTest {
         userInfo.put("firstname", "John");
         userInfo.put("profiledetails", "invalid-json");
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenThrow(new JsonProcessingException("error") {});
@@ -170,7 +171,7 @@ class HelperMethodServiceTest {
     void test_fetchUserFirstName_redisBlankName() throws Exception {
         when(cacheService.hget(anyList())).thenReturn(List.of("{\"first_name\":\"\"}"));
         when(objectMapper.readValue(anyString(), eq(Object.class))).thenReturn(Map.of("first_name", ""));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of());
 
         String result = service.fetchUserFirstName("user1");
@@ -198,7 +199,7 @@ class HelperMethodServiceTest {
                 "firstname", "Jane",
                 "profiledetails", "{}"
         );
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenReturn(Collections.emptyMap()); // empty profileDetailsMap
@@ -217,7 +218,7 @@ class HelperMethodServiceTest {
                 "firstname", "Alice",
                 "profiledetails", "{\"employmentDetails\":{}}"
         );
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenReturn(Map.of("employmentDetails", Collections.emptyMap()));
@@ -236,7 +237,7 @@ class HelperMethodServiceTest {
                 "firstname", "Tom",
                 "profiledetails", "{}"
         );
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(List.of(userInfo));
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenReturn(Collections.emptyMap());
@@ -260,7 +261,7 @@ class HelperMethodServiceTest {
                 "id", "userX",
                 "firstname", "CassandraUser"
         );
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(cassandraUser));
         String result = service.fetchUserFirstName("userX");
@@ -270,7 +271,7 @@ class HelperMethodServiceTest {
     @Test
     void test_fetchUserFirstName_noDataAnywhere() {
         when(cacheService.hget(anyList())).thenReturn(Collections.singletonList(null));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(Collections.emptyList());
         String result = service.fetchUserFirstName("missing");
         assertEquals("User", result);

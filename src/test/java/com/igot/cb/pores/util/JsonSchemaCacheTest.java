@@ -3,18 +3,26 @@ package com.igot.cb.pores.util;
 import com.networknt.schema.JsonSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import org.igot.common.PropertiesCache;
+
+@ExtendWith(MockitoExtension.class)
 class JsonSchemaCacheTest {
+
+    @Mock
+    PropertiesCache propertiesCache;
 
     private JsonSchemaCache jsonSchemaCache;
 
     @BeforeEach
     void setUp() {
-        jsonSchemaCache = new JsonSchemaCache();
+        jsonSchemaCache = new JsonSchemaCache(propertiesCache);
     }
 
     @Test
@@ -22,18 +30,13 @@ class JsonSchemaCacheTest {
         String schemaKey = "test.schema.key";
         String schemaPath = "schema/test-schema.json"; // put a valid schema in src/test/resources/schema/test-schema.json
 
-        try (MockedStatic<PropertiesCache> mocked = mockStatic(PropertiesCache.class)) {
-            PropertiesCache propertiesCache = mock(PropertiesCache.class);
-            mocked.when(PropertiesCache::getInstance).thenReturn(propertiesCache);
-            when(propertiesCache.getProperty(schemaKey)).thenReturn(schemaPath);
+        when(propertiesCache.getProperty(schemaKey)).thenReturn(schemaPath);
+        JsonSchema schema = jsonSchemaCache.getSchema(schemaKey);
+        assertNotNull(schema);
 
-            JsonSchema schema = jsonSchemaCache.getSchema(schemaKey);
-            assertNotNull(schema);
-
-            // Revalidate from cache
-            JsonSchema cachedSchema = jsonSchemaCache.getSchema(schemaKey);
-            assertSame(schema, cachedSchema);
-        }
+        // Revalidate from cache
+        JsonSchema cachedSchema = jsonSchemaCache.getSchema(schemaKey);
+        assertSame(schema, cachedSchema);
     }
 
     @Test
@@ -41,19 +44,15 @@ class JsonSchemaCacheTest {
         String schemaKey = "test.key.hit";
         String schemaPath = "schema/test-schema.json";
 
-        try (MockedStatic<PropertiesCache> mocked = mockStatic(PropertiesCache.class)) {
-            PropertiesCache propertiesCache = mock(PropertiesCache.class);
-            mocked.when(PropertiesCache::getInstance).thenReturn(propertiesCache);
-            when(propertiesCache.getProperty(schemaKey)).thenReturn(schemaPath);
+        when(propertiesCache.getProperty(schemaKey)).thenReturn(schemaPath);
 
-            // First load (cache miss)
-            JsonSchema firstLoad = jsonSchemaCache.getSchema(schemaKey);
-            assertNotNull(firstLoad);
+        // First load (cache miss)
+        JsonSchema firstLoad = jsonSchemaCache.getSchema(schemaKey);
+        assertNotNull(firstLoad);
 
-            // Second load (cache hit)
-            JsonSchema secondLoad = jsonSchemaCache.getSchema(schemaKey);
-            assertSame(firstLoad, secondLoad); // same object from cache
-        }
+        // Second load (cache hit)
+        JsonSchema secondLoad = jsonSchemaCache.getSchema(schemaKey);
+        assertSame(firstLoad, secondLoad); // same object from cache
     }
 
     @Test
@@ -61,14 +60,10 @@ class JsonSchemaCacheTest {
         String schemaKey = "invalid.schema.key";
         String invalidPath = "schema/non-existent.json";
 
-        try (MockedStatic<PropertiesCache> mocked = mockStatic(PropertiesCache.class)) {
-            PropertiesCache propertiesCache = mock(PropertiesCache.class);
-            mocked.when(PropertiesCache::getInstance).thenReturn(propertiesCache);
-            when(propertiesCache.getProperty(schemaKey)).thenReturn(invalidPath);
+        when(propertiesCache.getProperty(schemaKey)).thenReturn(invalidPath);
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                    jsonSchemaCache.getSchema(schemaKey));
-            assertTrue(ex.getMessage().contains("Failed to load JSON schema"));
-        }
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                jsonSchemaCache.getSchema(schemaKey));
+        assertTrue(ex.getMessage().contains("Failed to load JSON schema"));
     }
 }

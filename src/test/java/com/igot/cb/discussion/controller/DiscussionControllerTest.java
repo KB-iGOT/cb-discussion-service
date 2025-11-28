@@ -6,8 +6,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
 import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
-import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
+
+import org.igot.common.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
@@ -18,7 +17,10 @@ import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+
+import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -129,7 +131,7 @@ class AnswerPostReplyServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(mockCommunityDetails());
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(objectMapper.convertValue(any(Object.class), eq(Map.class))).thenReturn(new HashMap<>());
@@ -196,7 +198,7 @@ class AnswerPostReplyServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("DB Error"));
 
         ApiResponse response = service.createAnswerPostReply(payload, token);
@@ -247,7 +249,7 @@ class AnswerPostReplyServiceImplTest {
 
         ApiResponse response = service.managePost(payload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
-        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
@@ -257,7 +259,7 @@ class AnswerPostReplyServiceImplTest {
         Map<String, Object> invalidPayload = new HashMap<>();
         ApiResponse response = service.managePost(invalidPayload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
@@ -273,7 +275,7 @@ class AnswerPostReplyServiceImplTest {
 
         ApiResponse response = service.managePost(payload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.CONFLICT, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
@@ -298,7 +300,7 @@ class AnswerPostReplyServiceImplTest {
 
         ApiResponse response = service.managePost(payload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
 
@@ -320,7 +322,7 @@ class AnswerPostReplyServiceImplTest {
 
         ApiResponse response = service.managePost(payload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
@@ -364,7 +366,7 @@ class AnswerPostReplyServiceImplTest {
         ApiResponse response = service.getReportStatistics(input);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
 
@@ -373,14 +375,14 @@ class AnswerPostReplyServiceImplTest {
     void testGetReportStatistics_withEmptyConfigData() {
         Map<String, Object> input = Map.of(DISCUSSION_ID, discussionId);
         ApiResponse response = service.getReportStatistics(input);
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
     void testMigrateRecentReportedTime_successfulMigration() {
         Map<String, Object> record1 = Map.of(Constants.DISCUSSION_ID_KEY, discussionId,
                 Constants.CREATED_ON_KEY, Instant.now());
-        when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(record1));
 
         DiscussionEntity entity = new DiscussionEntity();
@@ -401,7 +403,7 @@ class AnswerPostReplyServiceImplTest {
     void testMigrateRecentReportedTime_discussionNotFound() {
         Map<String, Object> record1 = Map.of(Constants.DISCUSSION_ID_KEY, discussionId,
                 Constants.CREATED_ON_KEY, Instant.now());
-        when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(record1));
 
         when(discussionRepository.findById(discussionId)).thenReturn(Optional.empty());
@@ -413,7 +415,7 @@ class AnswerPostReplyServiceImplTest {
 
     @Test
     void testMigrateRecentReportedTime_withException() {
-        when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("fail"));
 
         ApiResponse response = service.migrateRecentReportedTime();
@@ -581,7 +583,7 @@ class AnswerPostReplyServiceImplTest {
         configEntry.put(Constants.VALUE, validReasonsJson);
         configData.add(configEntry);
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.SYSTEM_SETTINGS),
                 anyMap(),
@@ -595,7 +597,7 @@ class AnswerPostReplyServiceImplTest {
                 Map.of(Constants.REASON, "Offensive")
         );
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST),
                 anyMap(),
@@ -677,7 +679,6 @@ class AnswerPostReplyServiceImplTest {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
 
         verify(discussionAnswerPostReplyRepository).save(any());
         verify(esUtilService, atLeastOnce()).updateDocument(any(), any(), any(), any());
@@ -858,7 +859,7 @@ class AnswerPostReplyServiceImplTest {
         // ---- Mocks ----
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123"); // user != owner
         when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         // Critical mocks for mentioned users processing
@@ -975,7 +976,7 @@ class AnswerPostReplyServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentAnswerPostId))
                 .thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(mockCommunityDetails());
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
@@ -992,7 +993,7 @@ class AnswerPostReplyServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
         ApiResponse response = service.createAnswerPostReply(payload, token);
@@ -1006,7 +1007,7 @@ class AnswerPostReplyServiceImplTest {
         DiscussionEntity discussionEntity = mockDiscussionEntity();
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentAnswerPostId)).thenReturn(Optional.of(discussionEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(mockCommunityDetails());
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
@@ -1091,7 +1092,7 @@ class AnswerPostReplyServiceImplTest {
     void testGetReportStatistics_noConfigData() {
         Map<String, Object> input = Map.of(DISCUSSION_ID, "id", TYPE, QUESTION);
         when(cacheService.getCache(Constants.VALID_REASONS_CACHE_KEY)).thenReturn(null);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
         ApiResponse response = service.getReportStatistics(input);
         assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
@@ -1106,7 +1107,7 @@ class AnswerPostReplyServiceImplTest {
         Set<String> validReasons = Set.of("Spam");
         String validReasonsJson = new ObjectMapper().writeValueAsString(validReasons);
         Map<String, Object> configEntry = Map.of(Constants.VALUE, validReasonsJson);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(configEntry))   // first call: config present
                 .thenReturn(Collections.emptyList()); // second call: no report reasons
         ApiResponse response = service.getReportStatistics(input);
@@ -1119,7 +1120,7 @@ class AnswerPostReplyServiceImplTest {
     void testMigrateRecentReportedTime_withUpdateExisting() {
         Map<String, Object> record1 = Map.of(Constants.DISCUSSION_ID_KEY, "id",
                 Constants.CREATED_ON_KEY, Instant.now());
-        when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(record1));
 
         DiscussionEntity entity = new DiscussionEntity();
@@ -1144,12 +1145,12 @@ class AnswerPostReplyServiceImplTest {
         when(discussionAnswerPostReplyRepository.findById("id")).thenReturn(Optional.of(entity));
         ApiResponse response = service.managePost(payload, "token", Constants.SUSPEND);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(SUCCESS, response.getParams().getStatus());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     @Test
     void testMigrateRecentReportedTime_noRecords() {
-        when(cassandraOperation.getRecordsByPropertiesByKey(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
         ApiResponse response = service.migrateRecentReportedTime();

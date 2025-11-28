@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.metrics.service.ApiMetricsTracker;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.util.Constants;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.igot.common.cassandra.CassandraOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -57,7 +57,7 @@ public class HelperMethodService {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
         long startTime = System.currentTimeMillis();
-        List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
         updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.CASSANDRA, Constants.READ, startTime);

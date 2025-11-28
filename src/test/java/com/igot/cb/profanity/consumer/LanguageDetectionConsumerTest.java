@@ -9,8 +9,8 @@ import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -18,6 +18,10 @@ import org.mockito.*;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class LanguageDetectionConsumerTest {
@@ -30,7 +34,7 @@ class LanguageDetectionConsumerTest {
     @Mock
     private CbServerProperties cbServerProperties;
     @Mock
-    private RequestHandlerServiceImpl requestHandlerService;
+    private OutboundRequestHandlerServiceImpl requestHandlerService;
     @Mock
     private IProfanityCheckService profanityCheckService;
 

@@ -259,6 +259,11 @@
 			<artifactId>cloud-store-sdk_2.12</artifactId>
 			<version>1.4.8</version>
 		</dependency>
+		<dependency>
+			<groupId>net.karmayogibharat</groupId>
+			<artifactId>common-util</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

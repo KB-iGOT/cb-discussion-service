@@ -4,22 +4,19 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
-import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
-import com.igot.cb.transactional.cassandrautils.CassandraConnectionManager;
-import com.igot.cb.transactional.cassandrautils.CassandraOperationImpl;
-import com.igot.cb.transactional.cassandrautils.CassandraUtil;
+
+import org.igot.common.ApiResponse;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -29,10 +26,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DiscussionServiceImplMethodTest {
-
-    @Mock
-    private CassandraConnectionManager connectionManager;
-
 
     @Mock
     private CbServerProperties cbServerProperties;
@@ -47,12 +40,11 @@ class DiscussionServiceImplMethodTest {
     private ObjectMapper objectMapper;
 
     @Mock
-    private CassandraOperationImpl cassandraOperation;
+    private CassandraOperation cassandraOperation;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        cassandraOperation = new CassandraOperationImpl();
 
         discussionService = new DiscussionServiceImpl();
         cbServerProperties = mock(CbServerProperties.class);
@@ -61,9 +53,6 @@ class DiscussionServiceImplMethodTest {
         // Inject mocks
         setField(discussionService, "cbServerProperties", cbServerProperties);
         setField(discussionService, "objectMapper", objectMapper);
-
-        // Inject the mock connectionManager into the real instance
-        ReflectionTestUtils.setField(cassandraOperation, "connectionManager", connectionManager);
     }
 
     @Test
@@ -104,69 +93,6 @@ class DiscussionServiceImplMethodTest {
         ApiResponse response = discussionService.deleteDiscussion("discussion123", "question", "invalid-token");
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-    }
-
-    @Test
-    void testGetRecordsByPropertiesByKey_success() throws Exception {
-        // Mock Select query and build() call
-
-        // Reflection to override private processQuery() to return mock Select
-        Method processQueryMethod = CassandraOperationImpl.class
-                .getDeclaredMethod("processQuery", String.class, String.class, Map.class, List.class);
-        processQueryMethod.setAccessible(true);
-
-        ReflectionTestUtils.invokeMethod(cassandraOperation, "processQuery",
-                "ks1", "tbl1", Collections.emptyMap(), Collections.emptyList());
-
-        // Mock connection and execution flow
-        when(connectionManager.getSession("ks1")).thenReturn(session);
-
-        // Mock CassandraUtil.createResponse()
-        try (var cassandraUtilMock = Mockito.mockStatic(CassandraUtil.class)) {
-
-            // Use reflection to call the method directly
-            Method method = CassandraOperationImpl.class.getDeclaredMethod(
-                    "getRecordsByPropertiesByKey",
-                    String.class, String.class, Map.class, List.class, String.class
-            );
-            method.setAccessible(true);
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> result =
-                    (List<Map<String, Object>>) method.invoke(cassandraOperation,
-                            "ks1", "tbl1", Collections.emptyMap(), Collections.emptyList(), "key");
-
-            assertEquals(0, result.size());
-        }
-    }
-
-    @Test
-    void testGetRecordsByPropertiesByKey_exceptionFlow() throws Exception {
-        // Create a real instance and inject mocked logger
-        CassandraOperationImpl realOp = new CassandraOperationImpl();
-        ReflectionTestUtils.setField(realOp, "connectionManager", connectionManager);
-
-        // Mock the logger to avoid NullPointerException
-        org.slf4j.Logger mockLogger = mock(org.slf4j.Logger.class);
-        ReflectionTestUtils.setField(realOp, "logger", mockLogger);
-
-        // Mock connectionManager to throw exception
-        when(connectionManager.getSession("ks1")).thenThrow(new RuntimeException("Connection failed"));
-
-        // Reflection to call the target method
-        Method method = CassandraOperationImpl.class.getDeclaredMethod(
-                "getRecordsByPropertiesByKey",
-                String.class, String.class, Map.class, List.class, String.class
-        );
-        method.setAccessible(true);
-
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> result =
-                (List<Map<String, Object>>) method.invoke(realOp,
-                        "ks1", "tbl1", Collections.emptyMap(), Collections.emptyList(), "key");
-
-        assertTrue(result.isEmpty());
-        verify(mockLogger).error(anyString(), any(Throwable.class));
     }
 
     private String invokeGenerateRedisTokenKey(SearchCriteria sc) throws Exception {

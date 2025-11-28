@@ -2,10 +2,10 @@ package com.igot.cb.notificationUtill;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
-import com.igot.cb.pores.util.ProjectUtil;
 import lombok.extern.slf4j.Slf4j;
+
+import org.igot.common.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -45,7 +45,7 @@ public class NotificationTriggerService {
             List<String> userIds,
             Map<String, Object> message
     ) {
-        ApiResponse response = ProjectUtil.createDefaultResponse("notification.send");
+        ApiResponse response = ApiResponse.createDefaultResponse("notification.send");
 
         try {
             if (!StringUtils.hasText(subCategory)) {

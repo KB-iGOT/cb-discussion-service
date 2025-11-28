@@ -3,8 +3,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
 import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
-import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
+
+import org.igot.common.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

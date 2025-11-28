@@ -8,10 +8,10 @@ import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -31,7 +31,7 @@ public class LanguageDetectionConsumer {
     private CbServerProperties cbServerProperties;
 
     @Autowired
-    private RequestHandlerServiceImpl requestHandlerService;
+    private OutboundRequestHandlerServiceImpl requestHandlerService;
 
     @Autowired
     private IProfanityCheckService profanityCheckService;

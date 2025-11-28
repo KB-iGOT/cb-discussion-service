@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.CommunityEngagementRepository;
@@ -15,12 +14,14 @@ import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
-import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.PayloadValidation;
 import com.igot.cb.producer.Producer;
 import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+
+import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -143,7 +144,7 @@ class DiscussionServiceImplCreateDiscussionTest {
         when(accessTokenValidator.verifyUserToken(validToken)).thenReturn(validUserId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive(validCommunityId, true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
         // Act
@@ -167,7 +168,7 @@ class DiscussionServiceImplCreateDiscussionTest {
         when(accessTokenValidator.verifyUserToken(validToken)).thenReturn(validUserId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive(validCommunityId, true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.singletonList(communityRecord));
 
         // Act
@@ -297,7 +298,7 @@ class DiscussionServiceImplCreateDiscussionTest {
         when(accessTokenValidator.verifyUserToken(validToken)).thenReturn(validUserId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive(validCommunityId, true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("Database error"));
 
         // Act

@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.igot.common.PropertiesCache;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @Slf4j
 public class JsonSchemaCache {
+    private final PropertiesCache propertiesCache;
     private final Map<String, JsonSchema> schemaCache = new ConcurrentHashMap<>();
+
+    public JsonSchemaCache(PropertiesCache propertiesCache) {
+        this.propertiesCache = propertiesCache;
+    }
 
     private JsonSchema loadSchema(String key, String schemaPath) {
         try (InputStream inputStream = new ClassPathResource(schemaPath).getInputStream()) {
@@ -33,7 +39,7 @@ public class JsonSchemaCache {
     public JsonSchema getSchema(String schemaKey) {
         JsonSchema jSchema = schemaCache.get(schemaKey);
         if (jSchema == null) {
-            return loadSchema(schemaKey, PropertiesCache.getInstance().getProperty(schemaKey));
+            return loadSchema(schemaKey, propertiesCache.getProperty(schemaKey));
         }
         return schemaCache.get(schemaKey);
     }

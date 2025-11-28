@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
@@ -24,8 +23,11 @@ import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
 import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
+
+import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
+import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,10 +96,6 @@ class DiscussionServiceImplTest {
     private BaseStorageService baseStorageService;
 
     @Mock
-    private RequestHandlerServiceImpl requestHandlerService;
-    @Mock private IProfanityCheckService profanityCheckService;
-
-    @Mock
     private NotificationTriggerService notificationTriggerService;
     @Mock
     private HelperMethodService helperMethodService;
@@ -162,7 +160,6 @@ class DiscussionServiceImplTest {
         ReflectionTestUtils.setField(discussionService, "payloadValidation", payloadValidation);
         ReflectionTestUtils.setField(discussionService, "accessTokenValidator", accessTokenValidator);
         ReflectionTestUtils.setField(discussionService, "producer", producer);
-        ReflectionTestUtils.setField(discussionService, "requestHandlerService", requestHandlerService);
         ReflectionTestUtils.setField(discussionService, "storageService", baseStorageService);
 
         // Mock static factory method
@@ -210,7 +207,7 @@ class DiscussionServiceImplTest {
         JsonNode node = new ObjectMapper().readTree("{\"communityId\": \"comm-1\"}");
         when(accessTokenValidator.verifyUserToken(any())).thenReturn("user-123");
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("DB error"));
 
         ApiResponse response = discussionService.createDiscussion(node, "token");
@@ -245,7 +242,7 @@ class DiscussionServiceImplTest {
         // Mock: User is part of community
         Map<String, Object> userCommunityMap = new HashMap<>();
         userCommunityMap.put(Constants.STATUS, true);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(userCommunityMap));
 
         // Mock: Save discussion
@@ -289,7 +286,7 @@ class DiscussionServiceImplTest {
 
         ApiResponse response = discussionService.readDiscussion(VALID_DISCUSSION_ID);
 
-        Assertions.assertEquals(Constants.SUCCESS, response.getMessage());
+        Assertions.assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         Assertions.assertEquals(HttpStatus.OK, response.getResponseCode());
     }
 
@@ -316,7 +313,7 @@ class DiscussionServiceImplTest {
 
         ApiResponse response = discussionService.readDiscussion(VALID_DISCUSSION_ID);
 
-        Assertions.assertEquals(Constants.SUCCESS, response.getMessage());
+        Assertions.assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         Assertions.assertEquals(HttpStatus.OK, response.getResponseCode());
         Assertions.assertEquals("Discussion title", response.getResult().get("title"));
         Assertions.assertEquals(true, response.getResult().get(Constants.IS_ACTIVE));
@@ -621,7 +618,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -657,7 +654,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.DELETED_SUCCESSFULLY, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -802,7 +799,7 @@ class DiscussionServiceImplTest {
         mockDiscussionData1.put(Constants.TYPE, "answer");
         when(objectMapper.convertValue(dataNode,HashMap.class)).thenReturn((HashMap) mockDiscussionData1);
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any())).thenReturn(new ArrayList<>());
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any())).thenReturn(new ArrayList<>());
         when(cassandraOperation.insertRecord(any(), any(), any())).thenReturn(insertResponse);
 
         when(objectMapper.valueToTree(any())).thenReturn(dataNode);
@@ -1069,7 +1066,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.PARENT_ANSWER_POST_ID_ERROR, response.getParams().getErr());
     }
 
@@ -1102,7 +1099,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.PARENT_DISCUSSION_ID_ERROR, response.getParams().getErr());
     }
 
@@ -1165,7 +1162,7 @@ class DiscussionServiceImplTest {
         when(discussionRepository.findById("parentId")).thenReturn(java.util.Optional.of(discussionEntity));
 
         List<Map<String, Object>> emptyList = new ArrayList<>();
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(emptyList);
 
         // Act
@@ -1202,7 +1199,7 @@ class DiscussionServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(discussionRepository.findById(parentDiscussionId)).thenReturn(Optional.of(parentDiscussion));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(Collections.singletonList(Collections.singletonMap(Constants.STATUS, true)));
         when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
         when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(new DiscussionEntity());
@@ -1239,7 +1236,7 @@ class DiscussionServiceImplTest {
 
         when(accessTokenValidator.verifyUserToken(validToken)).thenReturn("user123");
         when(discussionRepository.findById("discussion123")).thenReturn(Optional.of(discussion));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER),
                 anyMap(),
@@ -1379,7 +1376,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals("Failed Due To Missing Params - [discussionId].", response.getParams().getErr());
     }
 
@@ -1410,7 +1407,7 @@ class DiscussionServiceImplTest {
         replyEntity.setIsActive(true);
 
         when(discussionAnswerPostReplyRepository.findById(discussionId)).thenReturn(Optional.of(replyEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any()))
                 .thenReturn(Collections.emptyList());
         when(cbServerProperties.isDiscussionReportHidePost()).thenReturn(true);
         // Act
@@ -1447,7 +1444,7 @@ class DiscussionServiceImplTest {
         when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class)))
                 .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
         when(discussionAnswerPostReplyRepository.findById("testDiscussionId")).thenReturn(Optional.of(replyEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any()))
                 .thenReturn(new ArrayList<>());
         when(cbServerProperties.isDiscussionReportHidePost()).thenReturn(true);
         when(objectMapper.createObjectNode()).thenReturn(realObjectMapper.createObjectNode());
@@ -1492,7 +1489,7 @@ class DiscussionServiceImplTest {
         lenient().when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class)))
                 .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
         when(discussionAnswerPostReplyRepository.findById("testDiscussionId")).thenReturn(Optional.of(replyEntity));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any())).thenReturn(new ArrayList<>());
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any())).thenReturn(new ArrayList<>());
         when(cbServerProperties.isDiscussionReportHidePost()).thenReturn(true);
 
         // Act
@@ -1526,7 +1523,7 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
         assertEquals(Constants.INVALID_AUTH_TOKEN, response.getParams().getErr());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -1550,7 +1547,7 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
         assertEquals(Constants.DISCUSSION_NOT_FOUND, response.getParams().getErr());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -1580,7 +1577,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.CONFLICT, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_IS_INACTIVE, response.getParams().getErr());
     }
 
@@ -1612,7 +1609,7 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.CONFLICT, response.getResponseCode());
         assertEquals(Constants.DISCUSSION_IS_INACTIVE, response.getParams().getErr());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -1644,7 +1641,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_TYPE + type, response.getParams().getErr());
     }
 
@@ -1676,7 +1673,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.CONFLICT, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_SUSPENDED, response.getParams().getErr());
     }
 
@@ -1707,7 +1704,7 @@ class DiscussionServiceImplTest {
         Map<String, Object> existingReport = new HashMap<>();
         existingReport.put(Constants.USERID, userId);
         existingReport.put(Constants.DISCUSSION_ID, discussionId);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER),
                 anyMap(),
@@ -1739,7 +1736,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_FILE_EMPTY, response.getParams().getErr());
     }
 
@@ -1760,7 +1757,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_DISCUSSION_ID, response.getParams().getErr());
     }
 
@@ -1780,7 +1777,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_COMMUNITY_ID, response.getParams().getErr());
     }
 
@@ -1832,7 +1829,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_DISCUSSION_ID, response.getParams().getErr());
     }
 
@@ -1852,7 +1849,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_FILE_EMPTY, response.getParams().getErr());
     }
 
@@ -1947,7 +1944,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_DISCUSSION_ID, response.getParams().getErr());
     }
 
@@ -1963,7 +1960,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_COMMUNITY_ID, response.getParams().getErr());
     }
 
@@ -1985,7 +1982,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_AUTH_TOKEN, response.getParams().getErr());
     }
 
@@ -2007,7 +2004,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_NOT_FOUND, response.getParams().getErr());
     }
 
@@ -2036,7 +2033,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.CONFLICT, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_IS_INACTIVE, response.getParams().getErr());
     }
 
@@ -2067,7 +2064,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_COMMUNITY_ID, response.getParams().getErr());
     }
 
@@ -2093,7 +2090,7 @@ class DiscussionServiceImplTest {
 
         Map<String, Object> existingBookmark = new HashMap<>();
         existingBookmark.put(Constants.STATUS, true);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.DISCUSSION_BOOKMARKS),
                 anyMap(),
@@ -2106,7 +2103,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.ALREADY_REPORTED, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.ALREADY_BOOKMARKED, response.getParams().getErr());
     }
 
@@ -2131,7 +2128,7 @@ class DiscussionServiceImplTest {
         when(discussionRepository.findById(discussionId)).thenReturn(Optional.of(discussionEntity));
 
         List<Map<String, Object>> emptyList = new ArrayList<>();
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 eq(Constants.KEYSPACE_SUNBIRD),
                 eq(Constants.DISCUSSION_BOOKMARKS),
                 anyMap(),
@@ -2198,7 +2195,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_DISCUSSION_ID, response.getParams().getErr());
     }
 
@@ -2229,7 +2226,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_ANSWER_POST_ID, response.getParams().getErr());
     }
 
@@ -2259,7 +2256,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DISCUSSION_SUSPENDED, response.getParams().getErr());
     }
 
@@ -2394,7 +2391,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_DISCUSSION_ID, response.getParams().getErr());
     }
 
@@ -2410,7 +2407,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_COMMUNITY_ID, response.getParams().getErr());
     }
 
@@ -2432,7 +2429,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_AUTH_TOKEN, response.getParams().getErr());
     }
 
@@ -2450,7 +2447,7 @@ class DiscussionServiceImplTest {
 
         Map<String, Object> updateResult = new HashMap<>();
         updateResult.put(Constants.RESPONSE, Constants.SUCCESS);
-        when(cassandraOperation.updateRecordByCompositeKey(
+        when(cassandraOperation.updateRecord(
             eq(Constants.KEYSPACE_SUNBIRD),
             eq(Constants.DISCUSSION_BOOKMARKS),
             anyMap(),
@@ -2464,7 +2461,7 @@ class DiscussionServiceImplTest {
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         verify(cacheService).deleteCache(Constants.DISCUSSION_CACHE_PREFIX + Constants.COMMUNITY + communityId + userId);
-        verify(cassandraOperation).updateRecordByCompositeKey(
+        verify(cassandraOperation).updateRecord(
             eq(Constants.KEYSPACE_SUNBIRD),
             eq(Constants.DISCUSSION_BOOKMARKS),
             anyMap(),
@@ -2488,7 +2485,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals("Failed Due To Missing Params - [communityId, page, pageSize].", response.getParams().getErr());
     }
 
@@ -2513,7 +2510,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_AUTH_TOKEN, response.getParams().getErr());
     }
 
@@ -2582,7 +2579,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals("Failed Due To Missing Params - [communityId, page, pageSize].", response.getParams().getErr());
     }
     /**
@@ -2825,7 +2822,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        Assertions.assertEquals(Constants.FAILED, response.getMessage());
+        Assertions.assertEquals(Constants.FAILED, response.getParams().getStatus());
         Assertions.assertEquals("Failed Due To Missing or Invalid Params - [Missing or invalid communityFilters., filters].", response.getParams().getErr());
     }
 
@@ -2849,7 +2846,7 @@ class DiscussionServiceImplTest {
         data.put("request", requestData);
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any()))
                 .thenThrow(new RuntimeException("Simulated exception"));
 
         // Act
@@ -2857,7 +2854,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
     /**
@@ -2880,7 +2877,7 @@ class DiscussionServiceImplTest {
         data.put("request", requestData);
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123");
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any()))
                 .thenThrow(new RuntimeException("Simulated exception"));
 
         // Act
@@ -2888,11 +2885,11 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals("getEnrichedDiscussionData", response.getParams().getErr());
 
         verify(accessTokenValidator).verifyUserToken(token);
-        verify(cassandraOperation).getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), any(), any());
+        verify(cassandraOperation).getRecordsByProperties(anyString(), anyString(), anyMap(), any(), any());
     }
 
     /**
@@ -2915,14 +2912,14 @@ class DiscussionServiceImplTest {
         data.put("request", requestData);
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123");
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
             eq(Constants.KEYSPACE_SUNBIRD),
             eq(Constants.USER_POST_VOTES),
             anyMap(),
             isNull(),
             isNull()
         )).thenReturn(Collections.emptyList());
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
             eq(Constants.KEYSPACE_SUNBIRD),
             eq(Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER),
             anyMap(),
@@ -2962,7 +2959,7 @@ class DiscussionServiceImplTest {
         data.put("request", requestData);
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user123");
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+        when(cassandraOperation.getRecordsByProperties(anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenThrow(new RuntimeException("Simulated error"));
 
         // Act
@@ -2991,14 +2988,14 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getMessage());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_AUTH_TOKEN, response.getParams().getErr());
     }
 
     @Test
     void testGetGlobalFeed_noCommunitiesFound() {
         when(accessTokenValidator.verifyUserToken("token")).thenReturn("user123");
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
         ApiResponse response = discussionService.getGlobalFeed(searchCriteria, "token", false);
@@ -3018,7 +3015,7 @@ class DiscussionServiceImplTest {
         recordMap.put(Constants.COMMUNITY_ID_KEY, "community1");
         List<Map<String, Object>> records = Collections.singletonList(recordMap);
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(records);
 
         // mock searchDiscussion
@@ -3055,7 +3052,7 @@ class DiscussionServiceImplTest {
                 Constants.EMPLOYMENT_DETAILS, Map.of(Constants.DEPARTMENT_KEY, DEPARTMENT)
         );
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(userInfo));
 
@@ -3083,7 +3080,7 @@ class DiscussionServiceImplTest {
                 Constants.PROFILE_DETAILS, ""
         );
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(userInfo));
 
@@ -3108,7 +3105,7 @@ class DiscussionServiceImplTest {
                 Constants.PROFILE_DETAILS, invalidProfileJson
         );
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(userInfo));
 
@@ -3139,7 +3136,7 @@ class DiscussionServiceImplTest {
                 Constants.PROFILE_IMG, PROFILE_IMG
         );
 
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(userInfo));
 
@@ -3271,7 +3268,7 @@ class DiscussionServiceImplTest {
         // mock cassandra check (user part of community)
         Map<String, Object> recordMap = new HashMap<>();
         recordMap.put(Constants.STATUS, true);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 anyString(), anyString(), anyMap(), anyList(), any())
         ).thenReturn(List.of(recordMap));
 
@@ -3379,7 +3376,7 @@ class DiscussionServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         DiscussionEntity savedEntity = new DiscussionEntity();
@@ -3415,7 +3412,7 @@ class DiscussionServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         DiscussionEntity savedEntity = new DiscussionEntity();
@@ -3454,7 +3451,7 @@ class DiscussionServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         DiscussionEntity savedEntity = new DiscussionEntity();
@@ -3484,7 +3481,7 @@ class DiscussionServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         DiscussionEntity savedEntity = new DiscussionEntity();
@@ -3517,7 +3514,7 @@ class DiscussionServiceImplTest {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(communityEngagementRepository.findByCommunityIdAndIsActive("community-1", true))
                 .thenReturn(Optional.of(new CommunityEntity()));
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
         
         DiscussionEntity savedEntity = new DiscussionEntity();
@@ -3664,7 +3661,7 @@ class DiscussionServiceImplTest {
         // Mock Cassandra community check
         Map<String, Object> mockCommunityMap = new HashMap<>();
         mockCommunityMap.put(Constants.STATUS, true);
-        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        when(cassandraOperation.getRecordsByProperties(
                 any(), any(), any(), any(), any()))
                 .thenReturn(List.of(mockCommunityMap));
 

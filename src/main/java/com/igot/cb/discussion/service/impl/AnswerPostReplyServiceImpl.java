@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
@@ -20,11 +19,12 @@ import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
-import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -72,9 +72,6 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     private RedisTemplate<String, SearchResult> redisTemplate;
 
     @Autowired
-    private IProfanityCheckService profanityCheckService;
-
-    @Autowired
     private Producer producer;
 
     @Autowired
@@ -83,7 +80,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {
         log.info("DiscussionService::createAnswerPostReply:creating answerPostReply");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.createAnswerPost");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.createAnswerPost");
         payloadValidation.validatePayload(Constants.ANSWER_POST_REPLY_VALIDATION_SCHEMA, answerPostDataReplyData);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
@@ -129,7 +126,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
             propertyMap.put(Constants.COMMUNITY_ID, answerPostReplyDataNode.get(Constants.COMMUNITY_ID).asText());
-            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
+            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
             if (communityDetails.isEmpty() || !(boolean) communityDetails.get(0).get(Constants.STATUS)) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.USER_NOT_PART_OF_COMMUNITY, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
@@ -265,7 +262,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse readAnswerPostReply(String discussionId) {
         log.info("reading readAnswerPostReply details");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ANSWER_POST_REPLY_READ_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.ANSWER_POST_REPLY_READ_API);
         if (StringUtils.isBlank(discussionId)) {
             log.error("AnswerPostReply not found");
             DiscussionServiceUtil.createErrorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.BAD_REQUEST, Constants.FAILED);
@@ -275,7 +272,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             String cachedJson = cacheService.getCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId);
             if (!StringUtils.isBlank(cachedJson)) {
                 log.info("AnswerPostReply Record coming from redis cache");
-                response.setMessage(Constants.SUCCESS);
+                response.getParams().setStatus(Constants.SUCCESS);
                 response.setResponseCode(HttpStatus.OK);
                 response.setResult((Map<String, Object>) objectMapper.readValue(cachedJson, new TypeReference<Object>() {
                 }));
@@ -285,7 +282,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
                     DiscussionAnswerPostReplyEntity discussionEntity = entityOptional.get();
                     cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, discussionEntity.getData());
                     log.info("AnswerPostReply Record coming from postgres db");
-                    response.setMessage(Constants.SUCCESS);
+                    response.getParams().setStatus(Constants.SUCCESS);
                     response.setResponseCode(HttpStatus.OK);
                     response.setResult((Map<String, Object>) objectMapper.convertValue(discussionEntity.getData(), new TypeReference<Object>() {
                     }));
@@ -309,7 +306,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse deleteAnswerPostReply(String discussionId, String type, String token) {
         log.info("DiscussionServiceImpl::delete AnswerPostReply");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DELETE_ANSWER_POST_REPLY_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.DELETE_ANSWER_POST_REPLY_API);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId)) {
             DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_AUTH_TOKEN, HttpStatus.BAD_REQUEST, Constants.FAILED);
@@ -356,7 +353,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, data);
             log.info("AnswerPostReply details deleted successfully");
             response.setResponseCode(HttpStatus.OK);
-            response.setMessage(Constants.DELETED_SUCCESSFULLY);
+            response.getParams().setStatus(Constants.DELETED_SUCCESSFULLY);
             response.getParams().setStatus(Constants.SUCCESS);
             redisTemplate.opsForValue().getAndDelete(discussionServiceUtil.generateRedisJwtTokenKey(createDefaultSearchCriteria(data.get(Constants.PARENT_ANSWER_POST_ID).asText(), data.get(Constants.COMMUNITY_ID).asText())));
             redisTemplate.opsForValue()
@@ -375,7 +372,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse updateAnswerPostReply(JsonNode answerPostReplyData, String token) {
         log.info("DiscussionService::updateAnswerPostReply:updating answerPostReply");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ANSWER_POST_REPLY_UPDATE_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.ANSWER_POST_REPLY_UPDATE_API);
         payloadValidation.validatePayload(Constants.ANSWER_POST_REPLY_UPDATE_VALIDATION_SCHEMA, answerPostReplyData);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
@@ -493,7 +490,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse managePost(Map<String, Object> reportData, String token, String action) {
         log.info("DiscussionServiceImpl::managePost");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ADMIN_MANAGE_POST_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.ADMIN_MANAGE_POST_API);
 
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
@@ -553,7 +550,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             if (Constants.ACTIVE.equals(action)) {
                 Map<String, Object> propertyMap = new HashMap<>();
                 propertyMap.put(Constants.DISCUSSION_ID, discussionId);
-                List<Map<String, Object>> reportUsers = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                List<Map<String, Object>> reportUsers = cassandraOperation.getRecordsByProperties(
                         Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST,
                         propertyMap, Arrays.asList(Constants.USERID), null
                 );
@@ -640,7 +637,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Override
     public ApiResponse getReportStatistics(Map<String, Object> getReportData) {
         log.info("DiscussionServiceImpl::getReportStatistics");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.GET_REPORT_STATISTICS_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.GET_REPORT_STATISTICS_API);
 
         String errorMsg = validateSuspendPostPayload(getReportData);
         if (StringUtils.isNotEmpty(errorMsg)) {
@@ -667,7 +664,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             } else {
                 Map<String, Object> configKey = new HashMap<>();
                 configKey.put(Constants.ID, Constants.DISCUSSION_REPORT_REASON_CONFIG);
-                List<Map<String, Object>> configData = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                List<Map<String, Object>> configData = cassandraOperation.getRecordsByProperties(
                         Constants.KEYSPACE_SUNBIRD, Constants.SYSTEM_SETTINGS, configKey, Arrays.asList(Constants.VALUE), null);
 
                 if (CollectionUtils.isEmpty(configData)) {
@@ -683,7 +680,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.DISCUSSION_ID, discussionId);
-            List<Map<String, Object>> reportReasons = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            List<Map<String, Object>> reportReasons = cassandraOperation.getRecordsByProperties(
                     Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, propertyMap, Arrays.asList(Constants.REASON), null);
 
             if (CollectionUtils.isEmpty(reportReasons)) {
@@ -732,14 +729,14 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
     public ApiResponse migrateRecentReportedTime() {
         log.info("DiscussionServiceImpl::migrateRecentReportedTime");
-        ApiResponse response = ProjectUtil.createDefaultResponse("api.discussion.migrateRecentReportedTime");
+        ApiResponse response = ApiResponse.createDefaultResponse("api.discussion.migrateRecentReportedTime");
         try {
             Map<String, Object> propertyMap = new HashMap<>();
-            List<Map<String, Object>> reportedDiscussionIds = cassandraOperation.getRecordsByPropertiesByKey(
+            List<Map<String, Object>> reportedDiscussionIds = cassandraOperation.getRecordsByProperties(
                     Constants.KEYSPACE_SUNBIRD,
                     Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST,
                     propertyMap,
-                    Arrays.asList(Constants.DISCUSSION_ID, Constants.CREATED_ON_KEY), ""
+                    Arrays.asList(Constants.DISCUSSION_ID, Constants.CREATED_ON_KEY), null
             );
 
             Map<String, Date> latestReportedTimeMap = new HashMap<>();

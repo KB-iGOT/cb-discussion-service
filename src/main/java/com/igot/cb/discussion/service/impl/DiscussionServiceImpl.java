@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
@@ -26,19 +25,18 @@ import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
-import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.cassandrautils.CassandraOperation;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.sunbird.cloud.storage.BaseStorageService;
 import org.sunbird.cloud.storage.factory.StorageConfig;
@@ -96,12 +94,6 @@ public class DiscussionServiceImpl implements DiscussionService {
     private HelperMethodService helperMethodService;
 
     @Autowired
-    private RequestHandlerServiceImpl requestHandlerService;
-
-    @Autowired
-    private IProfanityCheckService profanityCheckService;
-
-    @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
 
     @PostConstruct
@@ -120,7 +112,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse createDiscussion(JsonNode discussionDetails, String token) {
         log.info("DiscussionService::createDiscussion:creating discussion");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.create");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.create");
         payloadValidation.validatePayload(Constants.DISCUSSION_VALIDATION_SCHEMA, discussionDetails);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
@@ -154,7 +146,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
             propertyMap.put(Constants.COMMUNITY_ID, discussionDetailsNode.get(Constants.COMMUNITY_ID).asText());
-            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
+            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
             if (communityDetails.isEmpty() || !(boolean) communityDetails.get(0).get(Constants.STATUS)) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.USER_NOT_PART_OF_COMMUNITY, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
@@ -250,7 +242,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse readDiscussion(String discussionId) {
         log.info("reading discussion details");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.read");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.read");
         if (StringUtils.isEmpty(discussionId)) {
             log.error("discussion not found");
             DiscussionServiceUtil.createErrorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.BAD_REQUEST, Constants.FAILED);
@@ -263,7 +255,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             updateMetricsDbOperation(Constants.DISCUSSION_READ, Constants.REDIS, Constants.READ, redisTime);
             if (StringUtils.isNotEmpty(cachedJson)) {
                 log.info("discussion Record coming from redis cache");
-                response.setMessage(Constants.SUCCESS);
+                response.getParams().setStatus(Constants.SUCCESS);
                 response.setResponseCode(HttpStatus.OK);
                 response.setResult((Map<String, Object>) objectMapper.readValue(cachedJson, new TypeReference<Object>() {
                 }));
@@ -275,7 +267,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     DiscussionEntity discussionEntity = entityOptional.get();
                     cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, discussionEntity.getData());
                     log.info("discussion Record coming from postgres db");
-                    response.setMessage(Constants.SUCCESS);
+                    response.getParams().setStatus(Constants.SUCCESS);
                     response.setResponseCode(HttpStatus.OK);
                     response.setResult((Map<String, Object>) objectMapper.convertValue(discussionEntity.getData(), new TypeReference<Object>() {
                     }));
@@ -305,7 +297,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse updateDiscussion(JsonNode updateData, String token) {
         ApiMetricsTracker.enableTracking();
-        ApiResponse response = ProjectUtil.createDefaultResponse("update.Discussion");
+        ApiResponse response = ApiResponse.createDefaultResponse("update.Discussion");
         payloadValidation.validatePayload(Constants.DISCUSSION_UPDATE_VALIDATION_SCHEMA, updateData);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
@@ -435,7 +427,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     public ApiResponse searchDiscussion(SearchCriteria searchCriteria, boolean isOverride) {
         log.info("DiscussionServiceImpl::searchDiscussion");
         ApiMetricsTracker.enableTracking();
-        ApiResponse response = ProjectUtil.createDefaultResponse("search.discussion");
+        ApiResponse response = ApiResponse.createDefaultResponse("search.discussion");
         boolean isTrending = isTrendingPost(searchCriteria);
         String cacheKey = generateRedisTokenKey(searchCriteria);
         SearchResult searchResult = null;
@@ -511,7 +503,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse deleteDiscussion(String discussionId, String type, String token) {
         log.info("DiscussionServiceImpl::delete Discussion");
-        ApiResponse response = ProjectUtil.createDefaultResponse("delete.discussion");
+        ApiResponse response = ApiResponse.createDefaultResponse("delete.discussion");
         try {
             String userId = accessTokenValidator.verifyUserToken(token);
             if (StringUtils.isBlank(userId)) {
@@ -545,7 +537,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                         cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, data);
                         log.info("Discussion details deleted successfully");
                         response.setResponseCode(HttpStatus.OK);
-                        response.setMessage(Constants.DELETED_SUCCESSFULLY);
+                        response.getParams().setStatus(Constants.DELETED_SUCCESSFULLY);
                         response.getParams().setStatus(Constants.SUCCESS);
                         Map<String, String> communityObject = new HashMap<>();
                         communityObject.put(Constants.COMMUNITY_ID,
@@ -599,7 +591,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private ApiResponse vote(String discussionId, String type, String token, String voteType) {
         log.info("DiscussionServiceImpl::vote - Type: {}", voteType);
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_VOTE_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.DISCUSSION_VOTE_API);
         try {
             String userId = accessTokenValidator.verifyUserToken(token);
             if (StringUtils.isEmpty(userId) || Constants.UNAUTHORIZED.equals(userId)) {
@@ -652,7 +644,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Map<String, Object> properties = new HashMap<>();
             properties.put(Constants.DISCUSSION_ID_KEY, discussionId);
             properties.put(Constants.USERID, userId);
-            List<Map<String, Object>> existingResponseList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, properties, null, null);
+            List<Map<String, Object>> existingResponseList = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, properties, null, null);
 
             if (CollectionUtils.isEmpty(existingResponseList)) {
                 if (currentVote) {
@@ -665,7 +657,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     Map<String, Object> resultMap = result.getResult();
                     if (!resultMap.get(Constants.RESPONSE).equals(Constants.SUCCESS)) {
                         response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
-                        response.setMessage(Constants.FAILED);
+                        response.getParams().setStatus(Constants.FAILED);
                         return response;
                     }
                     Map<String, String> communityObject = new HashMap<>();
@@ -690,7 +682,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 compositeKeys.put(Constants.USER_ID_RQST, userId);
                 compositeKeys.put(Constants.DISCUSSION_ID_KEY, discussionId);
 
-                Map<String, Object> result = cassandraOperation.updateRecordByCompositeKey(Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, updateAttribute, compositeKeys);
+                Map<String, Object> result = cassandraOperation.updateRecord(Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, updateAttribute, compositeKeys);
                 if (!result.get(Constants.RESPONSE).equals(Constants.SUCCESS)) {
                     DiscussionServiceUtil.createErrorResponse(response, Constants.FAILED_TO_VOTE, HttpStatus.INTERNAL_SERVER_ERROR, Constants.FAILED);
                     return response;
@@ -765,7 +757,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         } catch (Exception e) {
             log.error("Error while processing vote: {}", e.getMessage(), e);
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
-            response.setMessage(Constants.FAILED);
+            response.getParams().setStatus(Constants.FAILED);
             response.getParams().setErrMsg(Constants.FAILED);
             return response;
         }
@@ -803,7 +795,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
         long startTime = System.currentTimeMillis();
-        List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
         updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.CASSANDRA, Constants.READ, startTime);
@@ -857,7 +849,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse createAnswerPost(JsonNode answerPostData, String token) {
         log.info("DiscussionService::createAnswerPost:creating answerPost");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.createAnswerPost");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.createAnswerPost");
         payloadValidation.validatePayload(Constants.DISCUSSION_ANSWER_POST_VALIDATION_SCHEMA, answerPostData);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
@@ -906,7 +898,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
             propertyMap.put(Constants.COMMUNITY_ID, answerPostDataNode.get(Constants.COMMUNITY_ID).asText());
-            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
+            List<Map<String, Object>> communityDetails = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.STATUS), null);
             if (communityDetails.isEmpty() || !(boolean) communityDetails.get(0).get(Constants.STATUS)) {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.USER_NOT_PART_OF_COMMUNITY, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
@@ -1074,7 +1066,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse report(String token, Map<String, Object> reportData) {
         log.info("DiscussionService::report: Reporting discussion");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.report");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.report");
         String errorMsg = validateReportPayload(reportData);
         if (StringUtils.isNotEmpty(errorMsg)) {
             return ProjectUtil.returnErrorMsg(errorMsg, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
@@ -1130,7 +1122,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             Map<String, Object> reportCheckData = new HashMap<>();
             reportCheckData.put(Constants.USERID, userId);
             reportCheckData.put(Constants.DISCUSSION_ID, discussionId);
-            List<Map<String, Object>> existingReports = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            List<Map<String, Object>> existingReports = cassandraOperation.getRecordsByProperties(
                     Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER, reportCheckData, null, null);
 
             if (!existingReports.isEmpty()) {
@@ -1165,7 +1157,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             // Update the status of the discussion in Cassandra
             String status;
             if (cbServerProperties.isDiscussionReportHidePost()) {
-                List<Map<String, Object>> reportedByUsers = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                List<Map<String, Object>> reportedByUsers = cassandraOperation.getRecordsByProperties(
                         Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_POST, Collections.singletonMap(Constants.DISCUSSION_ID, discussionId), null, null);
                 status = CollectionUtils.isNotEmpty(reportedByUsers) && reportedByUsers.size() >= cbServerProperties.getReportPostUserLimit()
                         ? Constants.SUSPENDED
@@ -1272,7 +1264,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public ApiResponse uploadFile(MultipartFile mFile, String communityId, String discussionId) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_UPLOAD_FILE);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.DISCUSSION_UPLOAD_FILE);
         if (mFile.isEmpty()) {
             return ProjectUtil.returnErrorMsg(Constants.DISCUSSION_FILE_EMPTY, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }
@@ -1309,7 +1301,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
     public ApiResponse uploadFile(File file, String cloudFolderName, String containerName) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.UPLOAD_FILE);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.UPLOAD_FILE);
         try {
             String objectKey = cloudFolderName + "/" + file.getName();
             String url = storageService.upload(containerName, file.getAbsolutePath(),
@@ -1351,7 +1343,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse updateAnswerPost(JsonNode answerPostData, String token) {
         log.info("DiscussionService::updateAnswerPost:updating answerPost");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.updateAnswerPost");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.updateAnswerPost");
         payloadValidation.validatePayload(Constants.ANSWER_POST_UPDATE_VALIDATION_SCHEMA, answerPostData);
         String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
@@ -1458,7 +1450,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse bookmarkDiscussion(String token, String communityId, String discussionId) {
         log.info("DiscussionService::bookmarkDiscussion: Bookmarking discussion");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.bookmarkDiscussion");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.bookmarkDiscussion");
         if (StringUtils.isBlank(discussionId)) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_DISCUSSION_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }
@@ -1492,7 +1484,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             properties.put(Constants.DISCUSSION_ID, discussionId);
 
             // Check if the bookmark already exists
-            List<Map<String, Object>> existingBookmarks = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            List<Map<String, Object>> existingBookmarks = cassandraOperation.getRecordsByProperties(
                     Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, Arrays.asList(Constants.STATUS), null);
 
             if (!existingBookmarks.isEmpty() && (boolean) existingBookmarks.get(0).get(Constants.STATUS)) {
@@ -1518,7 +1510,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     public ApiResponse unBookmarkDiscussion(String communityId, String discussionId, String token) {
         log.info("DiscussionService::unBookmarkDiscussion: UnBookmarking discussion");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.unBookmarkDiscussion");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.unBookmarkDiscussion");
         if (StringUtils.isBlank(discussionId)) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_DISCUSSION_ID, HttpStatus.BAD_REQUEST, response, Constants.FAILED);
         }
@@ -1539,7 +1531,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         properties.put(Constants.STATUS, false);
 
         try {
-            cassandraOperation.updateRecordByCompositeKey(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, compositeKeys);
+            cassandraOperation.updateRecord(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, compositeKeys);
             cacheService.deleteCache(Constants.DISCUSSION_CACHE_PREFIX + Constants.COMMUNITY + communityId + userId);
             return response;
         } catch (Exception e) {
@@ -1551,7 +1543,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse getBookmarkedDiscussions(String token, Map<String, Object> requestData) {
         log.info("DiscussionService::getBookmarkedDiscussions: Fetching bookmarked discussions");
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.getBookmarkedDiscussions");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.getBookmarkedDiscussions");
         String errorMsg = validateGetBookmarkedDiscussions(requestData);
 
         if (StringUtils.isNotBlank(errorMsg)) {
@@ -1571,7 +1563,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Map<String, Object> properties = new HashMap<>();
                 properties.put(Constants.USERID, userId);
                 properties.put(Constants.COMMUNITY_ID, requestData.get(Constants.COMMUNITY_ID));
-                List<Map<String, Object>> bookmarkedDiscussions = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, Arrays.asList(Constants.DISCUSSION_ID, Constants.STATUS), null);
+                List<Map<String, Object>> bookmarkedDiscussions = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, Arrays.asList(Constants.DISCUSSION_ID, Constants.STATUS), null);
                 if (bookmarkedDiscussions.isEmpty()) {
                     return ProjectUtil.returnErrorMsg(Constants.NO_DISCUSSIONS_FOUND, HttpStatus.OK, response, Constants.SUCCESS);
                 }
@@ -1722,7 +1714,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     public ApiResponse searchDiscussionByCommunity(Map<String, Object> searchData) {
         log.info("DiscussionServiceImpl::searchDiscussionByCommunity");
-        ApiResponse response = ProjectUtil.createDefaultResponse("search.discussion.by.community");
+        ApiResponse response = ApiResponse.createDefaultResponse("search.discussion.by.community");
         String error = validateCommunitySearchRequest(searchData);
         if (StringUtils.isNotEmpty(error)) {
             DiscussionServiceUtil.createErrorResponse(response, error, HttpStatus.BAD_REQUEST, Constants.FAILED_CONST);
@@ -1997,7 +1989,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public ApiResponse getEnrichedDiscussionData(Map<String, Object> data, String token) {
-        ApiResponse response = ProjectUtil.createDefaultResponse("discussion.getEnrichedDiscussionData");
+        ApiResponse response = ApiResponse.createDefaultResponse("discussion.getEnrichedDiscussionData");
         Map<String, Object> requestData = (Map<String, Object>) data.get("request");
 
         String userId = accessTokenValidator.verifyUserToken(token);
@@ -2067,7 +2059,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         properties.put(Constants.DISCUSSION_ID_KEY, discussionIds);
         properties.put(Constants.USERID, userId);
 
-        List<Map<String, Object>> likesList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> likesList = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, properties, null, null);
 
         likesList.stream()
@@ -2083,7 +2075,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         properties.put(Constants.USERID, userId);
         properties.put(Constants.COMMUNITY_ID, communityId);
 
-        List<Map<String, Object>> bookmarksList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> bookmarksList = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, null, null);
 
         bookmarksList.stream()
@@ -2097,7 +2089,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         properties.put(Constants.DISCUSSION_ID_KEY, discussionIds);
         properties.put(Constants.USERID, userId);
 
-        List<Map<String, Object>> reportedList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> reportedList = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER, properties, null, null);
 
         reportedList.stream()
@@ -2153,7 +2145,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public ApiResponse getGlobalFeed(SearchCriteria searchCriteria, String token, boolean isOverride) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
         String userId = accessTokenValidator.verifyUserToken(token);
 
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
@@ -2163,7 +2155,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
     private ApiResponse getGlobalFeedUsingUserId(SearchCriteria searchCriteria, String userId, boolean isOverride) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
+        ApiResponse response = ApiResponse.createDefaultResponse(Constants.DISCUSSION_GET_GLOBAL_FEED_API);
 
         if (StringUtils.isBlank(userId) || Constants.UNAUTHORIZED.equals(userId)) {
             return ProjectUtil.returnErrorMsg(Constants.INVALID_AUTH_TOKEN, HttpStatus.UNAUTHORIZED, response, Constants.FAILED);
@@ -2180,7 +2172,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private void populateCommunityIds(String userId, SearchCriteria searchCriteria) {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.USERID, userId);
-        List<Map<String, Object>> communitiesData = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        List<Map<String, Object>> communitiesData = cassandraOperation.getRecordsByProperties(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_COMMUNITY, propertyMap, Arrays.asList(Constants.COMMUNITY_ID_KEY, Constants.STATUS), null);
         if (!CollectionUtils.isEmpty(communitiesData)) {
             Set<String> communityIds = communitiesData.stream()

@@ -6,7 +6,8 @@ import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
+
+import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +26,7 @@ import static org.mockito.Mockito.*;
 class ProfanityCheckServiceImplTest {
 
     @Mock
-    private RequestHandlerServiceImpl requestHandlerService;
+    private OutboundRequestHandlerServiceImpl requestHandlerService;
 
     @Mock
     private CbServerProperties cbServerProperties;

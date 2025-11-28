@@ -6,8 +6,9 @@ import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.profanity.IProfanityCheckService;
-import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+
+import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,7 @@ public class ProfanityCheckServiceImpl implements IProfanityCheckService {
     private CbServerProperties cbServerProperties;
 
     @Autowired
-    private RequestHandlerServiceImpl requestHandlerService;
+    private OutboundRequestHandlerServiceImpl requestHandlerService;
 
     @Autowired
     private DiscussionRepository discussionRepository;

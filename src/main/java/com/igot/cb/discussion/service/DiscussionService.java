@@ -3,12 +3,14 @@ package com.igot.cb.discussion.service;
 import java.util.Map;
 
 import com.igot.cb.discussion.entity.DiscussionEntity;
+
+import org.igot.common.ApiResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
-import com.igot.cb.pores.util.ApiResponse;
+
 @Service
 public interface DiscussionService {
     ApiResponse createDiscussion(JsonNode discussionDetails, String token);
