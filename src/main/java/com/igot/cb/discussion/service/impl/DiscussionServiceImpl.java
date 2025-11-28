@@ -32,7 +32,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.igot.common.ApiResponse;
 import org.igot.common.auth.AccessTokenValidator;
 import org.igot.common.cassandra.CassandraOperation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -63,43 +62,60 @@ import static com.igot.cb.pores.util.Constants.*;
 public class DiscussionServiceImpl implements DiscussionService {
     private BaseStorageService storageService = null;
 
-    @Autowired
     private PayloadValidation payloadValidation;
-    @Autowired
     private DiscussionRepository discussionRepository;
-    @Autowired
     private CacheService cacheService;
-    @Autowired
     private EsUtilService esUtilService;
-    @Autowired
     private CbServerProperties cbServerProperties;
-    @Autowired
     @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
     private RedisTemplate<String, SearchResult> redisTemplate;
-    @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
     private CassandraOperation cassandraOperation;
-    @Autowired
     private AccessTokenValidator accessTokenValidator;
-    @Autowired
     private CommunityEngagementRepository communityEngagementRepository;
-    @Autowired
     private Producer producer;
-    @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
-    @Autowired
     private NotificationTriggerService notificationTriggerService;
-    @Autowired
     private HelperMethodService helperMethodService;
-
-    @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
+
+    public DiscussionServiceImpl(PayloadValidation payloadValidation, DiscussionRepository discussionRepository,
+                                 CacheService cacheService, EsUtilService esUtilService,
+                                 CbServerProperties cbServerProperties,
+                                 @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE) RedisTemplate<String, SearchResult> redisTemplate,
+                                 ObjectMapper objectMapper,
+                                 CassandraOperation cassandraOperation,
+                                 AccessTokenValidator accessTokenValidator,
+                                 CommunityEngagementRepository communityEngagementRepository,
+                                 Producer producer,
+                                 DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository,
+                                 NotificationTriggerService notificationTriggerService,
+                                 HelperMethodService helperMethodService,
+                                 DiscussionServiceUtil discussionServiceUtil) {
+        this.payloadValidation = payloadValidation;
+        this.discussionRepository = discussionRepository;
+        this.cacheService = cacheService;
+        this.esUtilService = esUtilService;
+        this.cbServerProperties = cbServerProperties;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.cassandraOperation = cassandraOperation;
+        this.accessTokenValidator = accessTokenValidator;
+        this.communityEngagementRepository = communityEngagementRepository;
+        this.producer = producer;
+        this.discussionAnswerPostReplyRepository = discussionAnswerPostReplyRepository;
+        this.notificationTriggerService = notificationTriggerService;
+        this.helperMethodService = helperMethodService;
+        this.discussionServiceUtil = discussionServiceUtil;
+    }
 
     @PostConstruct
     public void init() {
         if (storageService == null) {
-            storageService = StorageServiceFactory.getStorageService(new StorageConfig(cbServerProperties.getCloudStorageTypeName(), cbServerProperties.getCloudStorageKey(), cbServerProperties.getCloudStorageSecret().replace("\\n", "\n"), Option.apply(cbServerProperties.getCloudStorageEndpoint()), Option.empty()));
+            storageService = StorageServiceFactory.getStorageService(new StorageConfig(
+                    cbServerProperties.getCloudStorageTypeName(), cbServerProperties.getCloudStorageKey(),
+                    cbServerProperties.getCloudStorageSecret().replace("\\n", "\n"),
+                    Option.apply(cbServerProperties.getCloudStorageEndpoint()), Option.empty()));
         }
     }
 
@@ -185,7 +201,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_POSTS_BY_USER + discussionDetails.get(Constants.COMMUNITY_ID).asText() + Constants.UNDER_SCORE + userId);
             updateCacheForFirstFivePages(discussionDetails.get(Constants.COMMUNITY_ID).asText(), false);
             updateCacheForGlobalFeed(userId);
-            log.info("Updated cache for global feed");
             Map<String, String> communityObject = new HashMap<>();
             communityObject.put(Constants.COMMUNITY_ID, discussionDetails.get(Constants.COMMUNITY_ID).asText());
             communityObject.put(Constants.STATUS, Constants.INCREMENT);
@@ -211,7 +226,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), discussionDetailsNode);
         } catch (Exception e) {
@@ -224,7 +239,6 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private void updateCacheForGlobalFeed(String userId) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             SearchCriteria searchCriteria = objectMapper.readValue(cbServerProperties.getFilterCriteriaForGlobalFeed(), SearchCriteria.class);
             getGlobalFeedUsingUserId(searchCriteria, userId, true);
         } catch (Exception e) {
@@ -394,7 +408,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + communityId);
             updateCacheForFirstFivePages(communityId, false);
             updateCacheForGlobalFeed(userId);
-            log.info("Updated cache for global feed");
             try {
                 String discussionOwner = discussionDbData.getData().get(Constants.CREATED_BY).asText();
                 if (CollectionUtils.isNotEmpty(newlyAddedUserIds)) {
@@ -411,7 +424,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             producer.push(cbServerProperties.getKafkaProcessDetectLanguageTopic(), jsonNode);
         } catch (Exception e) {
@@ -562,7 +575,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                         deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + map.get(Constants.COMMUNITY_ID));
                         updateCacheForFirstFivePages((String) map.get(Constants.COMMUNITY_ID), false);
                         updateCacheForGlobalFeed(userId);
-                        log.info("Updated cache for global feed");
                         producer.push(cbServerProperties.getCommunityPostCount(), communityObject);
                         if (Constants.QUESTION.equalsIgnoreCase(data.get(Constants.TYPE).asText())) {
                             Map<String, String> userPostCount = new HashMap<>();
@@ -737,7 +749,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
 
             if (Constants.ANSWER_POST.equals(type)) {
@@ -791,7 +803,6 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     public List<Object> fetchUserFromPrimary(List<String> userIds) {
         log.info("DiscussionServiceImpl::fetchUserFromPrimary: Fetching user data from Cassandra");
-        List<Object> userList = new ArrayList<>();
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
         long startTime = System.currentTimeMillis();
@@ -799,7 +810,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
         updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.CASSANDRA, Constants.READ, startTime);
-        userList = userInfoList.stream()
+        return userInfoList.stream()
                 .map(userInfo -> {
                     Map<String, Object> userMap = new HashMap<>();
 
@@ -843,7 +854,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                     return userMap;
                 })
                 .collect(Collectors.toList());
-        return userList;
     }
 
     @Override
@@ -980,7 +990,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             discussionAnswerPostDetailsMap.put(Constants.CREATED_ON, currentTime);
             response.setResponseCode(HttpStatus.CREATED);
@@ -1219,7 +1229,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
             String redisKey = Constants.REPORT_STATISTICS_CACHE_PREFIX + discussionId;
             cacheService.deleteCache(redisKey);
-            log.info("Updated cache for global feed");
             map.put(Constants.DISCUSSION_ID, reportData.get(Constants.DISCUSSION_ID));
             response.setResult(map);
             return response;
@@ -1230,7 +1239,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
 
     private String validateReportPayload(Map<String, Object> reportData) {
-        StringBuffer errorMsg = new StringBuffer();
+        StringBuilder errorMsg = new StringBuilder();
         List<String> errList = new ArrayList<>();
 
         if (reportData.containsKey(Constants.DISCUSSION_ID) && StringUtils.isBlank((String) reportData.get(Constants.DISCUSSION_ID))) {
@@ -1256,7 +1265,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAM_ERROR).append(errList).append(".");
         }
         return errorMsg.toString();
     }
@@ -1279,7 +1288,11 @@ public class DiscussionServiceImpl implements DiscussionService {
         try {
             file = new File(System.currentTimeMillis() + Constants.UNDER_SCORE + mFile.getOriginalFilename());
 
-            file.createNewFile();
+            if (file.createNewFile()) {
+                log.info("File created successfully: " + file.getName());
+            } else {
+                log.error("File already exist with name : " + file.getName());
+            }
             // Use try-with-resources to ensure FileOutputStream is closed
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(mFile.getBytes());
@@ -1288,14 +1301,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             String uploadFolderPath = cbServerProperties.getDiscussionCloudFolderName() + "/" + communityId + "/" + discussionId;
             return uploadFile(file, uploadFolderPath, cbServerProperties.getDiscussionContainerName());
         } catch (Exception e) {
-            log.error("Failed to upload file. Exception: ", e);
+            log.error(Constants.FILE_UPLOAD_ERROR, e);
             response.getParams().setStatus(Constants.FAILED);
-            response.getParams().setErrMsg("Failed to upload file. Exception: " + e.getMessage());
+            response.getParams().setErrMsg(Constants.FILE_UPLOAD_ERROR + e.getMessage());
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
         } finally {
             if (file != null && file.exists()) {
-                file.delete();
+                if (file.delete()) {
+                    log.info("Temporary file deleted successfully: " + file.getName());
+                } else {
+                    log.error("Failed to delete temporary file: " + file.getName());
+                }
             }
         }
     }
@@ -1312,9 +1329,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.getResult().putAll(uploadedFile);
             return response;
         } catch (Exception e) {
-            log.error("Failed to upload file. Exception: ", e);
+            log.error(Constants.FILE_UPLOAD_ERROR, e);
             response.getParams().setStatus(Constants.FAILED);
-            response.getParams().setErrMsg("Failed to upload file. Exception: " + e.getMessage());
+            response.getParams().setErrMsg(Constants.FILE_UPLOAD_ERROR + e.getMessage());
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
         }
@@ -1429,7 +1446,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     notificationTriggerService.triggerNotification(TAGGED_COMMENT, ENGAGEMENT, newlyAddedUserIds, TITLE, firstName, notificationData);
                 }
             } catch (Exception e) {
-                log.error("Error while triggering notification", e);
+                log.error(Constants.NOTIFICATION_ERROR, e);
             }
             if(MapUtils.isNotEmpty(discussionAnswerPostDetailMap)) {
                 discussionAnswerPostDetailMap.remove(IS_PROFANE);
@@ -1619,7 +1636,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             return Constants.MISSING_REQUEST_DATA;
         }
 
-        StringBuffer errorMsg = new StringBuffer();
+        StringBuilder errorMsg = new StringBuilder();
         List<String> errList = new ArrayList<>();
 
         if (!requestData.containsKey(Constants.COMMUNITY_ID) && StringUtils.isBlank((String) requestData.get(Constants.COMMUNITY_ID))) {
@@ -1632,7 +1649,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             errList.add(Constants.PAGE_SIZE);
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAM_ERROR).append(errList).append(".");
         }
         return errorMsg.toString();
     }
@@ -1776,7 +1793,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             return Constants.MISSING_REQUEST_DATA;
         }
 
-        StringBuffer errorMsg = new StringBuffer();
+        StringBuilder errorMsg = new StringBuilder();
         List<String> errList = new ArrayList<>();
 
         if (!searchData.containsKey(Constants.COMMUNITY_ID) || StringUtils.isBlank((String) searchData.get(Constants.COMMUNITY_ID))) {
@@ -1786,7 +1803,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             errList.add(Constants.PAGE_NUMBER);
         }
         if (!errList.isEmpty()) {
-            errorMsg.append("Failed Due To Missing Params - ").append(errList).append(".");
+            errorMsg.append(Constants.MISSING_PARAM_ERROR).append(errList).append(".");
         }
         return errorMsg.toString();
     }
@@ -2140,7 +2157,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 errList.add(Constants.FILTERS);
             }
         }
-        return errList.isEmpty() ? "" : "Failed Due To Missing or Invalid Params - " + errList + ".";
+        return errList.isEmpty() ? "" : Constants.MISSING_PARAM_ERROR + errList + ".";
     }
 
     @Override
@@ -2242,13 +2259,12 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private List<Object> fetchCommunityFromPrimary(List<String> communityIds) {
         log.info("Fetching community data from PostgreSQL");
-        List<Object> communityList = new ArrayList<>();
         long startTime = System.currentTimeMillis();
 
         List<CommunityEntity> communityEntities = communityEngagementRepository.findAllById(communityIds);
         updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.POSTGRES, Constants.READ, startTime);
 
-        communityList = communityEntities.stream()
+        return communityEntities.stream()
                 .map(communityEntity -> {
                     Map<String, Object> communityMap = new HashMap<>();
                     communityMap.put(Constants.COMMUNITY_ID_KEY, communityEntity.getCommunityId());
@@ -2256,7 +2272,6 @@ public class DiscussionServiceImpl implements DiscussionService {
                     return communityMap;
                 })
                 .collect(Collectors.toList());
-        return communityList;
     }
 
     private List<String> getTrendingPosts() {

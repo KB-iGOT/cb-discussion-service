@@ -3,7 +3,6 @@ package com.igot.cb.pores.elasticsearch.service;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.Refresh;
-import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
@@ -22,16 +21,14 @@ import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.Constants;
-import com.igot.cb.pores.elasticsearch.config.EsConfig;
 import com.igot.cb.pores.elasticsearch.dto.FacetDTO;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.networknt.schema.JsonSchemaFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.MapUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.igot.common.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -47,12 +44,11 @@ import java.util.stream.Collectors;
 public class EsUtilServiceImpl implements EsUtilService {
     private final ElasticsearchClient elasticsearchClient;
     private static final Map<String, Map<String, Object>> schemaCache = new ConcurrentHashMap<>();
-
-    @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
-    public EsUtilServiceImpl(ElasticsearchClient elasticsearchClient) {
+
+    public EsUtilServiceImpl(ElasticsearchClient elasticsearchClient, ObjectMapper objectMapper) {
         this.elasticsearchClient = elasticsearchClient;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -210,7 +206,6 @@ public class EsUtilServiceImpl implements EsUtilService {
         searchSourceBuilder.query(boolQueryBuilder.build()._toQuery());
         addSortToSearchSourceBuilder(searchCriteria, searchSourceBuilder, JsonFilePath);
         addRequestedFieldsToSearchSourceBuilder(searchCriteria, searchSourceBuilder);
-       // addQueryStringToFilter(searchCriteria.getSearchString(), boolQueryBuilder);
         String searchString = searchCriteria.getSearchString();
         if (isNotBlank(searchString)) {
             boolQueryBuilder.must(Query.of(q -> q.matchPhrase(mp -> mp.field(Constants.DESCRIPTION).query(searchString))));
@@ -269,6 +264,8 @@ public class EsUtilServiceImpl implements EsUtilService {
                                         case Constants.SEARCH_OPERATION_LESS_THAN:
                                             rangeQuery.lt((JsonData) rangeValue);
                                             break;
+                                        default:
+                                            throw new IllegalArgumentException(Constants.UNSUPPORTED_RANGE + rangeOperator);
                                     }
                                 });
                                 rangeOrNullQuery.should(rangeQuery.build()._toQuery());
@@ -327,17 +324,6 @@ public class EsUtilServiceImpl implements EsUtilService {
                 log.error("Please specify at least one field to include in the results.");
             }
             searchRequestBuilder.source(SourceConfig.of(sc -> sc.filter(filter -> filter.includes(searchCriteria.getRequestedFields()))));
-        }
-    }
-
-    private void addQueryStringToFilter(String searchString, BoolQuery.Builder boolQueryBuilder) {
-        if (isNotBlank(searchString)) {
-            Query wildcardQuery = Query.of(q -> q.wildcard(
-                    WildcardQuery.of(w -> w
-                            .field("contentSearchTags.keyword")
-                            .value("*" + searchString.toLowerCase() + "*"))
-            ));
-            boolQueryBuilder.must(wildcardQuery);
         }
     }
 
@@ -555,7 +541,7 @@ public class EsUtilServiceImpl implements EsUtilService {
             return elasticsearchClient.bulk(bulkRequest);
         } catch (Exception e) {
             log.error(e.getMessage());
-            throw new CustomException("error bulk uploading", e.getMessage(),
+            throw new CustomException("Failed to bulk upload", "error bulk uploading : " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -572,7 +558,7 @@ public class EsUtilServiceImpl implements EsUtilService {
             return schemaMap;
         } catch (Exception e) {
             log.error("Error reading json schema", e);
-            throw new CustomException("error reading json schema", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new CustomException("Failed to parse", "error reading json schema : " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

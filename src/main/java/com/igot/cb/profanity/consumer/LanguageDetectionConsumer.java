@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.igot.common.service.OutboundRequestHandlerServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -24,23 +23,26 @@ import java.util.Map;
 @Slf4j
 public class LanguageDetectionConsumer {
 
-    @Autowired
     private ObjectMapper mapper;
-
-    @Autowired
     private CbServerProperties cbServerProperties;
-
-    @Autowired
     private OutboundRequestHandlerServiceImpl requestHandlerService;
-
-    @Autowired
     private IProfanityCheckService profanityCheckService;
-
-    @Autowired
     private DiscussionRepository discussionRepository;
-
-    @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+
+    public LanguageDetectionConsumer(DiscussionRepository discussionRepository,
+                                     DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository,
+                                     IProfanityCheckService profanityCheckService,
+                                     CbServerProperties cbServerProperties,
+                                     OutboundRequestHandlerServiceImpl requestHandlerService,
+                                     ObjectMapper mapper) {
+        this.discussionRepository = discussionRepository;
+        this.discussionAnswerPostReplyRepository = discussionAnswerPostReplyRepository;
+        this.profanityCheckService = profanityCheckService;
+        this.cbServerProperties = cbServerProperties;
+        this.requestHandlerService = requestHandlerService;
+        this.mapper = mapper;
+    }
 
     @KafkaListener(topics = "${kafka.topic.process.detect.language}", groupId = "${kafka.group.process.detect.language}")
     public void checkTextLanguage(ConsumerRecord<String, String> textData) {

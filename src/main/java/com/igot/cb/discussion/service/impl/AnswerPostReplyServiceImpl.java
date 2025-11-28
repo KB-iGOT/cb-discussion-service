@@ -25,7 +25,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.igot.common.ApiResponse;
 import org.igot.common.auth.AccessTokenValidator;
 import org.igot.common.cassandra.CassandraOperation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -44,38 +43,51 @@ import static com.igot.cb.pores.util.Constants.*;
 @Slf4j
 public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
-
-    @Autowired
     private PayloadValidation payloadValidation;
-    @Autowired
     private DiscussionRepository discussionRepository;
-    @Autowired
     private CacheService cacheService;
-    @Autowired
     private EsUtilService esUtilService;
-    @Autowired
     private CbServerProperties cbServerProperties;
-    @Autowired
     private AccessTokenValidator accessTokenValidator;
-    @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
-    @Autowired
     private CassandraOperation cassandraOperation;
-    @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
     private NotificationTriggerService notificationTriggerService;
-    @Autowired
     private HelperMethodService helperMethodService;
-    @Autowired
     @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
     private RedisTemplate<String, SearchResult> redisTemplate;
-
-    @Autowired
     private Producer producer;
-
-    @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
+
+    public AnswerPostReplyServiceImpl(PayloadValidation payloadValidation,
+                                      DiscussionRepository discussionRepository,
+                                      CacheService cacheService,
+                                      EsUtilService esUtilService,
+                                      CbServerProperties cbServerProperties,
+                                      AccessTokenValidator accessTokenValidator,
+                                      DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository,
+                                      CassandraOperation cassandraOperation,
+                                      ObjectMapper objectMapper,
+                                      NotificationTriggerService notificationTriggerService,
+                                      HelperMethodService helperMethodService,
+                                      @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE) RedisTemplate<String, SearchResult> redisTemplate,
+                                      Producer producer,
+                                      DiscussionServiceUtil discussionServiceUtil) {
+        this.payloadValidation = payloadValidation;
+        this.discussionRepository = discussionRepository;
+        this.cacheService = cacheService;
+        this.esUtilService = esUtilService;
+        this.cbServerProperties = cbServerProperties;
+        this.accessTokenValidator = accessTokenValidator;
+        this.discussionAnswerPostReplyRepository = discussionAnswerPostReplyRepository;
+        this.cassandraOperation = cassandraOperation;
+        this.objectMapper = objectMapper;
+        this.notificationTriggerService = notificationTriggerService;
+        this.helperMethodService = helperMethodService;
+        this.redisTemplate = redisTemplate;
+        this.producer = producer;
+        this.discussionServiceUtil = discussionServiceUtil;
+    }
 
     @Override
     public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {

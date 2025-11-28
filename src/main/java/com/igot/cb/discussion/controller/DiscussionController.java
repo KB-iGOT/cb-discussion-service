@@ -6,7 +6,6 @@ import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.util.Constants;
 
 import org.igot.common.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +17,14 @@ import java.util.Map;
 @RequestMapping("/v1/discussion")
 public class DiscussionController {
 
-    @Autowired
     DiscussionService discussionService;
-
-    @Autowired
     AnswerPostReplyService answerPostReplyService;
+
+    public DiscussionController(DiscussionService discussionService,
+                                AnswerPostReplyService answerPostReplyService) {
+        this.discussionService = discussionService;
+        this.answerPostReplyService = answerPostReplyService;
+    }
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse> createDiscussion(@RequestBody JsonNode discussionDetails,

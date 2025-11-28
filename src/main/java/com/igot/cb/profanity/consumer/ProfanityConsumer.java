@@ -20,8 +20,6 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.DiscussionServiceUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.igot.common.cassandra.CassandraOperation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -37,45 +35,45 @@ import static com.igot.cb.pores.util.Constants.*;
 @Slf4j
 public class ProfanityConsumer {
 
-    @Autowired
-    private ObjectMapper mapper;
-
-    @Autowired
     private DiscussionRepository discussionRepository;
-
-    @Autowired
     private EsUtilService esUtilService;
-
-    @Autowired
     private CbServerProperties cbServerProperties;
-
-    @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
     private DiscussionService discussionService;
-
-    @Autowired
-    private CassandraOperation cassandraOperation;
-
-    @Autowired
     @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE)
     private RedisTemplate<String, SearchResult> redisTemplate;
-
-    @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
-
-    @Autowired
     private NotificationTriggerService notificationTriggerService;
-
-    @Autowired
     private HelperMethodService helperMethodService;
-
-    @Autowired
     private AnswerPostReplyService answerPostReplyService;
-
-    @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
+
+
+    public ProfanityConsumer(DiscussionRepository discussionRepository,
+                             DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository,
+                             CbServerProperties cbServerProperties,
+                             ObjectMapper objectMapper, 
+                             @Qualifier(Constants.SEARCH_RESULT_REDIS_TEMPLATE) RedisTemplate<String, SearchResult> redisTemplate,
+                             DiscussionService discussionService,
+                             EsUtilService esUtilService,
+                             NotificationTriggerService notificationTriggerService,
+                             HelperMethodService helperMethodService,
+                             AnswerPostReplyService answerPostReplyService,
+                             DiscussionServiceUtil discussionServiceUtil) {
+        this.discussionRepository = discussionRepository;
+        this.discussionAnswerPostReplyRepository = discussionAnswerPostReplyRepository;
+        this.cbServerProperties = cbServerProperties;
+        this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
+        this.discussionService = discussionService;
+        this.esUtilService = esUtilService; 
+        this.notificationTriggerService = notificationTriggerService;
+        this.helperMethodService = helperMethodService;
+        this.answerPostReplyService = answerPostReplyService;
+        this.discussionServiceUtil = discussionServiceUtil;
+    }
+
+
     /**
      * Consumes messages from the Kafka topic for profanity checks on text content.
      * It processes the text data, checks if it contains profane content, and updates
@@ -87,7 +85,7 @@ public class ProfanityConsumer {
     public void checkTextContentIsProfane(ConsumerRecord<String, String> textData) {
         if (StringUtils.hasText(textData.value())) {
             try {
-                JsonNode textDataNode = mapper.readTree(textData.value());
+                JsonNode textDataNode = objectMapper.readTree(textData.value());
                 String discussionId = textDataNode.path(Constants.REQUEST_DATA).path(Constants.METADATA).path(Constants.POST_ID).asText();
                 String parentDiscussionId = extractFieldAsText(
                         textDataNode, Constants.REQUEST_DATA, Constants.METADATA, Constants.PARENT_DISCUSSION_ID);

@@ -22,7 +22,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilServiceImpl;
-import com.igot.cb.pores.exceptions.CustomException;
+
+import org.igot.common.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -88,7 +89,7 @@ class EsUtilServiceImplTest {
             esUtilService.searchDocuments(index, sampleCriteria, schemaPath);
         });
 
-        assertEquals("argument \"src\" is null", ex.getMessage());
+        assertEquals("error reading json schema : argument \"src\" is null", ex.getMessage());
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatusCode());
     }
 
@@ -420,7 +421,7 @@ class EsUtilServiceImplTest {
             esUtilService.saveAll(indexName, entities);
         });
 
-        assertEquals("Bulk failure", exception.getMessage());
+        assertEquals("error bulk uploading : Bulk failure", exception.getMessage());
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getHttpStatusCode());
 
     }

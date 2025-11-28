@@ -2,9 +2,10 @@ package com.igot.cb.pores.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.igot.cb.pores.exceptions.CustomException;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.ValidationMessage;
+
+import org.igot.common.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;

@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import org.igot.common.CustomException;
+
 @ExtendWith(MockitoExtension.class)
 class RestExceptionHandlingTest {
 

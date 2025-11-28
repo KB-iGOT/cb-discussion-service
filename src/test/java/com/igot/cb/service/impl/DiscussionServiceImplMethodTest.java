@@ -1,21 +1,32 @@
 package com.igot.cb.service.impl;
 
-import com.datastax.oss.driver.api.core.CqlSession;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.discussion.repository.CommunityEngagementRepository;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.DiscussionServiceUtil;
+import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.producer.Producer;
 
 import org.igot.common.ApiResponse;
+import org.igot.common.auth.AccessTokenValidator;
 import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 
 import java.lang.reflect.Method;
@@ -28,13 +39,22 @@ import static org.mockito.Mockito.*;
 class DiscussionServiceImplMethodTest {
 
     @Mock
+    private PayloadValidation payloadValidation;
+
+    @Mock
+    private DiscussionRepository discussionRepository;
+
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private EsUtilService esUtilService;
+
+    @Mock
     private CbServerProperties cbServerProperties;
 
     @Mock
-    private CqlSession session;
-
-    @InjectMocks
-    private DiscussionServiceImpl discussionService;
+    private RedisTemplate<String, SearchResult> redisTemplate;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -42,17 +62,50 @@ class DiscussionServiceImplMethodTest {
     @Mock
     private CassandraOperation cassandraOperation;
 
+    @Mock
+    private AccessTokenValidator accessTokenValidator;
+
+    @Mock
+    private CommunityEngagementRepository communityEngagementRepository;
+
+    @Mock
+    private Producer producer;
+
+    @Mock
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+
+    @Mock
+    private NotificationTriggerService notificationTriggerService;
+
+    @Mock
+    private HelperMethodService helperMethodService;
+
+    @Mock
+    private DiscussionServiceUtil discussionServiceUtil;
+
+    private DiscussionServiceImpl discussionService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        discussionService = new DiscussionServiceImpl();
-        cbServerProperties = mock(CbServerProperties.class);
-        objectMapper = mock(ObjectMapper.class);
-
-        // Inject mocks
-        setField(discussionService, "cbServerProperties", cbServerProperties);
-        setField(discussionService, "objectMapper", objectMapper);
+        discussionService = new DiscussionServiceImpl(
+                payloadValidation,
+                discussionRepository,
+                cacheService,
+                esUtilService,
+                cbServerProperties,
+                redisTemplate,
+                objectMapper,
+                cassandraOperation,
+                accessTokenValidator,
+                communityEngagementRepository,
+                producer,
+                discussionAnswerPostReplyRepository,
+                notificationTriggerService,
+                helperMethodService,
+                discussionServiceUtil
+        );
     }
 
     @Test
@@ -76,7 +129,7 @@ class DiscussionServiceImplMethodTest {
     void testUpVote_invalidToken() {
         ApiResponse response = discussionService.upVote("discussion123", "question", "invalid-token");
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
 
     @Test
@@ -84,7 +137,7 @@ class DiscussionServiceImplMethodTest {
 
         ApiResponse response = discussionService.downVote("discussion123", "question", "invalid-token");
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
 
     @Test
@@ -92,7 +145,7 @@ class DiscussionServiceImplMethodTest {
         // Test delete discussion with invalid token
         ApiResponse response = discussionService.deleteDiscussion("discussion123", "question", "invalid-token");
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
 
     private String invokeGenerateRedisTokenKey(SearchCriteria sc) throws Exception {
@@ -149,7 +202,6 @@ class DiscussionServiceImplMethodTest {
     }
 
 
-    @SuppressWarnings("unchecked")
     @Test
     void test_fetchAndEnhanceDiscussions_100Coverage() throws Exception {
         // Create a spy to allow stubbing
@@ -291,15 +343,5 @@ class DiscussionServiceImplMethodTest {
         c.setFilterCriteriaMap(new HashMap<>(src.getFilterCriteriaMap()));
         c.setPageNumber(src.getPageNumber());
         return c;
-    }
-
-    private static void setField(Object target, String field, Object value) {
-        try {
-            var f = target.getClass().getDeclaredField(field);
-            f.setAccessible(true);
-            f.set(target, value);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }

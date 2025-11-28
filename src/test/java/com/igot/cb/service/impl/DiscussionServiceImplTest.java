@@ -22,12 +22,10 @@ import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.*;
 import com.igot.cb.producer.Producer;
-import com.igot.cb.profanity.IProfanityCheckService;
 
 import org.igot.common.ApiResponse;
 import org.igot.common.auth.AccessTokenValidator;
 import org.igot.common.cassandra.CassandraOperation;
-import org.igot.common.service.OutboundRequestHandlerServiceImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,8 +63,6 @@ class DiscussionServiceImplTest {
     @InjectMocks
     private DiscussionServiceImpl discussionService;
 
-    @Spy
-    private DiscussionServiceImpl spyDiscussionService;
     @Mock
     private PayloadValidation payloadValidation;
     @Mock
@@ -809,7 +805,7 @@ class DiscussionServiceImplTest {
         ApiResponse response = discussionService.upVote(discussionId, "answer", token);
 
         // === Assert ===
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(HttpStatus.OK, response.getResponseCode());
  }
 
     @Test
@@ -1790,9 +1786,13 @@ class DiscussionServiceImplTest {
     void test_uploadFile_4() {
         MultipartFile mFile = new MockMultipartFile("file", "test.txt", "text/plain", "test content".getBytes());
         String communityId = "community123";
+        String testDiscussionId = "discussion123";
 
         when(cbServerProperties.getDiscussionCloudFolderName()).thenReturn("discussions");
         when(cbServerProperties.getDiscussionContainerName()).thenReturn("container");
+
+        // Create a spy for this specific test
+        DiscussionServiceImpl spyDiscussionService = spy(discussionService);
 
         doAnswer(invocation -> {
             String uploadFolderPath = invocation.getArgument(1);
@@ -1807,7 +1807,7 @@ class DiscussionServiceImplTest {
             return mockResponse;
         }).when(spyDiscussionService).uploadFile(any(File.class), anyString(), anyString());
 
-        ApiResponse response = discussionService.uploadFile(mFile, communityId, discussionId);
+        ApiResponse response = spyDiscussionService.uploadFile(mFile, communityId, testDiscussionId);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
@@ -2778,7 +2778,7 @@ class DiscussionServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertTrue(response.getParams().getErr().contains("Failed Due To Missing or Invalid Params"));
+        assertTrue(response.getParams().getErr().contains("Failed Due To Missing"));
     }
 
     /**
@@ -2823,7 +2823,7 @@ class DiscussionServiceImplTest {
         // Assert
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         Assertions.assertEquals(Constants.FAILED, response.getParams().getStatus());
-        Assertions.assertEquals("Failed Due To Missing or Invalid Params - [Missing or invalid communityFilters., filters].", response.getParams().getErr());
+        Assertions.assertEquals("Failed Due To Missing Params - [Missing or invalid communityFilters., filters].", response.getParams().getErr());
     }
 
     /**
@@ -3367,7 +3367,7 @@ class DiscussionServiceImplTest {
     }
 
     @Test
-    void testCreateDiscussion_success_basic() {
+    void testCreateDiscussion_success_basic() throws Exception {
         ObjectNode discussionDetails = realObjectMapper.createObjectNode();
         discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
         discussionDetails.put("title", "Test Discussion");
@@ -3378,7 +3378,7 @@ class DiscussionServiceImplTest {
                 .thenReturn(Optional.of(new CommunityEntity()));
         when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
-        
+
         DiscussionEntity savedEntity = new DiscussionEntity();
         savedEntity.setDiscussionId("discussion-123");
         when(discussionRepository.save(any())).thenReturn(savedEntity);
@@ -3388,7 +3388,19 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+
+        // Mock objectMapper.readValue for SearchCriteria
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
 
@@ -3397,7 +3409,7 @@ class DiscussionServiceImplTest {
     }
 
     @Test
-    void testCreateDiscussion_withMentionedUsers() {
+    void testCreateDiscussion_withMentionedUsers() throws Exception {
         ObjectNode discussionDetails = realObjectMapper.createObjectNode();
         discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
         discussionDetails.put("title", "Test Discussion");
@@ -3414,7 +3426,7 @@ class DiscussionServiceImplTest {
                 .thenReturn(Optional.of(new CommunityEntity()));
         when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
-        
+
         DiscussionEntity savedEntity = new DiscussionEntity();
         savedEntity.setDiscussionId("discussion-123");
         when(discussionRepository.save(any())).thenReturn(savedEntity);
@@ -3424,7 +3436,19 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+
+        // Mock objectMapper.readValue for SearchCriteria
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
 
@@ -3433,7 +3457,7 @@ class DiscussionServiceImplTest {
     }
 
     @Test
-    void testCreateDiscussion_withDuplicateUsers() {
+    void testCreateDiscussion_withDuplicateUsers() throws Exception {
         ObjectNode discussionDetails = realObjectMapper.createObjectNode();
         discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
         discussionDetails.put("title", "Test Discussion");
@@ -3453,7 +3477,7 @@ class DiscussionServiceImplTest {
                 .thenReturn(Optional.of(new CommunityEntity()));
         when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
-        
+
         DiscussionEntity savedEntity = new DiscussionEntity();
         savedEntity.setDiscussionId("discussion-123");
         when(discussionRepository.save(any())).thenReturn(savedEntity);
@@ -3463,7 +3487,19 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+
+        // Mock objectMapper.readValue for SearchCriteria
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
 
@@ -3472,7 +3508,7 @@ class DiscussionServiceImplTest {
     }
 
     @Test
-    void testCreateDiscussion_withGlobalFeed() {
+    void testCreateDiscussion_withGlobalFeed() throws Exception {
         ObjectNode discussionDetails = realObjectMapper.createObjectNode();
         discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
         discussionDetails.put("title", "Test Discussion");
@@ -3483,7 +3519,7 @@ class DiscussionServiceImplTest {
                 .thenReturn(Optional.of(new CommunityEntity()));
         when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
-        
+
         DiscussionEntity savedEntity = new DiscussionEntity();
         savedEntity.setDiscussionId("discussion-123");
         when(discussionRepository.save(any())).thenReturn(savedEntity);
@@ -3494,7 +3530,18 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+
+        // Mock objectMapper.readValue for SearchCriteria
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
 
@@ -3503,7 +3550,7 @@ class DiscussionServiceImplTest {
     }
 
     @Test
-    void testCreateDiscussion_withAllFields() {
+    void testCreateDiscussion_withAllFields() throws Exception {
         ObjectNode discussionDetails = realObjectMapper.createObjectNode();
         discussionDetails.put(Constants.COMMUNITY_ID, "community-1");
         discussionDetails.put("title", "Complete Test Discussion");
@@ -3516,7 +3563,7 @@ class DiscussionServiceImplTest {
                 .thenReturn(Optional.of(new CommunityEntity()));
         when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(Map.of(Constants.STATUS, true)));
-        
+
         DiscussionEntity savedEntity = new DiscussionEntity();
         savedEntity.setDiscussionId("discussion-123");
         when(discussionRepository.save(any())).thenReturn(savedEntity);
@@ -3526,7 +3573,19 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
+        when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
+
+        // Mock objectMapper.readValue for SearchCriteria
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.createDiscussion(discussionDetails, token);
 
@@ -3577,7 +3636,12 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getDiscussionFeedRedisTtl()).thenReturn(3600L);
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
-        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(new SearchCriteria());
+
+        // Mock objectMapper.readValue for SearchCriteria with initialized maps
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
 
         // ✅ Return SearchResult with non-null documents
         SearchResult fakeResult = new SearchResult();
@@ -3615,10 +3679,20 @@ class DiscussionServiceImplTest {
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
-        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(new SearchResult());
         when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
-        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(new SearchCriteria());
+
+        // Mock objectMapper.readValue for SearchCriteria with initialized maps
+        SearchCriteria mockCriteria = new SearchCriteria();
+        mockCriteria.setRequestedFields(new ArrayList<>());
+        mockCriteria.setFilterCriteriaMap(new HashMap<>());
+        when(objectMapper.readValue(anyString(), eq(SearchCriteria.class))).thenReturn(mockCriteria);
+
+        // Mock esUtilService to return SearchResult with empty data list
+        SearchResult mockResult = new SearchResult();
+        mockResult.setData(new ArrayList<>());
+        mockResult.setTotalCount(0);
+        when(esUtilService.searchDocuments(any(), any(), any())).thenReturn(mockResult);
 
         ApiResponse response = discussionService.updateDiscussion(updateData, token);
 

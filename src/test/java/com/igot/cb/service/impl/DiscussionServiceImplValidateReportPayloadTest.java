@@ -1,9 +1,25 @@
 package com.igot.cb.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.discussion.repository.CommunityEngagementRepository;
+import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
+import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
-import com.igot.cb.pores.util.Constants;
+import com.igot.cb.notificationUtill.HelperMethodService;
+import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.pores.cache.CacheService;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.igot.cb.pores.elasticsearch.service.EsUtilService;
+import com.igot.cb.pores.util.*;
+import com.igot.cb.producer.Producer;
+import org.igot.common.auth.AccessTokenValidator;
+import org.igot.common.cassandra.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -13,15 +29,65 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.MockitoAnnotations.openMocks;
 
+@ExtendWith(MockitoExtension.class)
 class DiscussionServiceImplValidateReportPayloadTest {
+
+    @Mock
+    private PayloadValidation payloadValidation;
+    @Mock
+    private DiscussionRepository discussionRepository;
+    @Mock
+    private CacheService cacheService;
+    @Mock
+    private EsUtilService esUtilService;
+    @Mock
+    private CbServerProperties cbServerProperties;
+    @Mock
+    private RedisTemplate<String, SearchResult> redisTemplate;
+    @Mock
+    private ObjectMapper objectMapper;
+    @Mock
+    private CassandraOperation cassandraOperation;
+    @Mock
+    private AccessTokenValidator accessTokenValidator;
+    @Mock
+    private CommunityEngagementRepository communityEngagementRepository;
+    @Mock
+    private Producer producer;
+    @Mock
+    private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+    @Mock
+    private NotificationTriggerService notificationTriggerService;
+    @Mock
+    private HelperMethodService helperMethodService;
+    @Mock
+    private DiscussionServiceUtil discussionServiceUtil;
 
     private DiscussionServiceImpl service;
     private Method validateReportPayloadMethod;
 
     @BeforeEach
     void setUp() throws Exception {
-        service = new DiscussionServiceImpl();
+        openMocks(this);
+        service = new DiscussionServiceImpl(
+                payloadValidation,
+                discussionRepository,
+                cacheService,
+                esUtilService,
+                cbServerProperties,
+                redisTemplate,
+                objectMapper,
+                cassandraOperation,
+                accessTokenValidator,
+                communityEngagementRepository,
+                producer,
+                discussionAnswerPostReplyRepository,
+                notificationTriggerService,
+                helperMethodService,
+                discussionServiceUtil
+        );
         validateReportPayloadMethod = DiscussionServiceImpl.class
                 .getDeclaredMethod("validateReportPayload", Map.class);
         validateReportPayloadMethod.setAccessible(true);

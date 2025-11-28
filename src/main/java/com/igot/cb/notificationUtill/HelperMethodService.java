@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.igot.common.cassandra.CassandraOperation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -19,12 +18,15 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class HelperMethodService {
-    @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
     private CassandraOperation cassandraOperation;
-    @Autowired
     private CacheService cacheService;
+
+    public HelperMethodService(CassandraOperation cassandraOperation, CacheService cacheService, ObjectMapper objectMapper) {
+        this.cassandraOperation = cassandraOperation;
+        this.cacheService = cacheService;
+        this.objectMapper = objectMapper;
+    }
 
     public List<Object> fetchDataForKeys(List<String> keys, boolean isUserData) {
         // Fetch values for all keys from Redis
@@ -53,7 +55,6 @@ public class HelperMethodService {
 
     public List<Object> fetchUserFromPrimary(List<String> userIds) {
         log.info("DiscussionServiceImpl::fetchUserFromPrimary: Fetching user data from Cassandra");
-        List<Object> userList = new ArrayList<>();
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
         long startTime = System.currentTimeMillis();
@@ -61,7 +62,7 @@ public class HelperMethodService {
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
         updateMetricsDbOperation(Constants.DISCUSSION_SEARCH, Constants.CASSANDRA, Constants.READ, startTime);
-        userList = userInfoList.stream()
+        return userInfoList.stream()
                 .map(userInfo -> {
                     Map<String, Object> userMap = new HashMap<>();
 
@@ -105,7 +106,6 @@ public class HelperMethodService {
                     return userMap;
                 })
                 .collect(Collectors.toList());
-        return userList;
     }
 
     private void updateMetricsDbOperation(String apiName, String dbType, String operationType, long time) {

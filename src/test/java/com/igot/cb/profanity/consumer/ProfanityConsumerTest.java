@@ -46,9 +46,6 @@ class ProfanityConsumerTest {
     private ProfanityConsumer profanityConsumer;
 
     @Mock
-    private ObjectMapper mapper;
-
-    @Mock
     private DiscussionRepository discussionRepository;
 
     @Mock
@@ -116,7 +113,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("post123", Constants.QUESTION, true);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -130,7 +127,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("post456", Constants.ANSWER_POST, false);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -144,7 +141,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("reply123", Constants.ANSWER_POST_REPLY, true);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -156,7 +153,7 @@ class ProfanityConsumerTest {
     @Test
     void testCheckTextContentIsProfane_InvalidJson() throws Exception {
         ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, "invalid_json");
-        when(mapper.readTree("invalid_json")).thenThrow(new JsonProcessingException("error") {});
+        when(objectMapper.readTree("invalid_json")).thenThrow(new JsonProcessingException("error") {});
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         verifyNoInteractions(discussionRepository);
         verifyNoInteractions(discussionAnswerPostReplyRepository);
@@ -207,10 +204,7 @@ class ProfanityConsumerTest {
         when(entity.getDiscussionId()).thenReturn(discussionId);
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionIndex");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
-        when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
-        Field objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
-        objectMapperField.setAccessible(true);
-        objectMapperField.set(profanityConsumer, mapper);
+        when(objectMapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
         invokePrivate("syncProfaneDetailsToESForDiscussion",
                 new Class[]{String.class, boolean.class, String.class, String.class},
                 discussionId, false, "question", null);
@@ -256,10 +250,7 @@ class ProfanityConsumerTest {
         when(entity.getDiscussionId()).thenReturn(discussionId);
         when(cbServerProperties.getDiscussionEntity()).thenReturn("answerIndex");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
-        when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
-        Field objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
-        objectMapperField.setAccessible(true);
-        objectMapperField.set(profanityConsumer, mapper);
+        when(objectMapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
         invokePrivate("syncProfaneDetailsToESForAnswerPost",
                 new Class[]{String.class, boolean.class, String.class, String.class},
                 discussionId, false, "parentDisc", "parentAns");
@@ -427,11 +418,8 @@ class ProfanityConsumerTest {
         when(entity.getDiscussionId()).thenReturn(discussionId);
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionIndex");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
-        when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
+        when(objectMapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
         when(helperMethodService.fetchUserFirstName("user123")).thenReturn("John");
-        Field objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
-        objectMapperField.setAccessible(true);
-        objectMapperField.set(profanityConsumer, mapper);
         invokePrivate("syncProfaneDetailsToESForDiscussion",
                 new Class[]{String.class, boolean.class, String.class, String.class},
                 discussionId, true, Constants.QUESTION, null);
@@ -457,7 +445,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("post789", "UNKNOWN", true);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         profanityConsumer.checkTextContentIsProfane(consumerRecord);
         verifyNoInteractions(discussionRepository);
         verifyNoInteractions(discussionAnswerPostReplyRepository);
@@ -519,7 +507,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("q123", Constants.QUESTION, true);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
 
         doThrow(new RuntimeException("DB error"))
@@ -539,7 +527,7 @@ class ProfanityConsumerTest {
         ConsumerRecord<String, String> consumerRecord =
                 new ConsumerRecord<>("topic", 0, 0L, null, kafkaValue);
         JsonNode mockNode = mockJsonTree("r123", Constants.ANSWER_POST_REPLY, false);
-        when(mapper.readTree(kafkaValue)).thenReturn(mockNode);
+        when(objectMapper.readTree(kafkaValue)).thenReturn(mockNode);
         when(mockNode.toString()).thenReturn(kafkaValue);
 
         doThrow(new RuntimeException("DB error"))
@@ -573,17 +561,9 @@ class ProfanityConsumerTest {
 
         when(cbServerProperties.getDiscussionEntity()).thenReturn("answerIndex");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("jsonPath");
-        when(mapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
+        when(objectMapper.convertValue(eq(data), any(TypeReference.class))).thenReturn(new HashMap<>());
 
         // Inject objectMapper mock
-        Field objectMapperField = ProfanityConsumer.class.getDeclaredField("objectMapper");
-        objectMapperField.setAccessible(true);
-        objectMapperField.set(profanityConsumer, mapper);
-
-        // Inject redisTemplate mock
-        Field redisTemplateField = ProfanityConsumer.class.getDeclaredField("redisTemplate");
-        redisTemplateField.setAccessible(true);
-        redisTemplateField.set(profanityConsumer, redisTemplate);
         doReturn("dummy-key").when(discussionServiceUtil).generateRedisJwtTokenKey(any());
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.getAndDelete(anyString())).thenReturn("deleted");

@@ -14,8 +14,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
-import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.Constants;
+
+import org.igot.common.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -249,7 +250,7 @@ class EsUtilServiceImplTest {
         Executable executable = () -> service.saveAll("index", List.of(mockNode));
 
         CustomException ex = assertThrows(CustomException.class, executable);
-        assertEquals("Error", ex.getMessage());
+        assertEquals("error bulk uploading : Error", ex.getMessage());
     }
 
 

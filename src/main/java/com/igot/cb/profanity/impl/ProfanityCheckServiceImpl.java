@@ -9,7 +9,6 @@ import com.igot.cb.profanity.IProfanityCheckService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.igot.common.service.OutboundRequestHandlerServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -22,17 +21,20 @@ import java.util.Map;
 @Slf4j
 @Service
 public class ProfanityCheckServiceImpl implements IProfanityCheckService {
-    @Autowired
     private CbServerProperties cbServerProperties;
-
-    @Autowired
     private OutboundRequestHandlerServiceImpl requestHandlerService;
-
-    @Autowired
     private DiscussionRepository discussionRepository;
-
-    @Autowired
     private DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository;
+
+    public ProfanityCheckServiceImpl(CbServerProperties cbServerProperties,
+                                   OutboundRequestHandlerServiceImpl requestHandlerService,
+                                   DiscussionRepository discussionRepository,
+                                   DiscussionAnswerPostReplyRepository discussionAnswerPostReplyRepository) {
+        this.cbServerProperties = cbServerProperties;
+        this.requestHandlerService = requestHandlerService;
+        this.discussionRepository = discussionRepository;
+        this.discussionAnswerPostReplyRepository = discussionAnswerPostReplyRepository;
+    }
 
     /**
      * Processes a profanity check for a discussion by sending the discussion details

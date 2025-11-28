@@ -19,7 +19,6 @@ import static org.mockito.Mockito.*;
 
 class CacheServiceTest {
 
-    @InjectMocks
     private CacheService cacheService;
 
     @Mock
@@ -39,6 +38,9 @@ class CacheServiceTest {
         MockitoAnnotations.openMocks(this);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redisDataTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // Manually instantiate CacheService with constructor
+        cacheService = new CacheService(redisTemplate, redisDataTemplate, objectMapper);
 
         // Set private field 'cacheTtl' using reflection
         Field cacheTtlField = CacheService.class.getDeclaredField("cacheTtl");

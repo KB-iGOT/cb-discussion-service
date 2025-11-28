@@ -6,7 +6,6 @@ import com.igot.cb.pores.util.Constants;
 import lombok.extern.slf4j.Slf4j;
 
 import org.igot.common.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -30,14 +29,12 @@ public class NotificationTriggerService {
     private String notificationApiUrl;
 
     private final RestTemplate restTemplate;
-
-    @Autowired
-    public NotificationTriggerService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
-
-    @Autowired
     private ObjectMapper objectMapper;
+
+    public NotificationTriggerService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     public ApiResponse sendNotification(
             String subCategory,

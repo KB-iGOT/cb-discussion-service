@@ -293,6 +293,9 @@ public class Constants {
     public static final String LANGUAGE_DETECTION_CALL_FAILED = "languageDetectionCallFailed";
     public static final String FAILED_LOWERCASE = "failed";
     public static final String ENGLISH_LANGUAGE_CODE = "en";
+    public static final String NOTIFICATION_ERROR = "Error while triggering notification";
+    public static final String MISSING_PARAM_ERROR = "Failed Due To Missing Params - ";
+    public static final String FILE_UPLOAD_ERROR = "Failed to upload file. Exception: ";
     private Constants() {
     }
 }
