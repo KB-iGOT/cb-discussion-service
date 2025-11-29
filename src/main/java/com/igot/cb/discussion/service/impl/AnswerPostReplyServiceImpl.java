@@ -11,8 +11,8 @@ import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
-import com.igot.cb.notificationUtill.HelperMethodService;
-import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.notification.HelperMethodService;
+import com.igot.cb.notification.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
@@ -146,7 +146,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             answerPostReplyDataNode.put(Constants.CREATED_BY, userId);
             answerPostReplyDataNode.put(Constants.VOTE_COUNT, 0);
             answerPostReplyDataNode.put(Constants.STATUS, Constants.ACTIVE);
-            answerPostReplyDataNode.put(Constants.PARENT_ANSWER_POST_ID, answerPostDataReplyData.get(Constants.PARENT_ANSWER_POST_ID));
+            answerPostReplyDataNode.set(Constants.PARENT_ANSWER_POST_ID, answerPostDataReplyData.get(Constants.PARENT_ANSWER_POST_ID));
 
             DiscussionAnswerPostReplyEntity jsonNodeEntity = new DiscussionAnswerPostReplyEntity();
 
@@ -257,7 +257,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         }
 
         ArrayNode arrayNode = objectMapper.valueToTree(answerPostReplies);
-        ((ObjectNode) data).put(Constants.ANSWER_POST_REPLIES, arrayNode);
+        ((ObjectNode) data).set(Constants.ANSWER_POST_REPLIES, arrayNode);
         ((ObjectNode) data).put(Constants.ANSWER_POST_REPLIES_COUNT, answerPostReplies.size());
 
         discussionEntity.setData(data);
@@ -526,7 +526,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             }
 
             JsonNode dataNode;
-            Boolean isActive;
+            boolean isActive;
             if (Constants.ANSWER_POST_REPLY.equals(type)) {
                 DiscussionAnswerPostReplyEntity reply = (DiscussionAnswerPostReplyEntity) entity;
                 dataNode = reply.getData();

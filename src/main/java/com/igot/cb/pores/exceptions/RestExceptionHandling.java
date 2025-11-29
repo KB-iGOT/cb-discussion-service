@@ -18,25 +18,25 @@ public class RestExceptionHandling {
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
         ErrorResponse errorResponse = null;
         if (ex instanceof CustomException) {
-            CustomException CustomException = (CustomException) ex;
+            CustomException customException = (CustomException) ex;
             status = HttpStatus.BAD_REQUEST;
             // Check if the CustomException provides an HTTP status code
-            if (CustomException != null) {
+            if (customException != null) {
                 try {
-                    status = CustomException.getHttpStatusCode();
+                    status = customException.getHttpStatusCode();
                 } catch (IllegalArgumentException e) {
-                    log.warn("Invalid HTTP status code provided in CustomException: " + CustomException.getHttpStatusCode());
+                    log.warn("Invalid HTTP status code provided in CustomException: " + customException.getHttpStatusCode());
                 }
             }
             errorResponse = ErrorResponse.builder()
-                    .code(CustomException.getCode())
-                    .message(CustomException.getMessage())
-                    .httpStatusCode(CustomException.getHttpStatusCode() != null
-                            ? CustomException.getHttpStatusCode().value()
+                    .code(customException.getCode())
+                    .message(customException.getMessage())
+                    .httpStatusCode(customException.getHttpStatusCode() != null
+                            ? customException.getHttpStatusCode().value()
                             : status.value())
                     .build();
-            if (StringUtils.isNotBlank(CustomException.getMessage())) {
-                log.error(CustomException.getMessage());
+            if (StringUtils.isNotBlank(customException.getMessage())) {
+                log.error(customException.getMessage());
             }
 
             return new ResponseEntity<>(errorResponse, status);

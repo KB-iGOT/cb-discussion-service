@@ -400,7 +400,7 @@ class DiscussionControllerTest {
         when(discussionService.upVote(anyString(), eq(Constants.ANSWER_POST_REPLY), anyString()))
                 .thenReturn(mockResponse);
 
-        ResponseEntity<ApiResponse> response = discussionController.AnswerPostReplyLike("discussion123", "token");
+        ResponseEntity<ApiResponse> response = discussionController.answerPostReplyLike("discussion123", "token");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());
@@ -414,7 +414,7 @@ class DiscussionControllerTest {
         when(discussionService.downVote(anyString(), eq(Constants.ANSWER_POST_REPLY), anyString()))
                 .thenReturn(mockResponse);
 
-        ResponseEntity<ApiResponse> response = discussionController.AnswerPostReplyDislike("discussion123", "token");
+        ResponseEntity<ApiResponse> response = discussionController.answerPostReplyDislike("discussion123", "token");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());

@@ -192,14 +192,14 @@ public class DiscussionController {
     }
 
     @PostMapping("/answerPostReply/like/{discussionId}")
-    public ResponseEntity<ApiResponse> AnswerPostReplyLike(@PathVariable String discussionId,
+    public ResponseEntity<ApiResponse> answerPostReplyLike(@PathVariable String discussionId,
                                                            @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response = discussionService.upVote(discussionId, Constants.ANSWER_POST_REPLY, token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
     @PostMapping("/answerPostReply/dislike/{discussionId}")
-    public ResponseEntity<ApiResponse> AnswerPostReplyDislike(@PathVariable String discussionId,
+    public ResponseEntity<ApiResponse> answerPostReplyDislike(@PathVariable String discussionId,
                                                               @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response = discussionService.downVote(discussionId, Constants.ANSWER_POST_REPLY, token);
         return new ResponseEntity<>(response, response.getResponseCode());

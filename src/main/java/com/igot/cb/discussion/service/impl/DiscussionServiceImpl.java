@@ -17,8 +17,8 @@ import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
 import com.igot.cb.metrics.service.ApiMetricsTracker;
-import com.igot.cb.notificationUtill.HelperMethodService;
-import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.notification.HelperMethodService;
+import com.igot.cb.notification.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
@@ -622,7 +622,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
 
             JsonNode dataNode;
-            Boolean isActive;
+            boolean isActive;
             if (isAnswerReply) {
                 DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
                 dataNode = replyEntity.getData();
@@ -651,7 +651,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             boolean currentVote = Constants.UP.equals(voteType);
 
             Object upVoteCountObj = discussionData.get(Constants.UP_VOTE_COUNT);
-            long existingUpVoteCount = (upVoteCountObj instanceof Number) ? ((Number) upVoteCountObj).longValue() : 0L;
+            long existingUpVoteCount = (upVoteCountObj instanceof Number upVoteCountNumber) ? (upVoteCountNumber.longValue()) : 0L;
 
             Map<String, Object> properties = new HashMap<>();
             properties.put(Constants.DISCUSSION_ID_KEY, discussionId);
@@ -833,17 +833,15 @@ public class DiscussionServiceImpl implements DiscussionService {
                             // Check for profile image and add to userMap if available
                             if (MapUtils.isNotEmpty(profileDetailsMap)) {
                                 if (profileDetailsMap.containsKey(Constants.PROFILE_IMG) && StringUtils.isNotBlank((String) profileDetailsMap.get(Constants.PROFILE_IMG))) {
-                                    userMap.put(Constants.PROFILE_IMG_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                                    userMap.put(Constants.PROFILE_IMG_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                                 }
                                 if (profileDetailsMap.containsKey(Constants.DESIGNATION_KEY) && StringUtils.isNotEmpty((String) profileDetailsMap.get(Constants.DESIGNATION_KEY))) {
-
-                                    userMap.put(Constants.DESIGNATION_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                                    userMap.put(Constants.DESIGNATION_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                                 }
                                 if (profileDetailsMap.containsKey(Constants.EMPLOYMENT_DETAILS) && MapUtils.isNotEmpty(
                                         (Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)) && ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).containsKey(Constants.DEPARTMENT_KEY) && StringUtils.isNotBlank(
                                         (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY))) {
-                                    userMap.put(Constants.DEPARTMENT, (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
-
+                                    userMap.put(Constants.DEPARTMENT, ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
                                 }
                             }
                         } catch (JsonProcessingException e) {
@@ -916,7 +914,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             answerPostDataNode.put(Constants.CREATED_BY, userId);
             answerPostDataNode.put(Constants.VOTE_COUNT, 0);
             answerPostDataNode.put(Constants.STATUS, Constants.ACTIVE);
-            answerPostDataNode.put(Constants.PARENT_DISCUSSION_ID, answerPostData.get(Constants.PARENT_DISCUSSION_ID));
+            answerPostDataNode.set(Constants.PARENT_DISCUSSION_ID, answerPostData.get(Constants.PARENT_DISCUSSION_ID));
 
             DiscussionEntity jsonNodeEntity = new DiscussionEntity();
 
@@ -1048,7 +1046,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             answerPostSet.remove(discussionId);
         }
         ArrayNode arrayNode = objectMapper.valueToTree(answerPostSet);
-        ((ObjectNode) data).put(Constants.ANSWER_POSTS, arrayNode);
+        ((ObjectNode) data).set(Constants.ANSWER_POSTS, arrayNode);
         ((ObjectNode) data).put(Constants.ANSWER_POST_COUNT, answerPostSet.size());
 
         discussionEntity.setData(data);
@@ -1100,7 +1098,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
 
             JsonNode dataNode;
-            Boolean isActive;
+            boolean isActive;
             if (Constants.ANSWER_POST_REPLY.equals(type)) {
                 DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
                 dataNode = replyEntity.getData();
@@ -1351,10 +1349,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private boolean validateCommunityId(String communityId) {
         Optional<CommunityEntity> communityEntityOptional = communityEngagementRepository.findByCommunityIdAndIsActive(communityId, true);
-        if (communityEntityOptional.isPresent()) {
-            return true;
-        }
-        return false;
+        return communityEntityOptional.isPresent();
     }
 
     @Override
@@ -2130,15 +2125,12 @@ public class DiscussionServiceImpl implements DiscussionService {
                 errList.add("Empty communityFilters.");
             } else {
                 for (Object obj : communityFilters) {
-                    if (!(obj instanceof Map<?, ?>)) {
+                    if (!(obj instanceof Map<?, ?> mapObject)) {
                         errList.add("Invalid communityFilters structure.");
                         continue;
                     }
-
-                    Map<?, ?> communityFilter = (Map<?, ?>) obj;
-
-                    String communityId = (String) communityFilter.get(Constants.COMMUNITY_ID);
-                    List<?> identifiers = (List<?>) communityFilter.get(Constants.IDENTIFIER);
+                    String communityId = (String) mapObject.get(Constants.COMMUNITY_ID);
+                    List<?> identifiers = (List<?>) mapObject.get(Constants.IDENTIFIER);
 
                     if (StringUtils.isBlank(communityId) || identifiers == null || identifiers.isEmpty()) {
                         errList.add("Invalid communityFilter: communityId or identifiers are missing/empty.");

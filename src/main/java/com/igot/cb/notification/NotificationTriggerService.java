@@ -1,4 +1,4 @@
-package com.igot.cb.notificationUtill;
+package com.igot.cb.notification;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

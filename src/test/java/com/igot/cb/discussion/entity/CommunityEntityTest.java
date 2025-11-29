@@ -26,14 +26,14 @@ class CommunityEntityTest {
         entity.setData(jsonNode);
         entity.setCreatedOn(createdOn);
         entity.setUpdatedOn(updatedOn);
-        entity.setCreated_by(createdBy);
+        entity.setCreatedBy(createdBy);
         entity.setActive(true);
 
         assertEquals(communityId, entity.getCommunityId());
         assertEquals(jsonNode, entity.getData());
         assertEquals(createdOn, entity.getCreatedOn());
         assertEquals(updatedOn, entity.getUpdatedOn());
-        assertEquals(createdBy, entity.getCreated_by());
+        assertEquals(createdBy, entity.getCreatedBy());
         assertTrue(entity.isActive());
     }
 
@@ -57,7 +57,7 @@ class CommunityEntityTest {
         assertEquals(jsonNode, entity.getData());
         assertEquals(createdOn, entity.getCreatedOn());
         assertEquals(updatedOn, entity.getUpdatedOn());
-        assertEquals("system", entity.getCreated_by());
+        assertEquals("system", entity.getCreatedBy());
         assertFalse(entity.isActive());
     }
 }

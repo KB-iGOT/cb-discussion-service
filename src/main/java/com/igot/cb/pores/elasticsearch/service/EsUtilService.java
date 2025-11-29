@@ -19,7 +19,7 @@ public interface EsUtilService {
 
   void deleteDocumentsByCriteria(String esIndexName, Query query);
 
-  SearchResult searchDocuments(String esIndexName, SearchCriteria searchCriteria,String JsonFilePath);
+  SearchResult searchDocuments(String esIndexName, SearchCriteria searchCriteria,String jsonFilePath);
 
   boolean isIndexPresent(String indexName);
 

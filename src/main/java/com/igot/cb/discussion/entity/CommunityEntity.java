@@ -27,11 +27,14 @@ public class CommunityEntity {
     @Column(columnDefinition = "jsonb")
     private JsonNode data;
 
+    @Column(name="created_on")
     private Timestamp createdOn;
 
+    @Column(name="updated_on")
     private Timestamp updatedOn;
 
-    private String created_by;
+    @Column(name="created_by")
+    private String createdBy;
 
     @Column(name="is_active")
     private boolean isActive;

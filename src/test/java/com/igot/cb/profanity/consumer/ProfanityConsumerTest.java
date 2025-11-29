@@ -12,8 +12,8 @@ import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
 import com.igot.cb.discussion.service.DiscussionService;
-import com.igot.cb.notificationUtill.HelperMethodService;
-import com.igot.cb.notificationUtill.NotificationTriggerService;
+import com.igot.cb.notification.HelperMethodService;
+import com.igot.cb.notification.NotificationTriggerService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.CbServerProperties;
@@ -336,7 +336,7 @@ class ProfanityConsumerTest {
         DiscussionEntity parentDiscussionEntity = mock(DiscussionEntity.class);
         when(discussionRepository.findById(parentDiscussionId)).thenReturn(Optional.of(parentDiscussionEntity));
         SearchCriteria mockCriteria = mock(SearchCriteria.class);
-        when(discussionService.createSearchCriteriaWithDefaults(eq(parentDiscussionId), eq("community1"), eq(Constants.ANSWER_POST)))
+        when(discussionService.createSearchCriteriaWithDefaults(eq("parent123"), eq("community1"), eq(Constants.ANSWER_POST)))
                 .thenReturn(mockCriteria);
         doReturn("dummy-key").when(discussionServiceUtil).generateRedisJwtTokenKey(any());
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
@@ -377,9 +377,9 @@ class ProfanityConsumerTest {
         when(helperMethodService.fetchUserFirstName(userId)).thenReturn("TestUser");
         SearchCriteria mockAnswerReplyCriteria = mock(SearchCriteria.class);
         SearchCriteria mockDiscussionCriteria = mock(SearchCriteria.class);
-        when(answerPostReplyService.createDefaultSearchCriteria(eq(parentAnswerPostId), eq("community1")))
+        when(answerPostReplyService.createDefaultSearchCriteria(eq("parentAns1"), eq("community1")))
                 .thenReturn(mockAnswerReplyCriteria);
-        when(discussionService.createSearchCriteriaWithDefaults(eq(parentDiscussionId), eq("community1"), eq(Constants.ANSWER_POST)))
+        when(discussionService.createSearchCriteriaWithDefaults(eq("parentDisc1"), eq("community1"), eq(Constants.ANSWER_POST)))
                 .thenReturn(mockDiscussionCriteria);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         doReturn("dummy-key").when(discussionServiceUtil).generateRedisJwtTokenKey(any());
