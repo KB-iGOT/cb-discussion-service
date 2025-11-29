@@ -2078,8 +2078,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_POST_VOTES, properties, null, null);
 
         likesList.stream()
-                .filter(record -> Boolean.TRUE.equals(record.get(Constants.VOTE_TYPE)))
-                .map(record -> (String) record.get(Constants.DISCUSSION_ID_KEY))
+                .filter(voteRecord -> Boolean.TRUE.equals(voteRecord.get(Constants.VOTE_TYPE)))
+                .map(voteRecord -> (String) voteRecord.get(Constants.DISCUSSION_ID_KEY))
                 .forEach(discussionId -> likesMap.put(discussionId, true));
     }
 
@@ -2094,8 +2094,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_BOOKMARKS, properties, null, null);
 
         bookmarksList.stream()
-                .filter(record -> Boolean.TRUE.equals(record.get(Constants.STATUS)))
-                .map(record -> (String) record.get(Constants.DISCUSSION_ID_KEY))
+                .filter(bookmarkRecord -> Boolean.TRUE.equals(bookmarkRecord.get(Constants.STATUS)))
+                .map(bookmarkRecord -> (String) bookmarkRecord.get(Constants.DISCUSSION_ID_KEY))
                 .forEach(discussionId -> bookmarksMap.put(discussionId, true));
     }
 
@@ -2108,7 +2108,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Constants.KEYSPACE_SUNBIRD, Constants.DISCUSSION_POST_REPORT_LOOKUP_BY_USER, properties, null, null);
 
         reportedList.stream()
-                .map(record -> (String) record.get(Constants.DISCUSSION_ID_KEY))
+                .map(reportRecord -> (String) reportRecord.get(Constants.DISCUSSION_ID_KEY))
                 .forEach(discussionId -> reportedMap.put(discussionId, true));
     }
 

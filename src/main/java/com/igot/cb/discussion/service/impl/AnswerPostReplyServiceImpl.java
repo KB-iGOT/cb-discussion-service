@@ -755,9 +755,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
 
             Map<String, Date> latestReportedTimeMap = new HashMap<>();
 
-            for (Map<String, Object> record : reportedDiscussionIds) {
-                String discussionId = (String) record.get(Constants.DISCUSSION_ID_KEY);
-                Timestamp createdOn = Timestamp.from(((Instant) record.get(Constants.CREATED_ON_KEY)));
+            for (Map<String, Object> reportDiscussionObj : reportedDiscussionIds) {
+                String discussionId = (String) reportDiscussionObj.get(Constants.DISCUSSION_ID_KEY);
+                Timestamp createdOn = Timestamp.from(((Instant) reportDiscussionObj.get(Constants.CREATED_ON_KEY)));
                 if (latestReportedTimeMap.containsKey(discussionId)) {
                     Date existingTime = latestReportedTimeMap.get(discussionId);
                     if (createdOn.after(existingTime)) {

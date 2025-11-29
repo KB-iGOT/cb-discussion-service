@@ -336,7 +336,7 @@ class ProfanityConsumerTest {
         DiscussionEntity parentDiscussionEntity = mock(DiscussionEntity.class);
         when(discussionRepository.findById(parentDiscussionId)).thenReturn(Optional.of(parentDiscussionEntity));
         SearchCriteria mockCriteria = mock(SearchCriteria.class);
-        when(discussionService.createSearchCriteriaWithDefaults(eq("parent123"), eq("community1"), eq(Constants.ANSWER_POST)))
+        when(discussionService.createSearchCriteriaWithDefaults("parent123", "community1", Constants.ANSWER_POST))
                 .thenReturn(mockCriteria);
         doReturn("dummy-key").when(discussionServiceUtil).generateRedisJwtTokenKey(any());
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
@@ -358,7 +358,7 @@ class ProfanityConsumerTest {
         verify(discussionService).deleteCacheByCommunity(Constants.DISCUSSION_CACHE_PREFIX + "community1");
         verify(discussionService).updateCacheForFirstFivePages("community1", false);
         verify(redisTemplate.opsForValue()).getAndDelete(anyString());
-        verify(discussionService).updateAnswerPostToDiscussion(eq(parentDiscussionEntity), eq("disc123"), eq(Constants.DECREMENT));
+        verify(discussionService).updateAnswerPostToDiscussion(parentDiscussionEntity, "disc123", Constants.DECREMENT);
     }
 
 
@@ -377,9 +377,9 @@ class ProfanityConsumerTest {
         when(helperMethodService.fetchUserFirstName(userId)).thenReturn("TestUser");
         SearchCriteria mockAnswerReplyCriteria = mock(SearchCriteria.class);
         SearchCriteria mockDiscussionCriteria = mock(SearchCriteria.class);
-        when(answerPostReplyService.createDefaultSearchCriteria(eq("parentAns1"), eq("community1")))
+        when(answerPostReplyService.createDefaultSearchCriteria("parentAns1", "community1"))
                 .thenReturn(mockAnswerReplyCriteria);
-        when(discussionService.createSearchCriteriaWithDefaults(eq("parentDisc1"), eq("community1"), eq(Constants.ANSWER_POST)))
+        when(discussionService.createSearchCriteriaWithDefaults("parentDisc1", "community1", Constants.ANSWER_POST))
                 .thenReturn(mockDiscussionCriteria);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         doReturn("dummy-key").when(discussionServiceUtil).generateRedisJwtTokenKey(any());
@@ -573,7 +573,7 @@ class ProfanityConsumerTest {
                 discussionId, true, "parentDiscX", "parentAnsX");
 
         verify(esUtilService).updateDocument(eq("answerIndex"), eq(discussionId), anyMap(), eq("jsonPath"));
-        verify(answerPostReplyService).updateAnswerPostReplyToAnswerPost(eq(discussionEntity), eq(discussionId), eq(Constants.DECREMENT));
+        verify(answerPostReplyService).updateAnswerPostReplyToAnswerPost(discussionEntity, discussionId, Constants.DECREMENT);
     }
 
     @Test

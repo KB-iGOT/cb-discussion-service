@@ -74,9 +74,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(node).put(Constants.LANGUAGE, detectedLanguage);
         verify(profanityCheckService).processProfanityCheck(id, node);
@@ -111,9 +111,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(node, never()).put(eq(Constants.LANGUAGE), anyString());
         verifyNoInteractions(profanityCheckService);
@@ -148,9 +148,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(node, never()).put(eq(Constants.LANGUAGE), anyString());
         verifyNoInteractions(profanityCheckService);
@@ -158,8 +158,8 @@ class LanguageDetectionConsumerTest {
 
     @Test
     void testCheckTextLanguage_emptyValue() {
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "");
-        consumer.checkTextLanguage(record);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, "");
+        consumer.checkTextLanguage(consumerRecord);
         verifyNoInteractions(mapper, profanityCheckService, requestHandlerService);
     }
 
@@ -168,8 +168,8 @@ class LanguageDetectionConsumerTest {
         String invalidJson = "{invalid";
         when(mapper.readTree(invalidJson)).thenThrow(new JsonProcessingException("error") {
         });
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, invalidJson);
-        consumer.checkTextLanguage(record);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, invalidJson);
+        consumer.checkTextLanguage(consumerRecord);
         verify(mapper).readTree(invalidJson);
         verifyNoInteractions(profanityCheckService, requestHandlerService);
     }
@@ -203,9 +203,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(discussionRepository).updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
         verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
@@ -243,9 +243,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(node, never()).put(eq(Constants.LANGUAGE), anyString());
         verifyNoInteractions(profanityCheckService);
@@ -280,9 +280,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(discussionRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
         verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
@@ -318,9 +318,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenReturn(langDetectResponse);
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(discussionRepository).updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_NOT_DETECTED, false);
         verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
@@ -354,9 +354,9 @@ class LanguageDetectionConsumerTest {
         when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
                 .thenThrow(new RuntimeException("Service error"));
 
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, json);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0L, null, json);
 
-        consumer.checkTextLanguage(record);
+        consumer.checkTextLanguage(consumerRecord);
 
         verify(discussionRepository).updateProfanityCheckStatusByDiscussionId(id, Constants.LANGUAGE_DETECTION_CALL_FAILED, false);
         verify(discussionAnswerPostReplyRepository, never()).updateProfanityCheckStatusByDiscussionId(anyString(), anyString(), anyBoolean());
