@@ -8,6 +8,7 @@ import org.igot.common.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -42,9 +43,9 @@ class NotificationTriggerServiceTest {
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("result", "ok");
 
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
+        ResponseEntity<Map<String, Object>> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
 
-        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()))
                 .thenReturn(responseEntity);
 
         ApiResponse result = service.sendNotification(
@@ -102,7 +103,7 @@ class NotificationTriggerServiceTest {
                 HttpStatus.BAD_REQUEST, "Bad Request"
         );
 
-        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()))
                 .thenThrow(ex);
 
         ApiResponse result = service.sendNotification(
@@ -116,7 +117,7 @@ class NotificationTriggerServiceTest {
 
     @Test
     void test_sendNotification_unexpectedException() {
-        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()))
                 .thenThrow(new RuntimeException("Some error"));
 
         ApiResponse result = service.sendNotification(
@@ -132,10 +133,10 @@ class NotificationTriggerServiceTest {
     void test_triggerNotification_success() {
         com.fasterxml.jackson.databind.node.ObjectNode mockNode = mock(com.fasterxml.jackson.databind.node.ObjectNode.class);
         when(objectMapper.createObjectNode()).thenReturn(mockNode);
-        
+
         Map<String, Object> mockResponse = new HashMap<>();
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
-        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        ResponseEntity<Map<String, Object>> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()))
                 .thenReturn(responseEntity);
 
         service.triggerNotification(
@@ -151,7 +152,7 @@ class NotificationTriggerServiceTest {
     void test_triggerNotification_exception() {
         com.fasterxml.jackson.databind.node.ObjectNode mockNode = mock(com.fasterxml.jackson.databind.node.ObjectNode.class);
         when(objectMapper.createObjectNode()).thenReturn(mockNode);
-        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()))
                 .thenThrow(new RuntimeException("Test exception"));
 
         service.triggerNotification(

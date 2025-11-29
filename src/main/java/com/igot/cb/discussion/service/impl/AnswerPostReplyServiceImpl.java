@@ -30,12 +30,14 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.io.StringBufferInputStream;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.Map.Entry;
 
 import static com.igot.cb.pores.util.Constants.*;
 
@@ -767,7 +769,10 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             }
             log.info("Latest reported times: {}", latestReportedTimeMap);
 
-            for (String discussionId : latestReportedTimeMap.keySet()) {
+            Iterator<Entry<String, Date>> iterator = latestReportedTimeMap.entrySet().iterator();
+            while(iterator.hasNext()) {
+                Entry<String, Date> entry = iterator.next();
+                String discussionId = entry.getKey();
                 Optional<DiscussionEntity> discussionEntityOptional = discussionRepository.findById(discussionId);
                 if (discussionEntityOptional.isPresent()) {
                     DiscussionEntity discussionEntity = discussionEntityOptional.get();

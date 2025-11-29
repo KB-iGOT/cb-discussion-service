@@ -114,9 +114,9 @@ class EsUtilServiceImplTest {
 
         Executable executable = () -> service.updateDocument("index", "id", Map.of(), "/schema.json");
 
-        RuntimeException ex = assertThrows(RuntimeException.class, executable);
+        CustomException ex = assertThrows(CustomException.class, executable);
 
-        assertEquals(RuntimeException.class.getName(), ex.getClass().getName());
+        assertEquals(CustomException.class.getName(), ex.getClass().getName());
         assertEquals("Errod occured while updating es index", ex.getMessage());
 
     }

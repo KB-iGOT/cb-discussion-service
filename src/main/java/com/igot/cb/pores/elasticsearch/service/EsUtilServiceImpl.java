@@ -86,10 +86,10 @@ public class EsUtilServiceImpl implements EsUtilService {
 
     @Override
     public String updateDocument(
-            String index, String entityId, Map<String, Object> updatedDocument, String JsonFilePath) {
+            String index, String entityId, Map<String, Object> updatedDocument, String jsonFilePath) {
         try {
             JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-            InputStream schemaStream = schemaFactory.getClass().getResourceAsStream(JsonFilePath);
+            InputStream schemaStream = schemaFactory.getClass().getResourceAsStream(jsonFilePath);
             Map<String, Object> map = objectMapper.readValue(schemaStream,
                     new TypeReference<Map<String, Object>>() {
                     });
@@ -111,7 +111,7 @@ public class EsUtilServiceImpl implements EsUtilService {
             return response.result().jsonValue();
         } catch (IOException e) {
             log.error("Error while updating document in elasticsearch: {}", e.getMessage(), e);
-            throw new RuntimeException("Errod occured while updating es index");
+            throw new CustomException("Error", "Errod occured while updating es index", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -197,7 +197,7 @@ public class EsUtilServiceImpl implements EsUtilService {
         return paginatedResult;
     }
 
-    private SearchRequest.Builder buildSearchRequest(SearchCriteria searchCriteria, String JsonFilePath) {
+    private SearchRequest.Builder buildSearchRequest(SearchCriteria searchCriteria, String jsonFilePath) {
         log.info("Building search query");
         if (searchCriteria == null || searchCriteria.toString().isEmpty()) {
             log.error("Search criteria body is missing");
@@ -206,7 +206,7 @@ public class EsUtilServiceImpl implements EsUtilService {
         BoolQuery.Builder boolQueryBuilder = buildFilterQuery(searchCriteria.getFilterCriteriaMap());
         SearchRequest.Builder searchSourceBuilder = new SearchRequest.Builder();
         searchSourceBuilder.query(boolQueryBuilder.build()._toQuery());
-        addSortToSearchSourceBuilder(searchCriteria, searchSourceBuilder, JsonFilePath);
+        addSortToSearchSourceBuilder(searchCriteria, searchSourceBuilder, jsonFilePath);
         addRequestedFieldsToSearchSourceBuilder(searchCriteria, searchSourceBuilder);
         String searchString = searchCriteria.getSearchString();
         if (isNotBlank(searchString)) {

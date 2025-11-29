@@ -30,6 +30,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.igot.common.ApiResponse;
+import org.igot.common.CustomException;
 import org.igot.common.auth.AccessTokenValidator;
 import org.igot.common.cassandra.CassandraOperation;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -45,6 +46,8 @@ import scala.Option;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -243,7 +246,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             getGlobalFeedUsingUserId(searchCriteria, userId, true);
         } catch (Exception e) {
             log.error("Error occured while updating the cache for globalFeed", e);
-            throw new RuntimeException("Error parsing filter criteria JSON", e);
+            throw new CustomException("Error", "Error parsing filter criteria JSON : " +  e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -1306,10 +1309,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             return response;
         } finally {
             if (file != null && file.exists()) {
-                if (file.delete()) {
-                    log.info("Temporary file deleted successfully: " + file.getName());
-                } else {
-                    log.error("Failed to delete temporary file: " + file.getName());
+                try {
+                    Files.delete(file.toPath());
+                } catch (IOException e) {
+                    log.error("Failed to delete temporary file: " + file.getName(), e);
                 }
             }
         }
@@ -2117,10 +2120,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         List<String> errList = new ArrayList<>();
 
         Object communityFiltersObj = requestData.get(Constants.COMMUNITY_FILTERS);
-        if (!(communityFiltersObj instanceof List<?>)) {
+        if (!(communityFiltersObj instanceof List<?> communityFilters)) {
             errList.add("Missing or invalid communityFilters.");
         } else {
-            List<?> communityFilters = (List<?>) communityFiltersObj;
             if (communityFilters.isEmpty()) {
                 errList.add("Empty communityFilters.");
             } else {

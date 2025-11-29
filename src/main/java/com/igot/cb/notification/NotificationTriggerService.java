@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.igot.common.ApiResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -70,8 +71,11 @@ public class NotificationTriggerService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
-            ResponseEntity<Map> serviceResponse = restTemplate.postForEntity(
-                    notificationApiUrl, request, Map.class
+            ResponseEntity<Map<String, Object>> serviceResponse = restTemplate.exchange(
+                    notificationApiUrl,
+                    HttpMethod.POST,
+                    request,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
             response.setResponseCode(HttpStatus.OK);

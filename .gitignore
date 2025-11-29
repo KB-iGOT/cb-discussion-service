@@ -358,3 +358,5 @@ target/site/jacoco/com.igot.cb.notification/index.html
 target/site/jacoco/com.igot.cb.notification/index.source.html
 target/site/jacoco/com.igot.cb.notification/NotificationTriggerService.html
 target/site/jacoco/com.igot.cb.notification/NotificationTriggerService.java.html
+target/classes/com/igot/cb/notification/NotificationTriggerService$1.class
+target/site/jacoco/com.igot.cb.notification/NotificationTriggerService$1.html

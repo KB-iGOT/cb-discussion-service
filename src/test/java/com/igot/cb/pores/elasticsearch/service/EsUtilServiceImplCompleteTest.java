@@ -18,6 +18,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+
+import org.igot.common.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -100,8 +102,8 @@ class EsUtilServiceImplCompleteTest {
         // Create an Executable containing only one invocation
         Executable executable = () -> service.updateDocument("index", "id", Map.of(), "/schema.json");
 
-        RuntimeException ex = assertThrows(RuntimeException.class, executable);
-        assertEquals(RuntimeException.class.getName(), ex.getClass().getName());
+        CustomException ex = assertThrows(CustomException.class, executable);
+        assertEquals(CustomException.class.getName(), ex.getClass().getName());
         assertEquals("Errod occured while updating es index", ex.getMessage());
     }
 

@@ -4,8 +4,10 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.igot.common.CustomException;
 import org.igot.common.PropertiesCache;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.networknt.schema.JsonSchema;
@@ -32,7 +34,8 @@ public class JsonSchemaCache {
             log.info("Successfully loaded schema file from path: {}", schemaPath);
             return schema;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load JSON schema: " + schemaPath, e);
+            log.error("Failed to load JSON schema from path: {}", schemaPath, e);
+            throw new CustomException("Error", "Failed to load JSON schema: " + schemaPath, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

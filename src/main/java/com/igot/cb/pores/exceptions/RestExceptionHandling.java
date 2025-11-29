@@ -17,8 +17,7 @@ public class RestExceptionHandling {
         log.debug("RestExceptionHandler::handleException::" + ex);
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
         ErrorResponse errorResponse = null;
-        if (ex instanceof CustomException) {
-            CustomException customException = (CustomException) ex;
+        if (ex instanceof CustomException customException) {
             status = HttpStatus.BAD_REQUEST;
             // Check if the CustomException provides an HTTP status code
             if (customException != null) {

@@ -6,6 +6,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ApiMetricsTracker {
 
+    private ApiMetricsTracker() {
+        // Private constructor to prevent instantiation
+    }
+
     // Centralized map to store metrics for each API endpoint
     private static final Map<String, ApiMetrics> apiMetricsMap = new ConcurrentHashMap<>();
     private static boolean trackingEnabled = false;
