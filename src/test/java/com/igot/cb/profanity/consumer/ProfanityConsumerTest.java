@@ -454,8 +454,8 @@ class ProfanityConsumerTest {
 
     @Test
     void testCheckTextContentIsProfane_EmptyMessage() {
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0, "key", "");
-        profanityConsumer.checkTextContentIsProfane(record);
+        ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("topic", 0, 0, "key", "");
+        profanityConsumer.checkTextContentIsProfane(consumerRecord);
     }
 
     @Test

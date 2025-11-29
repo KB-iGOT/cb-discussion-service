@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
@@ -629,7 +630,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             if (isAnswerReply) {
                 DiscussionAnswerPostReplyEntity replyEntity = (DiscussionAnswerPostReplyEntity) entityObject;
                 dataNode = replyEntity.getData();
-                ((ObjectNode) dataNode).put(IS_PROFANE, replyEntity.getIsProfane());
+                ((ObjectNode) dataNode).set(IS_PROFANE, BooleanNode.valueOf(replyEntity.getIsProfane()));
                 log.info("Profanity status for the reply: {} for discussionId : {} ", replyEntity.getIsProfane(), replyEntity.getDiscussionId());
                 isActive = replyEntity.getIsActive();
             } else {
