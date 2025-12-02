@@ -794,7 +794,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         Set<String> keys = new HashSet<>();
         ScanOptions options = ScanOptions.scanOptions()
                 .match(pattern)
-                .count(100)
+                .count(cbServerProperties.getRedisScanCountSize())
                 .build();
 
         try (Cursor<String> cursor = redisTemplate.scan(options)) {
