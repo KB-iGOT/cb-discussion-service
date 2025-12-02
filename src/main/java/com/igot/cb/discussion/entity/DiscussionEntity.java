@@ -51,4 +51,11 @@ public class DiscussionEntity {
         this.createdOn = createdOn;
         this.updatedOn = updatedOn;
     }
+
+    public boolean getIsProfane() {
+        if (isProfane == null) {
+            return false;
+        }
+        return isProfane;
+    }
 }

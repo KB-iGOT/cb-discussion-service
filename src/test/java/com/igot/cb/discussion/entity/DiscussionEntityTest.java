@@ -91,6 +91,6 @@ class DiscussionEntityTest {
         assertEquals(updatedOn, entity.getUpdatedOn());
         // The following fields should be null as they are not set by this constructor
         assertNull(entity.getProfanityresponse());
-        assertNull(entity.getIsProfane());
+        assertFalse(entity.getIsProfane());
     }
 }
