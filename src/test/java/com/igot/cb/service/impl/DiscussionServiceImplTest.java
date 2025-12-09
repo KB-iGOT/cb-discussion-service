@@ -3527,7 +3527,6 @@ class DiscussionServiceImplTest {
                 .thenAnswer(invocation -> realObjectMapper.convertValue(invocation.getArgument(0), Map.class));
         when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion");
         when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("path");
-        when(cbServerProperties.getKafkaProcessDetectLanguageTopic()).thenReturn("topic");
         when(cbServerProperties.getDiscussionEsDefaultPageSize()).thenReturn(10);
         when(cbServerProperties.getFilterCriteriaForGlobalFeed()).thenReturn("{\"requestedFields\":[],\"filterCriteriaMap\":{}}");
 
@@ -3799,4 +3798,127 @@ class DiscussionServiceImplTest {
         verifyNoMoreInteractions(notificationTriggerService);
     }
 
+    @Test
+    void testInit_storageServiceNull_shouldInitialize() {
+        // Arrange
+        DiscussionServiceImpl service = new DiscussionServiceImpl(
+                payloadValidation, discussionRepository, cacheService, esUtilService, cbServerProperties,
+                redisTemplate, objectMapper, cassandraOperation, accessTokenValidator, communityEngagementRepository,
+                producer, discussionAnswerPostReplyRepository, notificationTriggerService, helperMethodService, discussionServiceUtil
+        );
+        ReflectionTestUtils.setField(service, "storageService", null);
+        Mockito.when(cbServerProperties.getCloudStorageTypeName()).thenReturn("type");
+        Mockito.when(cbServerProperties.getCloudStorageKey()).thenReturn("key");
+        Mockito.when(cbServerProperties.getCloudStorageSecret()).thenReturn("secret");
+        Mockito.when(cbServerProperties.getCloudStorageEndpoint()).thenReturn("endpoint");
+        try (MockedStatic<StorageServiceFactory> mockedFactory = Mockito.mockStatic(StorageServiceFactory.class)) {
+            mockedFactory.when(() -> StorageServiceFactory.getStorageService(Mockito.any())).thenReturn(baseStorageService);
+            // Act
+            service.init();
+            // Assert
+            Assertions.assertNotNull(ReflectionTestUtils.getField(service, "storageService"));
+        }
+    }
+
+    @Test
+    void testVote_isAnswerReplyPath() {
+        // Arrange
+        String replyId = "reply-123";
+        String replyType = Constants.ANSWER_POST_REPLY;
+        // Use class-level token and userId to avoid shadowing
+
+        // Mock token validation
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock DiscussionAnswerPostReplyEntity
+        DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
+        ObjectNode dataNode = new ObjectMapper().createObjectNode();
+        dataNode.put(Constants.TYPE, replyType);
+        dataNode.put(Constants.COMMUNITY_ID, "community-1");
+        replyEntity.setData(dataNode);
+        replyEntity.setIsActive(true);
+        replyEntity.setIsProfane(false);
+        replyEntity.setDiscussionId(replyId);
+        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(replyEntity));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(HashMap.class)))
+                .thenReturn(new HashMap<>(Map.of(Constants.TYPE, replyType, Constants.COMMUNITY_ID, "community-1", Constants.UP_VOTE_COUNT, 0L)));
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+        ApiResponse insertResponse = new ApiResponse();
+        insertResponse.setResult(Map.of(Constants.RESPONSE, Constants.SUCCESS));
+        when(cassandraOperation.insertRecord(any(), any(), any())).thenReturn(insertResponse);
+        when(cbServerProperties.getCommunityLikeCount()).thenReturn("like-topic");
+        when(objectMapper.valueToTree(any())).thenReturn(dataNode);
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion-entity");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("/path");
+
+        // Act
+        ApiResponse response = new DiscussionServiceImpl(
+                payloadValidation, discussionRepository, cacheService, esUtilService, cbServerProperties,
+                redisTemplate, objectMapper, cassandraOperation, accessTokenValidator, communityEngagementRepository,
+                producer, discussionAnswerPostReplyRepository, notificationTriggerService, helperMethodService, discussionServiceUtil
+        ).upVote(replyId, replyType, token);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testVote_notificationTryCatchBlock() {
+        // Arrange
+        String replyId = "reply-456";
+        String replyType = Constants.ANSWER_POST_REPLY;
+        // Use class-level token and userId
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock DiscussionAnswerPostReplyEntity
+        DiscussionAnswerPostReplyEntity replyEntity = new DiscussionAnswerPostReplyEntity();
+        ObjectNode dataNode = new ObjectMapper().createObjectNode();
+        dataNode.put(Constants.TYPE, replyType);
+        dataNode.put(Constants.COMMUNITY_ID, "community-1");
+        dataNode.put(Constants.CREATED_BY, "creator-1");
+        dataNode.put(Constants.PARENT_DISCUSSION_ID, "parent-discussion-1");
+        replyEntity.setData(dataNode);
+        replyEntity.setIsActive(true);
+        replyEntity.setIsProfane(false);
+        replyEntity.setDiscussionId(replyId);
+        when(discussionAnswerPostReplyRepository.findById(replyId)).thenReturn(Optional.of(replyEntity));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(HashMap.class)))
+                .thenReturn(new HashMap<>(Map.of(
+                        Constants.TYPE, replyType,
+                        Constants.COMMUNITY_ID, "community-1",
+                        Constants.UP_VOTE_COUNT, 0L,
+                        Constants.PARENT_DISCUSSION_ID, "parent-discussion-1"
+                )));
+        when(cassandraOperation.getRecordsByProperties(any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+        ApiResponse insertResponse = new ApiResponse();
+        insertResponse.setResult(Map.of(Constants.RESPONSE, Constants.SUCCESS));
+        when(cassandraOperation.insertRecord(any(), any(), any())).thenReturn(insertResponse);
+        when(cbServerProperties.getCommunityLikeCount()).thenReturn("like-topic");
+        when(objectMapper.valueToTree(any())).thenReturn(dataNode);
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussion-entity");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("/path");
+        // Mock helperMethodService and notificationTriggerService
+        when(helperMethodService.fetchUserFirstName(userId)).thenReturn("TestUser");
+        doNothing().when(notificationTriggerService).triggerNotification(
+                eq(Constants.REPLIED_POST), eq(Constants.ENGAGEMENT), anyList(), eq(Constants.TITLE), eq("TestUser"), anyMap()
+        );
+
+        // Act
+        ApiResponse response = new DiscussionServiceImpl(
+                payloadValidation, discussionRepository, cacheService, esUtilService, cbServerProperties,
+                redisTemplate, objectMapper, cassandraOperation, accessTokenValidator, communityEngagementRepository,
+                producer, discussionAnswerPostReplyRepository, notificationTriggerService, helperMethodService, discussionServiceUtil
+        ).upVote(replyId, replyType, token);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        // Verify notification was triggered
+        verify(notificationTriggerService).triggerNotification(
+                eq(Constants.REPLIED_POST), eq(Constants.ENGAGEMENT), anyList(), eq(Constants.TITLE), eq("TestUser"), anyMap()
+        );
+    }
 }
