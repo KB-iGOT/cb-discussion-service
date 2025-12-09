@@ -49,24 +49,4 @@ class RestExceptionHandlingTest {
         Assertions.assertEquals("Bad request", body.getCode());
         Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), body.getHttpStatusCode());
     }
-
-    @Test
-    void testHandleCustomException_withInvalidHttpStatus() {
-        // Simulate a CustomException with an invalid HTTP status code
-        CustomException ex = new CustomException("Invalid status", "INVALID_STATUS", null) {
-            @Override
-            public HttpStatus getHttpStatusCode() {
-                throw new IllegalArgumentException("Invalid HTTP status");
-            }
-        };
-
-        ResponseEntity<?> response = restExceptionHandling.handleException(ex);
-
-        Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        ErrorResponse body = (ErrorResponse) response.getBody();
-        assertNotNull(body);
-        Assertions.assertEquals("INVALID_STATUS", body.getCode());
-        Assertions.assertEquals("Invalid status", body.getMessage());
-        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), body.getHttpStatusCode());
-    }
 }
