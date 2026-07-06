@@ -124,4 +124,52 @@ public class CbServerProperties {
   @Value("${redis.scan.count.size}")
   private int redisScanCountSize;
 
+  @Value("${max.rate.answerpost.by.user:100}")
+  private int maxRateAnswerPostByUser;
+
+  @Value("${rate.limit.answerpost.ttl.seconds:3600}")
+  private long rateLimitAnswerPostTtlSeconds;
+
+  @Value("${max.rate.discussion.create.by.user:100}")
+  private int maxRateDiscussionCreateByUser;
+
+  @Value("${rate.limit.discussion.create.ttl.seconds:3600}")
+  private long rateLimitDiscussionCreateTtlSeconds;
+
+  @Value("${max.rate.discussion.update.by.user:100}")
+  private int maxRateDiscussionUpdateByUser;
+
+  @Value("${rate.limit.discussion.update.ttl.seconds:3600}")
+  private long rateLimitDiscussionUpdateTtlSeconds;
+
+  @Value("${max.rate.answerpost.update.by.user:100}")
+  private int maxRateAnswerPostUpdateByUser;
+
+  @Value("${rate.limit.answerpost.update.ttl.seconds:3600}")
+  private long rateLimitAnswerPostUpdateTtlSeconds;
+
+  @Value("${max.rate.answerpostreply.create.by.user:100}")
+  private int maxRateAnswerPostReplyCreateByUser;
+
+  @Value("${rate.limit.answerpostreply.create.ttl.seconds:3600}")
+  private long rateLimitAnswerPostReplyCreateTtlSeconds;
+
+  @Value("${max.rate.answerpostreply.update.by.user:100}")
+  private int maxRateAnswerPostReplyUpdateByUser;
+
+  @Value("${rate.limit.answerpostreply.update.ttl.seconds:3600}")
+  private long rateLimitAnswerPostReplyUpdateTtlSeconds;
+
+  @Value("${max.rate.upvote.by.user:200}")
+  private int maxRateUpVoteByUser;
+
+  @Value("${rate.limit.upvote.ttl.seconds:3600}")
+  private long rateLimitUpVoteTtlSeconds;
+
+  @Value("${max.rate.downvote.by.user:200}")
+  private int maxRateDownVoteByUser;
+
+  @Value("${rate.limit.downvote.ttl.seconds:3600}")
+  private long rateLimitDownVoteTtlSeconds;
+
 }

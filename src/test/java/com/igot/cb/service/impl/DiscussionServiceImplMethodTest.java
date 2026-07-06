@@ -2,6 +2,7 @@ package com.igot.cb.service.impl;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.util.ApiResponse;
@@ -49,6 +50,9 @@ class DiscussionServiceImplMethodTest {
     @Mock
     private CassandraOperationImpl cassandraOperation;
 
+    @Mock
+    private RateLimitingService rateLimitingService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -61,6 +65,8 @@ class DiscussionServiceImplMethodTest {
         // Inject mocks
         setField(discussionService, "cbServerProperties", cbServerProperties);
         setField(discussionService, "objectMapper", objectMapper);
+        setField(discussionService, "rateLimitingService", rateLimitingService);
+        lenient().when(rateLimitingService.isRateLimitExceeded(anyString(), anyString(), anyInt())).thenReturn(false);
 
         // Inject the mock connectionManager into the real instance
         ReflectionTestUtils.setField(cassandraOperation, "connectionManager", connectionManager);

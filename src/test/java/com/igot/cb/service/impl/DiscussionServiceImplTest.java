@@ -14,6 +14,7 @@ import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.CommunityEngagementRepository;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
@@ -108,6 +109,9 @@ class DiscussionServiceImplTest {
     private HelperMethodService helperMethodService;
 
     @Mock
+    private RateLimitingService rateLimitingService;
+
+    @Mock
     private ObjectMapper objectMapper; // mock
     private final String discussionId = "discussionId";
     private final String token = "validToken";
@@ -173,6 +177,10 @@ class DiscussionServiceImplTest {
         ReflectionTestUtils.setField(discussionService, "producer", producer);
         ReflectionTestUtils.setField(discussionService, "requestHandlerService", requestHandlerService);
         ReflectionTestUtils.setField(discussionService, "storageService", baseStorageService);
+        ReflectionTestUtils.setField(discussionService, "rateLimitingService", rateLimitingService);
+
+        lenient().when(rateLimitingService.isRateLimitExceeded(anyString())).thenReturn(false);
+        lenient().when(rateLimitingService.isRateLimitExceeded(anyString(), anyString(), anyInt())).thenReturn(false);
 
         // Mock static factory method
         try (MockedStatic<StorageServiceFactory> mockedFactory = Mockito.mockStatic(StorageServiceFactory.class)) {
@@ -1224,6 +1232,62 @@ class DiscussionServiceImplTest {
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.FAILED_TO_CREATE_ANSWER_POST, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void test_createAnswerPost_rateLimitExceeded() {
+        // Arrange
+        String communityId = "validCommunityId";
+        String parentDiscussionId = "validParentDiscussionId";
+
+        ObjectNode answerPostData = new ObjectMapper().createObjectNode();
+        answerPostData.put(Constants.PARENT_DISCUSSION_ID, parentDiscussionId);
+        answerPostData.put(Constants.COMMUNITY_ID, communityId);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(rateLimitingService.isRateLimitExceeded(userId)).thenReturn(true);
+
+        // Act
+        ApiResponse response = discussionService.createAnswerPost(answerPostData, token);
+
+        // Assert
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getResponseCode());
+        assertEquals(Constants.RATE_LIMIT_EXCEEDED, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void test_createAnswerPost_rateLimitPass_incrementsCounter() {
+        // Arrange
+        String communityId = "validCommunityId";
+        String parentDiscussionId = "validParentDiscussionId";
+
+        ObjectNode answerPostData = new ObjectMapper().createObjectNode();
+        answerPostData.put(Constants.PARENT_DISCUSSION_ID, parentDiscussionId);
+        answerPostData.put(Constants.COMMUNITY_ID, communityId);
+
+        DiscussionEntity parentDiscussion = new DiscussionEntity();
+        parentDiscussion.setIsActive(true);
+        ObjectNode parentData = new ObjectMapper().createObjectNode();
+        parentData.put(Constants.TYPE, "question");
+        parentData.put(Constants.STATUS, "active");
+        parentData.put(Constants.COMMUNITY_ID, communityId);
+        parentDiscussion.setData(parentData);
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(rateLimitingService.isRateLimitExceeded(userId)).thenReturn(false);
+        when(discussionRepository.findById(parentDiscussionId)).thenReturn(Optional.of(parentDiscussion));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(anyString(), anyString(), anyMap(), anyList(), any()))
+                .thenReturn(Collections.singletonList(Collections.singletonMap(Constants.STATUS, true)));
+        when(objectMapper.createObjectNode()).thenReturn(new ObjectMapper().createObjectNode());
+        when(discussionRepository.save(any(DiscussionEntity.class))).thenReturn(new DiscussionEntity());
+        when(cbServerProperties.getDiscussionEntity()).thenReturn("discussionEntity");
+        when(cbServerProperties.getElasticDiscussionJsonPath()).thenReturn("elasticPath");
+
+        // Act
+        discussionService.createAnswerPost(answerPostData, token);
+
+        // Assert
+        verify(rateLimitingService, times(1)).incrementAnswerPostCount(userId);
     }
 
     /**
