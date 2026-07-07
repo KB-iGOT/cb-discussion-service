@@ -17,6 +17,7 @@ import com.igot.cb.discussion.repository.CommunityEngagementRepository;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.DiscussionService;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.metrics.service.ApiMetricsTracker;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
@@ -108,6 +109,9 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
 
+    @Autowired
+    private RateLimitingService rateLimitingService;
+
     @PostConstruct
     public void init() {
         if (storageService == null) {
@@ -130,6 +134,10 @@ public class DiscussionServiceImpl implements DiscussionService {
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
             response.getParams().setErrMsg(Constants.INVALID_AUTH_TOKEN);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        if (rateLimitingService.isRateLimitExceeded(userId, "discussion_create", cbServerProperties.getMaxRateDiscussionCreateByUser())) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
             return response;
         }
         if (!validateCommunityId(discussionDetails.get(Constants.COMMUNITY_ID).asText())) {
@@ -184,6 +192,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             long postgresTime = System.currentTimeMillis();
             DiscussionEntity saveJsonEntity = discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.INSERT, postgresTime);
+            rateLimitingService.incrementCount(userId, "discussion_create", cbServerProperties.getRateLimitDiscussionCreateTtlSeconds());
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(discussionDetailsNode);
             Map<String, Object> discussionPostDetailsMap = objectMapper.convertValue(discussionDetailsNode, Map.class);
@@ -317,6 +326,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
         }
+        if (rateLimitingService.isRateLimitExceeded(userId, "discussion_update", cbServerProperties.getMaxRateDiscussionUpdateByUser())) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
+            return response;
+        }
         try {
             updateMetricsApiCall(Constants.DISCUSSION_UPDATE);
             String discussionId = updateData.get(Constants.DISCUSSION_ID).asText();
@@ -379,6 +392,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             long postgresInsertTime = System.currentTimeMillis();
             discussionRepository.save(discussionDbData);
             updateMetricsDbOperation(Constants.DISCUSSION_CREATE, Constants.POSTGRES, Constants.UPDATE_KEY, postgresInsertTime);
+            rateLimitingService.incrementCount(userId, "discussion_update", cbServerProperties.getRateLimitDiscussionUpdateTtlSeconds());
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);
 
@@ -610,6 +624,15 @@ public class DiscussionServiceImpl implements DiscussionService {
                 DiscussionServiceUtil.createErrorResponse(response, Constants.INVALID_AUTH_TOKEN, HttpStatus.BAD_REQUEST, Constants.FAILED);
                 return response;
             }
+            boolean isUpVoteType = Constants.UP.equals(voteType);
+            String featureKey = isUpVoteType ? "upvote" : "downvote";
+            int limit = isUpVoteType ? cbServerProperties.getMaxRateUpVoteByUser() : cbServerProperties.getMaxRateDownVoteByUser();
+            long ttlSeconds = isUpVoteType ? cbServerProperties.getRateLimitUpVoteTtlSeconds() : cbServerProperties.getRateLimitDownVoteTtlSeconds();
+
+            if (rateLimitingService.isRateLimitExceeded(userId, featureKey, limit)) {
+                DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
+                return response;
+            }
 
             boolean isAnswerReply = Constants.ANSWER_POST_REPLY.equals(type);
             Object entityObject = isAnswerReply
@@ -719,6 +742,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 discussionEntity.setData(updatedData);
                 discussionRepository.save(discussionEntity);
             }
+            rateLimitingService.incrementCount(userId, featureKey, ttlSeconds);
 
             esUtilService.updateDocument(cbServerProperties.getDiscussionEntity(), discussionId, discussionData, cbServerProperties.getElasticDiscussionJsonPath());
             cacheService.putCache(Constants.DISCUSSION_CACHE_PREFIX + discussionId, discussionData);
@@ -869,6 +893,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
         }
+        if (rateLimitingService.isRateLimitExceeded(userId)) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
+            return response;
+        }
         updateMetricsApiCall(Constants.DISCUSSION_ANSWER_POST);
         long postgresTime = System.currentTimeMillis();
         DiscussionEntity discussionEntity = discussionRepository.findById(answerPostData.get(Constants.PARENT_DISCUSSION_ID).asText()).orElse(null);
@@ -938,6 +966,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             long timer = System.currentTimeMillis();
             discussionRepository.save(jsonNodeEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.INSERT, timer);
+            rateLimitingService.incrementAnswerPostCount(userId);
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(answerPostDataNode);
@@ -1363,6 +1392,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
         }
+        if (rateLimitingService.isRateLimitExceeded(userId, "answerpost_update", cbServerProperties.getMaxRateAnswerPostUpdateByUser())) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
+            return response;
+        }
         updateMetricsApiCall(Constants.DISCUSSION_ANSWER_POST);
         long redisTimer = System.currentTimeMillis();
         DiscussionEntity discussionEntity = discussionRepository.findById(answerPostData.get(Constants.ANSWER_POST_ID).asText()).orElse(null);
@@ -1416,6 +1449,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             long timer = System.currentTimeMillis();
             discussionRepository.save(discussionEntity);
             updateMetricsDbOperation(Constants.DISCUSSION_ANSWER_POST, Constants.POSTGRES, Constants.UPDATE, timer);
+            rateLimitingService.incrementCount(userId, "answerpost_update", cbServerProperties.getRateLimitAnswerPostUpdateTtlSeconds());
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);

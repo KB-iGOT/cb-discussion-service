@@ -12,6 +12,7 @@ import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
 import com.igot.cb.discussion.service.AnswerPostReplyService;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
 import com.igot.cb.pores.cache.CacheService;
@@ -82,6 +83,9 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
     @Autowired
     private DiscussionServiceUtil discussionServiceUtil;
 
+    @Autowired
+    private RateLimitingService rateLimitingService;
+
     @Override
     public ApiResponse createAnswerPostReply(JsonNode answerPostDataReplyData, String token) {
         log.info("DiscussionService::createAnswerPostReply:creating answerPostReply");
@@ -91,6 +95,10 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
         if (StringUtils.isBlank(userId) || userId.equals(Constants.UNAUTHORIZED)) {
             response.getParams().setErrMsg(Constants.INVALID_AUTH_TOKEN);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        if (rateLimitingService.isRateLimitExceeded(userId, "answerpostreply_create", cbServerProperties.getMaxRateAnswerPostReplyCreateByUser())) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
             return response;
         }
         DiscussionEntity discussionEntity = discussionRepository.findById(answerPostDataReplyData.get(Constants.PARENT_ANSWER_POST_ID).asText()).orElse(null);
@@ -157,6 +165,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             jsonNodeEntity.setUpdatedOn(currentTime);
             jsonNodeEntity.setIsProfane(false);
             discussionAnswerPostReplyRepository.save(jsonNodeEntity);
+            rateLimitingService.incrementCount(userId, "answerpostreply_create", cbServerProperties.getRateLimitAnswerPostReplyCreateTtlSeconds());
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(answerPostReplyDataNode);
@@ -385,6 +394,10 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
         }
+        if (rateLimitingService.isRateLimitExceeded(userId, "answerpostreply_update", cbServerProperties.getMaxRateAnswerPostReplyUpdateByUser())) {
+            DiscussionServiceUtil.createErrorResponse(response, Constants.RATE_LIMIT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS, Constants.FAILED);
+            return response;
+        }
 
         DiscussionAnswerPostReplyEntity discussionAnswerPostReplyEntity = discussionAnswerPostReplyRepository.findById(answerPostReplyData.get(Constants.ANSWER_POST_REPLY_ID).asText()).orElse(null);
         if (discussionAnswerPostReplyEntity == null || !discussionAnswerPostReplyEntity.getIsActive()) {
@@ -435,6 +448,7 @@ public class AnswerPostReplyServiceImpl implements AnswerPostReplyService {
             discussionAnswerPostReplyEntity.setData(data);
             discussionAnswerPostReplyEntity.setIsProfane(false);
             discussionAnswerPostReplyRepository.save(discussionAnswerPostReplyEntity);
+            rateLimitingService.incrementCount(userId, "answerpostreply_update", cbServerProperties.getRateLimitAnswerPostReplyUpdateTtlSeconds());
 
             ObjectNode jsonNode = objectMapper.createObjectNode();
             jsonNode.setAll(data);

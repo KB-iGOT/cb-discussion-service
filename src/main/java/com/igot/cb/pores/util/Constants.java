@@ -110,6 +110,7 @@ public class Constants {
     public static final String DEPARTMENT = "department";
     public static final String PARENT_DISCUSSION_ID = "parentDiscussionId";
     public static final String FAILED_TO_CREATE_ANSWER_POST = "Failed to create the answer post";
+    public static final String RATE_LIMIT_EXCEEDED = "Rate limit exceeded for creating answer posts";
     public static final String INVALID_PARENT_DISCUSSION_ID = "invalid Parent Discussion Id Please provide a valid discussion id";
     public static final String ANSWER_POST = "answerPost";
     public static final String ANSWER_POST_COUNT = "answerPostCount";

@@ -10,6 +10,8 @@ import com.igot.cb.discussion.entity.DiscussionAnswerPostReplyEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.DiscussionAnswerPostReplyRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
+import com.igot.cb.discussion.service.AnswerPostReplyService;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.discussion.service.impl.AnswerPostReplyServiceImpl;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
@@ -68,6 +70,7 @@ class AnswerPostReplyServiceImplTest {
     @Mock private Producer producer;
     @Mock private DiscussionServiceUtil discussionServiceUtil;
     @Mock private Cursor<String> cursor;
+    @Mock private RateLimitingService rateLimitingService;
 
     @Mock
     private ObjectNode mockObjectNode;
@@ -90,7 +93,10 @@ class AnswerPostReplyServiceImplTest {
         objectMapperField.setAccessible(true);
         objectMapperField.set(service, objectMapper);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
+        ReflectionTestUtils.setField(service, "rateLimitingService", rateLimitingService);
         discussionServiceUtil = new DiscussionServiceUtil(cbServerProperties);
+        
+        lenient().when(rateLimitingService.isRateLimitExceeded(anyString(), anyString(), anyInt())).thenReturn(false);
     }
 
     private JsonNode buildValidPayload() {
@@ -205,6 +211,19 @@ class AnswerPostReplyServiceImplTest {
         ApiResponse response = service.createAnswerPostReply(payload, token);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+    }
+
+    @Test
+    void testCreateAnswerPostReply_rateLimitExceeded() {
+        JsonNode payload = buildValidPayload();
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(rateLimitingService.isRateLimitExceeded(eq(userId), eq("answerpostreply_create"), anyInt())).thenReturn(true);
+
+        ApiResponse response = service.createAnswerPostReply(payload, token);
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getResponseCode());
+        assertEquals(Constants.RATE_LIMIT_EXCEEDED, response.getParams().getErrMsg());
     }
 
     @Test

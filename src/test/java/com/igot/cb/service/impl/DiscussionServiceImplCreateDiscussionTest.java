@@ -9,6 +9,7 @@ import com.igot.cb.discussion.entity.CommunityEntity;
 import com.igot.cb.discussion.entity.DiscussionEntity;
 import com.igot.cb.discussion.repository.CommunityEngagementRepository;
 import com.igot.cb.discussion.repository.DiscussionRepository;
+import com.igot.cb.discussion.service.RateLimitingService;
 import com.igot.cb.discussion.service.impl.DiscussionServiceImpl;
 import com.igot.cb.notificationUtill.HelperMethodService;
 import com.igot.cb.notificationUtill.NotificationTriggerService;
@@ -69,6 +70,8 @@ class DiscussionServiceImplCreateDiscussionTest {
     private HelperMethodService helperMethodService;
     @Mock
     private IProfanityCheckService profanityCheckService;
+    @Mock
+    private RateLimitingService rateLimitingService;
 
     private final ObjectMapper realObjectMapper = new ObjectMapper();
     private final String validToken = "validToken";
@@ -78,6 +81,7 @@ class DiscussionServiceImplCreateDiscussionTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(discussionService, "objectMapper", objectMapper);
+        lenient().when(rateLimitingService.isRateLimitExceeded(anyString(), anyString(), anyInt())).thenReturn(false);
     }
 
     @Test
